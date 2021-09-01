@@ -9,7 +9,7 @@ import csv
 configfile: "snakemake_config.yaml"
 
 
-def get_tissue_id():
+def get_tissue_name():
     """
     Looking to return the base filename from the controls/init_files
     Example:
@@ -19,14 +19,14 @@ def get_tissue_id():
     We would return: ["naiveB", "naiveB"]
     :return:
     """
-    id_data = []
+    tissue_data = []
     with open(config["MASTER_INIT"], "r") as rfile:
         reader = csv.reader(rfile)
         for line in reader:
             id = line[1].split("_")[0]  # naiveB_S1R1 -> naiveB
-            id_data.append(id)
+            tissue_data.append(id)
 
-    return id_data
+    return tissue_data
 
 def get_tag_data():
     """
@@ -42,35 +42,39 @@ def get_tag_data():
         for line in reader:
             tag = line[1].split("_")[-1]
             tag_data.append(tag)  # example: S1R1
+
     return tag_data
 
 
 rule master:
     input:
-        # distributing init files
-        expand(os.path.join(config["ROOTDIR"], "controls", "init_files", "{tissue_name}_{tag}.csv"), zip, tissue_name=get_tissue_id(), tag=get_tag_data()),
+        # Distribute and download fastq
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw"),tissue_name=get_tissue_name())
 
-        # downloading fastq
-        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw"), tissue_name=get_tissue_id())
 
 
 rule distribute_init_files:
-    input: config["MASTER_INIT"]
-    output: expand(os.path.join(config["ROOTDIR"], "controls", "init_files", "{{tissue_name}}_{tag}.csv"), tag=get_tag_data())
+    input: config["MASTER_CONTROL"]
+    output: temp(os.path.join(config["ROOTDIR"], "controls", "init_files", "{tissue_name}_{tag}.csv"))
+    params:
+        id = "{tissue_name}_{tag}"
+    # output: os.path.join(config["ROOTDIR"], "controls", "init_files", "{tissue_name}_{tag}.csv")
     run:
-        with open(str(input)) as rfile:
-            reader = csv.reader(rfile)
-            for row in reader:
+        # Get lines in master control file
+        lines = open(str(input), "r").readlines()
 
-                id = row[1]
-                for output in str(output).split():
-                    if id in str(output):
-                        with open(str(output),'w',newline='') as wfile:
-                            writer = csv.writer(wfile,delimiter=',',quotechar="|",quoting=csv.QUOTE_MINIMAL)
-                            writer.writerow(row)
+        # Open output for writing
+        wfile = open(str(output), "w")
+
+        for line in lines:
+            line = line.rstrip()  # remove trailing newline
+
+            # Only write line if the output file has the current tissue-name_tag (naiveB_S1R1) in the file name
+            if params.id in line:
+                wfile.write(line)
 
 rule download_fastq:
-    input: rules.distribute_init_files.output
+    input: expand(rules.distribute_init_files.output, tag=get_tag_data(), allow_missing=True)
     output: directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw"))
     shell:
         """
