@@ -61,9 +61,8 @@ rule distribute_init_files:
     # output: os.path.join(config["ROOTDIR"], "controls", "init_files", "{tissue_name}_{tag}.csv")
     run:
         # Get lines in master control file
-        lines = open(str(input), "r").readlines()
-
         # Open output for writing
+        lines = open(str(input), "r").readlines()
         wfile = open(str(output), "w")
 
         for line in lines:
@@ -72,6 +71,8 @@ rule distribute_init_files:
             # Only write line if the output file has the current tissue-name_tag (naiveB_S1R1) in the file name
             if params.id in line:
                 wfile.write(line)
+
+        wfile.close()
 
 rule download_fastq:
     input: expand(rules.distribute_init_files.output, tag=get_tag_data(), allow_missing=True)
