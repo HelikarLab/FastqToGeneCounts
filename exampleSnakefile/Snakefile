@@ -35,8 +35,7 @@ rule all:
     input:
         # Download fastq
         # Only request output for rule download_fastq because other outputs are temporary
-        expand(os.path.join("some_new_output","{tissue_name}"), tissue_name=get_tissue_name())
-
+        expand(os.path.join("some_new_output", "{tissue_name}"), tissue_name=get_direction)
 
 rule distribute:
     input: "master_init.csv"
