@@ -1,2 +1,18 @@
 MASTER_CONTROL: "controls/master_control.csv"
 ROOTDIR: ""
+
+PERFORM_TRIM: "True"  # "True" or "False"
+
+STAR:
+  GENERATE_GENOME:
+    RUN_MODE: "generateGenome"
+    GENOME_DIR: "genome/star"
+    GENOME_FASTA_FILE: "genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
+    GTF_FILE: "genome/Homo_sapiens.GRCh38.104.gtf"
+    OVERHANG: 99
+  ALIGN_READS:
+    READ_COMMAND: "zcat"
+    OUT_SAM_TYPE: "BAM SortedByCoordinate"
+    OUT_SAM_UNMAPPED: "Within"
+    OUT_SAM_ATTRIBUTES: "Standard"
+    QUANT_MODE: "GeneCounts"
