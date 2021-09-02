@@ -1,5 +1,5 @@
 MASTER_CONTROL: "controls/master_control.csv"
-ROOTDIR: ""
+ROOTDIR: "results"
 
 PERFORM_TRIM: "True"  # "True" or "False"
 

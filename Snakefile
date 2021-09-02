@@ -19,11 +19,19 @@ def get_tissue_name():
     :return:
     """
     tissue_data = []
+
     with open(config["MASTER_CONTROL"], "r") as rfile:
         reader = csv.reader(rfile)
-        for line in reader:
+        for i, line in enumerate(reader):
             id = line[1].split("_")[0]  # naiveB_S1R1 -> naiveB
-            tissue_data.append(id)
+            pe_se = line[2]
+
+            # append tissue name twice of paired end, allows for naming "_1" and "_2"
+            if pe_se == "PE":
+                tissue_data.append(id)
+                tissue_data.append(id)
+            elif pe_se == "SE":
+                tissue_data.append(id)
 
     return tissue_data
 
@@ -38,10 +46,16 @@ def get_tag_data():
     tag_data = []
     with open(config["MASTER_CONTROL"], "r") as rfile:
         reader = csv.reader(rfile)
-        for line in reader:
+        for i, line in enumerate(reader):
             tag = line[1].split("_")[-1]
-            tag_data.append(tag)  # example: S1R1
+            pe_se = line[2]
 
+            # append tag twice for paired end, allows for naming "_1" and "_2"
+            if pe_se == "PE":
+                tag_data.append(tag)
+                tag_data.append(tag)
+            elif pe_se == "SE":
+                tag_data.append(tag)
     return tag_data
 
 def get_srr_data():
@@ -60,10 +74,16 @@ def get_srr_data():
         reader = csv.reader(rfile)
         for line in reader:
             srr = line[0]
-            srr_data.append(srr)
+            pe_se = line[2]
+
+            if pe_se == "PE":
+                srr_data.append(srr)
+                srr_data.append(srr)
+            elif pe_se == "SE":
+                srr_data.append(srr)
     return srr_data
 
-def PE_SE_Data():
+def get_PE_SE_Data():
     """
     This function will read from the config[MASTER_CONTROL] file and return the paired_end or single_end variable
     Example:
@@ -71,7 +91,8 @@ def PE_SE_Data():
             SRR14231328,naiveB_S1R1,PE
             SRR14231329,naiveB_S1R2,SE
         output:
-            ["PE", "SE"]
+            ["_1", "_2", "_s"]
+            # PE,   PE,   SE
     :return:
     """
     pe_se_data = []
@@ -79,46 +100,20 @@ def PE_SE_Data():
         reader = csv.reader(rfile)
         for line in reader:
             pe_se = line[2]
-            pe_se_data.append(pe_se)
+            if pe_se == "PE":
+                pe_se_data.append("1")
+                pe_se_data.append("2")
+            elif pe_se == "SE":
+                pe_se_data.append("S")
     return pe_se_data
 
-def get_fastq_direction(wildcards):
-    """
-    Generate a list of names for rule rename_srr to use as output
-    Paired end reads will have two files with _1 & _2 appended to the file name
-    Single end reads will have one file with _1 appended to the name
-    :return: List of strings containing "_1" and "_2" as values
-    """
-    dump_fastq_data = checkpoints.dump_fastq.get(**wildcards).output
-    print(dump_fastq_data)
-    # dump_fastq_data = set(expand(rules.dump_fastq.output.data, tissue_name=get_tissue_name()))
-    direction_data = []
-
-    for folder in dump_fastq_data:
-        fastq_files = sorted([file for file in os.listdir(folder)])
-        for i, file in enumerate(fastq_files):
-            name = file.split("_")[0]
-
-            # Check if we are currently looking at the forward paired-end read
-            if f"{name}_2.fastq.gz" == fastq_files[i+1]:
-                direction_data.append("_1")
-
-            # Check if we are currently looking at the reverse paired-end read
-            elif "_2" in file:
-                direction_data.append("_2")
-
-            # Add "_1" because we are looking at a single end read
-            else:
-                direction_data.append("_1")
-
-    print(direction_data)
-    return direction_data
 
 rule all:
     input:
-        # Rename SRR
-        # distribute_init_files, prefetch_fastq, and dump_fastq's output are marked as temp()
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}{direction}.fastq.gz"), tissue_name=get_tissue_name(), tag=get_tag_data(), direction=get_fastq_direction())
+        # distribute init files
+        expand(os.path.join(config["ROOTDIR"],"controls","init_files","{tissue_name}_{tag}.csv"), tissue_name=get_tissue_name(), tag=get_tag_data()),
+        # dump_fastq
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
 
 
 rule generate_genome:
@@ -126,8 +121,8 @@ rule generate_genome:
         genome_fasta_file = config["STAR"]["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
         gtf_file = config["STAR"]["GENERATE_GENOME"]["GTF_FILE"]
     output:
-        genome_dir = directory(config["STAR"]["GENERATE_GENOME"]["GENOME_DIR"]),
-        rule_complete = touch(os.path.join("temp", "rule_complete", "generate_genome.complete"))
+        genome_dir = directory(os.path.join(config["ROOTDIR"], config["STAR"]["GENERATE_GENOME"]["GENOME_DIR"])),
+        rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete"))
     threads: workflow.cores * 0.35
     params:
         run_mode = config["STAR"]["GENERATE_GENOME"]["RUN_MODE"],
@@ -165,39 +160,47 @@ rule distribute_init_files:
 rule prefetch_fastq:
     input: rules.distribute_init_files.output
     output:
-        data = temp(directory(os.path.join("temp", "prefetch", "{tissue_name}_{tag}/"))),
-        rule_complete = touch(os.path.join("temp", "rule_complete", "prefetch_{tissue_name}_{tag}.complete"))
-    params:
-        id = "{tissue_name}_{tag}"
+        data = os.path.join(config["ROOTDIR"], "temp", "prefetch", "{tissue_name}_{tag}", "{srr_code}", "{srr_code}.sra")
     shell:
         """
         module load SRAtoolkit
+        echo "Working on SRA {wildcards.srr_code}"
+        
         IFS=","
         while read srr name endtype; do
-            prefetch $srr --output-directory {output.data}
+            prefetch $srr --output-file {output.data}
         done < {input}
         """
 
-checkpoint dump_fastq:
+rule dump_fastq:
     input:
-        prefetch_data = expand(rules.prefetch_fastq.output.data, tag=get_tag_data(), allow_missing=True),
-        prefetch_data_complete = expand(rules.prefetch_fastq.output.rule_complete, tag=get_tag_data(), allow_missing=True)
+        data = expand(rules.prefetch_fastq.output.data, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data(), allow_missing=True)
     output:
-        data = temp(directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw_temp"))),
-        rule_complete = touch(os.path.join("temp", "rule_complete", "dump_fastq_{tissue_name}.complete"))
+        data = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
     threads: workflow.cores * 0.9  # max threads
     params:
-        srr_ids = get_srr_data()
+        outdir = os.path.join("data", "{tissue_name}", "raw_temp")
     shell:
         """
         module load parallel-fastq-dump
-        parallel-fastq-dump \
-        --split-files \
-        --gzip \
-        --sra-id {params.srr_ids} \
-        --threads {threads} \
-        --outdir {output}
+        echo {input.data}
         """
+
+"""
+module load parallel-fastq-dump
+        for srr in {params.srr_ids}; do
+            parallel-fastq-dump --sra-id $srr --outdir {params.outdir}
+            mv {params.outdir}/$srr {output.data}
+        done
+        
+    
+        # parallel-fastq-dump \
+        # --split-files \
+        # --gzip \
+        # --sra-id {params.srr_ids} \
+        # --threads {threads} \
+        # --outdir {params.outdir}
+"""
 
 """
 dump_fastq output: raw_temp/[SRR14231328_1.fastq.gz, SRR14231328_2.fastq.gz]
@@ -205,52 +208,49 @@ May need to have a function to get filenames from dump_fastq, and return a list 
 Exmaple:
     input: 
 """
-# TODO: Remove 'echo' below
-def rename_srr_input(wildcards):
-    checkpoint_output = checkpoints.dump_fastq.get(**wildcards).output
-rule rename_srr:
-    input: rules.dump_fastq.output.data
-    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}{direction}.fastq.gz")
-    shell: """
-        for file in {input}/*; do
-            echo 'mv "$file" "{output}"'
-        done
-    """
+# rule rename_srr:
+#     input: get_fastq_direction
+#     output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}{direction}.fastq.gz")
+#     shell: """
+#         for file in {input}/*; do
+#             mv "$file" "{output}"
+#         done
+#     """
 
 """
 Trimming Plan
 Have trim pull each file from rename_srr
 Perform trimming on each file
 """
-if config["PERFORM_TRIM"]:
-    rule trim:
-               # os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw_temp", "Bulk_{PE_SE}")
-        input: expand(rules.dump_fastq.output.data, tissue_name=get_tissue_name(), PE_SE=PE_SE_Data())
-        output: directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads"))
-        shell: """
-            module load gnu-parallel # DOI https://doi.org/10.5281/zenodo.1146014
-            module load trim_galore  # trimGalore 10.5281/zenodo.5127898 
-                                     # Cutadapt DOI:10.14806/ej.17.1.200
-
-            for file in {input}; do                         # path/to/file/naiveB_S1R1_1.fq.gz
-                fold="$(dirname $file)"                     # path/to/file/
-                bfile="$(basename $file)"                   # naiveB_S1R1_1.fq.gz
-                bname=$(echo "bfile" | cut -f 1 -d '.')     # naiveB_S1R1_1 
-                tissue=$(echo "bfile" | cut -f 1 -d '_')    # naiveB
-                tag=$(echo "bfile" | cut -f 2 -d '_')       # S1R1
-                dir=$(echo "bfile" | cut -f 3 -d '_')       # 1  
-                if [ $dir -eq "2" ]; then   # skip over reverse reads completely
-                    continue         
-                elif [ -f "${{fold}}/{{tissue}}_{{tag}}_2.fq.gz" ]; then    # if reverse read exists do paired trim
-                    trim_galore --paired -o {config[ROOTDIR]}/data/{{tissue}}/trimmed_reads/ \
-                        "${{fold}}/{{tissue}}_{{tag}}_1.fq.gz" \
-                        "${{fold}}/{{tissue}}_{{tag}}_2.fq.gz"
-                else                                                        # single ended, no paired end argument
-                    trim_galore -o {config[ROOTDIR]}/data/{{tissue}}/trimmed_reads/ \
-                        "${{fold}}/{{tissue}}_{{tag}}_1.fq.gz"
-                fi
-            done
-            """
+# if config["PERFORM_TRIM"]:
+#     rule trim:
+#                # os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw_temp", "Bulk_{PE_SE}")
+#         input: expand(rules.dump_fastq.output.data, tissue_name=get_tissue_name(), PE_SE=get_PE_SE_Data())
+#         output: directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads"))
+#         shell: """
+#             module load gnu-parallel # DOI https://doi.org/10.5281/zenodo.1146014
+#             module load trim_galore  # trimGalore 10.5281/zenodo.5127898
+#                                      # Cutadapt DOI:10.14806/ej.17.1.200
+#
+#             for file in {input}; do                         # path/to/file/naiveB_S1R1_1.fastq.gz
+#                 fold="$(dirname $file)"                     # path/to/file/
+#                 bfile="$(basename $file)"                   # naiveB_S1R1_1.fastq.gz
+#                 bname=$(echo "bfile" | cut -f 1 -d '.')     # naiveB_S1R1_1
+#                 tissue=$(echo "bfile" | cut -f 1 -d '_')    # naiveB
+#                 tag=$(echo "bfile" | cut -f 2 -d '_')       # S1R1
+#                 dir=$(echo "bfile" | cut -f 3 -d '_')       # 1
+#                 if [ $dir -eq "2" ]; then   # skip over reverse reads completely
+#                     continue
+#                 elif [ -f "${{fold}}/{{tissue}}_{{tag}}_2.fastq.gz" ]; then    # if reverse read exists do paired trim
+#                     trim_galore --paired -o {config[ROOTDIR]}/data/{{tissue}}/trimmed_reads/ \
+#                         "${{fold}}/{{tissue}}_{{tag}}_1.fastq.gz" \
+#                         "${{fold}}/{{tissue}}_{{tag}}_2.fastq.gz"
+#                 else                                                        # single ended, no paired end argument
+#                     trim_galore -o {config[ROOTDIR]}/data/{{tissue}}/trimmed_reads/ \
+#                         "${{fold}}/{{tissue}}_{{tag}}_1.fastq.gz"
+#                 fi
+#             done
+#             """
 
 def collect_star_align_input(wildcards):
     if config["PERFORM_TRIM"]:
