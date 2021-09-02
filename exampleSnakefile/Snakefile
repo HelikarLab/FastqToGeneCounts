@@ -1,0 +1,86 @@
+import csv
+import os
+
+def get_tissue_name():
+    tissue_data = []
+    with open("master_init.csv", "r") as rfile:
+        reader = csv.reader(rfile)
+        for line in reader:
+            id = line[1].split("_")[0]  # naiveB_S1R1 -> naiveB
+            tissue_data.append(id)
+
+    return tissue_data
+
+
+def get_tag_data():
+    tag_data = []
+    with open("master_init.csv", "r") as rfile:
+        reader = csv.reader(rfile)
+        for line in reader:
+            tag = line[1].split("_")[-1]
+            tag_data.append(tag)  # example: S1R1
+
+    return tag_data
+
+def get_srr_data():
+    srr_data = []
+    with open("master_init.csv", "r") as rfile:
+        reader = csv.reader(rfile)
+        for line in reader:
+            srr = line[0]
+            srr_data.append(srr)
+    return srr_data
+
+rule all:
+    input:
+        # Download fastq
+        # Only request output for rule download_fastq because other outputs are temporary
+        expand(os.path.join("some_new_output","{tissue_name}"), tissue_name=get_tissue_name())
+
+
+rule distribute:
+    input: "master_init.csv"
+    output: temp("init/{tissue_name}_{tag}.csv")
+    params:
+        id = "{tissue_name}_{tag}"
+    run:
+        lines = open(str(input), "r").readlines()
+        wfile = open(str(output), "w")
+
+        for line in lines:
+
+            # Only write line if the output file has the current tissue-name_tag (naiveB_S1R1) in the file name
+            if params.id in line:
+                wfile.write(line)
+
+        wfile.close()
+
+rule prefetch_fastq:
+    input: "init/{tissue_name}_{tag}.csv"
+    output: temp(directory(os.path.join("output", "{tissue_name}_{tag}/")))
+    params:
+        id = "{tissue_name}_{tag}"
+    shell:
+        """
+        module load SRAtoolkit
+        IFS=","
+        while read srr name endtype; do
+            prefetch $srr --output-directory {output}
+        done < {input}
+        """
+
+rule dump_fastq:
+    input: expand(rules.prefetch_fastq.output, tag=get_tag_data(), allow_missing=True)
+    output: directory(os.path.join("some_new_output", "{tissue_name}"))
+    threads: workflow.cores  # max threads
+    params:
+        srr_ids = get_srr_data()
+    shell:
+        """
+        parallel-fastq-dump \
+        --split-files \
+        --gzip \
+        --sra-id {params.srr_ids} \
+        --threads {threads} \
+        --outdie {output}
+        """
