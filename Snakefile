@@ -176,10 +176,8 @@ rule dump_fastq:
     input:
         data = expand(rules.prefetch_fastq.output.data, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data(), allow_missing=True)
     output:
-        data = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+        data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data(), allow_missing=True)
     threads: workflow.cores * 0.9  # max threads
-    params:
-        outdir = os.path.join("data", "{tissue_name}", "raw_temp")
     shell:
         """
         module load parallel-fastq-dump
