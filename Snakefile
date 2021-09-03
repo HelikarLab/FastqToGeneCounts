@@ -6,6 +6,8 @@ import glob
 import os
 import subprocess
 import csv
+import numpy as np
+import warnings
 configfile: "snakemake_config.yaml"
 
 def get_tissue_name():
@@ -164,7 +166,6 @@ rule prefetch_fastq:
     shell:
         """
         module load SRAtoolkit
-        echo "Working on SRA {wildcards.srr_code}"
         
         IFS=","
         while read srr name endtype; do
@@ -172,33 +173,98 @@ rule prefetch_fastq:
         done < {input}
         """
 
+"""
+Inputs and outputs are lists of equal length
+Each input matches to one output, even if the inputs are the same
+Example:
+    input:
+        results/temp/prefetch/naiveB_S1R1/SRR14231328/SRR14231328.sra   (Paired End)
+        results/temp/prefetch/naiveB_S1R1/SRR14231328/SRR14231328.sra   (Paired End)
+        
+        results/temp/prefetch/naiveB_S3R1/SRR5110334/SRR5110334.sra     (Single End)
+        
+    output:
+        results/data/naiveB/raw/naiveB_S1R1_1.fastq.gz                  (Paired End)
+        results/data/naiveB/raw/naiveB_S1R1_2.fastq.gz                  (Paired End)
+        
+        results/data/naiveB/raw/naiveB_S3R1_S.fastq.gz                  (Single End)
+"""
+def generate_output_tuples(output_list: list[str]):
+    """
+    This function will generate a list of tuples that group like-files together
+    Example:
+        input:
+            [
+             "results/data/naiveB/raw/naiveB_S1R1_1.fastq.gz",
+             "results/data/naiveB/raw/naiveB_S1R1_2.fastq.gz",
+
+             "results/data/naiveB/raw/naiveB_S1R2.fastq.gz"
+            ]
+
+        output:
+            [
+                ("results/data/naiveB/raw/naiveB_S1R1_1.fastq.gz", "results/data/naiveB/raw/naiveB_S1R1_2.fastq.gz"),
+                ("results/data/naiveB/raw/naiveB_S1R2.fastq.gz")
+            ]
+
+    :param output_list: A list of strings containing output file locations
+    :return: A list of tuples containing grouped output file locations
+    """
+
+    new_list = []
+    for i, output_file in enumerate(output_list):
+        id = output_file.split("/")[-1].strip(".fastq.gz")
+        try: # handle final index
+            next_file = output_list[i+1]
+            next_id = next_file.split("/")[-1].strip(".fastq.gz")
+        except:
+            if id.endswith("_1"): new_list.append(output_file)
+
+        if id.endswith("_2"): # skip reverse reads if not accompanied by their forward
+            continue
+        elif next_id.endswith("_2") and id.endswith("_1"):
+            new_list.append((output_file, output_list[i+1]))
+        elif id.endswith("_1"):
+            new_list.append(output_file)
+        else:
+            warnings.warn(f"{output_file} not handled!")
+
+    return new_list
+
 rule dump_fastq:
     input:
         data = expand(rules.prefetch_fastq.output.data, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data(), allow_missing=True)
     output:
         data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data(), allow_missing=True)
     threads: workflow.cores * 0.9  # max threads
-    shell:
-        """
-        module load parallel-fastq-dump
-        echo {input.data}
-        """
+    run:
+        input_list = str(input).split(" ")
+        output_list = str(output).split(" ")
 
-"""
-module load parallel-fastq-dump
-        for srr in {params.srr_ids}; do
-            parallel-fastq-dump --sra-id $srr --outdir {params.outdir}
-            mv {params.outdir}/$srr {output.data}
-        done
-        
-    
-        # parallel-fastq-dump \
-        # --split-files \
-        # --gzip \
-        # --sra-id {params.srr_ids} \
-        # --threads {threads} \
-        # --outdir {params.outdir}
-"""
+        # Get unique items from list in the original order they were added
+        input_index = np.unique(input_list, return_index=True)[1]
+        input_list = [input_list[i] for i in sorted(input_index)]
+        output_list = generate_output_tuples(output_list)
+
+        # iterate through input and output items
+        for i, (in_file, out_files) in enumerate(zip(input_list, output_list)):
+
+            # Get output directory for parallel-fastq-dump
+            out_directory = "/".join(out_file.split("/")[:-1])
+            subprocess.run(["parallel-fastq-dump", "--sra-id", f"{in_file}", "--threads", f"{threads}", "--outdir", f"{out_directory}", "--gzip", "--split-files"])
+
+            # Get generated fastq files from parallel-fastq-dump
+            fastq_dumpped_files = os.listdir(output_list[i])
+
+            # If we have multiple output files (i.e. a tuple)
+            if type(out_files) is tuple:
+                # Rename each file on the fastq dumpped files to the new name
+                for j, (old_file, new_file) in enumerate(zip(fastq_dumpped_files, out_files)):
+                    os.rename(old_file, new_file)
+            # Otherwise rename the single file to its new output location
+            else:
+                os.rename(fastq_dumpped_files[0], str(output))
+
 
 """
 dump_fastq output: raw_temp/[SRR14231328_1.fastq.gz, SRR14231328_2.fastq.gz]
@@ -257,7 +323,7 @@ def collect_star_align_input(wildcards):
         return rules.dump_fastq.output.data
 rule star_align:
     input: collect_star_align_input
-    output: directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads"))
+    output: directory(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"))
     threads: workflow.cores * 0.90
     shell:
         """
