@@ -240,6 +240,7 @@ rule dump_fastq:
         data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data(), allow_missing=True)
     threads: workflow.cores * 0.9  # max threads
     run:
+        subprocess.run(["module", "load", "parallel-fastq-dump"])
         input_list = str(input).split(" ")
         output_list = str(output).split(" ")
 
