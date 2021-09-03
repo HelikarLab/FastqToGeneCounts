@@ -6,6 +6,8 @@ import glob
 import os
 import subprocess
 import csv
+import numpy as np
+import warnings
 configfile: "snakemake_config.yaml"
 
 def get_tissue_name():
