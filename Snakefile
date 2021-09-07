@@ -251,7 +251,7 @@ rule dump_fastq:
 
         # iterate through input and output items
         for i, (in_file, out_files) in enumerate(zip(input_list, output_list)):
-            print(f"Working on file {in_file}")
+            print(f"dump_fastq is working on file: {in_file}")
 
             if type(out_files) is tuple:
                 out_directory = os.path.dirname(out_files[0])
