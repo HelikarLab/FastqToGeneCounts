@@ -112,9 +112,8 @@ def get_PE_SE_Data():
 
 rule all:
     input:
-        # distribute init files
-        expand(os.path.join(config["ROOTDIR"],"controls","init_files","{tissue_name}_{tag}.csv"), tissue_name=get_tissue_name(), tag=get_tag_data()),
         # dump_fastq
+        # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
         expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
 
 
@@ -162,7 +161,7 @@ rule distribute_init_files:
 rule prefetch_fastq:
     input: rules.distribute_init_files.output
     output:
-        data = os.path.join(config["ROOTDIR"], "temp", "prefetch", "{tissue_name}_{tag}", "{srr_code}", "{srr_code}.sra")
+        data = temp(os.path.join(config["ROOTDIR"], "temp", "prefetch", "{tissue_name}_{tag}", "{srr_code}", "{srr_code}.sra"))
     shell:
         """
         module load SRAtoolkit
@@ -173,22 +172,7 @@ rule prefetch_fastq:
         done < {input}
         """
 
-"""
-Inputs and outputs are lists of equal length
-Each input matches to one output, even if the inputs are the same
-Example:
-    input:
-        results/temp/prefetch/naiveB_S1R1/SRR14231328/SRR14231328.sra   (Paired End)
-        results/temp/prefetch/naiveB_S1R1/SRR14231328/SRR14231328.sra   (Paired End)
-        
-        results/temp/prefetch/naiveB_S3R1/SRR5110334/SRR5110334.sra     (Single End)
-        
-    output:
-        results/data/naiveB/raw/naiveB_S1R1_1.fastq.gz                  (Paired End)
-        results/data/naiveB/raw/naiveB_S1R1_2.fastq.gz                  (Paired End)
-        
-        results/data/naiveB/raw/naiveB_S3R1_S.fastq.gz                  (Single End)
-"""
+
 def generate_output_tuples(output_list: list[str]):
     """
     This function will generate a list of tuples that group like-files together
@@ -267,43 +251,37 @@ rule dump_fastq:
 
                 fastq_dumped_files = os.listdir(out_directory)
                 old_file_path = os.path.join(out_directory, fastq_dumped_files[0])
-                os.rename(old_file_path, str(output))
+                os.rename(old_file_path, str(out_files))
 
 
-"""
-Trimming Plan
-Have trim pull each file from rename_srr
-Perform trimming on each file
-"""
-# if config["PERFORM_TRIM"]:
-#     rule trim:
-#                # os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw_temp", "Bulk_{PE_SE}")
-#         input: expand(rules.dump_fastq.output.data, tissue_name=get_tissue_name(), PE_SE=get_PE_SE_Data())
-#         output: directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads"))
-#         shell: """
-#             module load gnu-parallel # DOI https://doi.org/10.5281/zenodo.1146014
-#             module load trim_galore  # trimGalore 10.5281/zenodo.5127898
-#                                      # Cutadapt DOI:10.14806/ej.17.1.200
-#
-#             for file in {input}; do                         # path/to/file/naiveB_S1R1_1.fastq.gz
-#                 fold="$(dirname $file)"                     # path/to/file/
-#                 bfile="$(basename $file)"                   # naiveB_S1R1_1.fastq.gz
-#                 bname=$(echo "bfile" | cut -f 1 -d '.')     # naiveB_S1R1_1
-#                 tissue=$(echo "bfile" | cut -f 1 -d '_')    # naiveB
-#                 tag=$(echo "bfile" | cut -f 2 -d '_')       # S1R1
-#                 dir=$(echo "bfile" | cut -f 3 -d '_')       # 1
-#                 if [ $dir -eq "2" ]; then   # skip over reverse reads completely
-#                     continue
-#                 elif [ -f "${{fold}}/{{tissue}}_{{tag}}_2.fastq.gz" ]; then    # if reverse read exists do paired trim
-#                     trim_galore --paired -o {config[ROOTDIR]}/data/{{tissue}}/trimmed_reads/ \
-#                         "${{fold}}/{{tissue}}_{{tag}}_1.fastq.gz" \
-#                         "${{fold}}/{{tissue}}_{{tag}}_2.fastq.gz"
-#                 else                                                        # single ended, no paired end argument
-#                     trim_galore -o {config[ROOTDIR]}/data/{{tissue}}/trimmed_reads/ \
-#                         "${{fold}}/{{tissue}}_{{tag}}_1.fastq.gz"
-#                 fi
-#             done
-#             """
+if config["PERFORM_TRIM"]:
+    rule trim:
+               # os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw_temp", "Bulk_{PE_SE}")
+        input: expand(rules.dump_fastq.output.data, tissue_name=get_tissue_name(), PE_SE=get_PE_SE_Data())
+        output: directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads"))
+        shell: """
+            module load gnu-parallel # DOI https://doi.org/10.5281/zenodo.1146014
+            module load trim_galore  # trimGalore 10.5281/zenodo.5127898
+                                     # Cutadapt DOI:10.14806/ej.17.1.200
+            for file in {input}; do                         # path/to/file/naiveB_S1R1_1.fastq.gz
+                fold="$(dirname $file)"                     # path/to/file/
+                bfile="$(basename $file)"                   # naiveB_S1R1_1.fastq.gz
+                bname=$(echo "bfile" | cut -f 1 -d '.')     # naiveB_S1R1_1
+                tissue=$(echo "bfile" | cut -f 1 -d '_')    # naiveB
+                tag=$(echo "bfile" | cut -f 2 -d '_')       # S1R1
+                dir=$(echo "bfile" | cut -f 3 -d '_')       # 1
+                if [ $dir -eq "2" ]; then   # skip over reverse reads completely
+                    continue
+                elif [ -f "${{fold}}/{{tissue}}_{{tag}}_2.fastq.gz" ]; then    # if reverse read exists do paired trim
+                    trim_galore --paired -o {config[ROOTDIR]}/data/{{tissue}}/trimmed_reads/ \
+                        "${{fold}}/{{tissue}}_{{tag}}_1.fastq.gz" \
+                        "${{fold}}/{{tissue}}_{{tag}}_2.fastq.gz"
+                else                                                        # single ended, no paired end argument
+                    trim_galore -o {config[ROOTDIR]}/data/{{tissue}}/trimmed_reads/ \
+                        "${{fold}}/{{tissue}}_{{tag}}_1.fastq.gz"
+                fi
+            done
+            """
 
 def collect_star_align_input(wildcards):
     if config["PERFORM_TRIM"]:
