@@ -5,6 +5,7 @@ This is an attempt to convert HCC_Data/align_liver_PE.bash into a snakefile
 import glob
 import os
 import subprocess
+import re
 import csv
 import numpy as np
 import warnings
