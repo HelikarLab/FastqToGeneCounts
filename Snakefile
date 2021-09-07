@@ -337,24 +337,37 @@ if config["PERFORM_TRIM"]:
             """
 
 
-# def collect_star_align_input(wildcards):
-#     if config["PERFORM_TRIM"]:
-#         return rules.trim.output
-#     else:
-#         return rules.dump_fastq.output.data
-# rule star_align:
-#     input: collect_star_align_input
-#     output: directory(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"))
-#     threads: workflow.cores * 0.90
-#     shell:
-#         """
-#         STAR --runThreadN {threads} \
-# 		--readFilesCommand {config[STAR][ALIGN_READS][READ_COMMAND]} \
-# 		--readFilesIn $file1 $file2 \
-# 		--genomeDir {config[STAR][GENERATE_GENOME][GENOME_DIR]} \
-# 		--outFileNamePrefix {output} \
-# 		--outSAMtype {config[STAR][ALIGN_READS][OUT_SAM_TYPE]} \
-# 		--outSAMunmapped {config[STAR][ALIGN_READS][OUT_SAM_UNMAPPED} \
-# 		--outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
-# 		--quantMode {config[STAR][ALIGN_READS][QUANT_MODE]}
-#         """
+def collect_star_align_input(wildcards):
+    if config["PERFORM_TRIM"]:
+        return rules.trim.output
+    else:
+        return rules.dump_fastq.output.data
+rule star_align:
+    input: collect_star_align_input
+    output: directory(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"))
+    threads: workflow.cores * 0.90
+    shell:
+        """
+        # How to get $file1 and $file2?
+        STAR --runThreadN {threads} \
+		--readFilesCommand {config[STAR][ALIGN_READS][READ_COMMAND]} \
+		--readFilesIn $file1 $file2 \
+		--genomeDir {config[STAR][GENERATE_GENOME][GENOME_DIR]} \
+		--outFileNamePrefix {output} \
+		--outSAMtype {config[STAR][ALIGN_READS][OUT_SAM_TYPE]} \
+		--outSAMunmapped {config[STAR][ALIGN_READS][OUT_SAM_UNMAPPED]} \
+		--outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
+		--quantMode {config[STAR][ALIGN_READS][QUANT_MODE]}
+        """
+
+rule multiqc:
+    input:
+        rules.dump_fastq.output.data,
+        rules.fastqc.output,
+        rules.star_align.output
+    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc")
+    envmodules: "multiqc"
+    shell:
+        """
+        multiqc --help
+        """
