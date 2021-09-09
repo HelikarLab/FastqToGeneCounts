@@ -1,11 +1,10 @@
 MASTER_CONTROL: "controls/master_control.csv"
 ROOTDIR: "results"
 
-PERFORM_TRIM: "True"  # "True" or "False"
+PERFORM_TRIM: False  # True or False (boolean)
 
 STAR:
   GENERATE_GENOME:
-    RUN_MODE: "generateGenome"
     GENOME_DIR: "genome/star"
     GENOME_FASTA_FILE: "genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
     GTF_FILE: "genome/Homo_sapiens.GRCh38.104.gtf"
