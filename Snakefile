@@ -151,6 +151,9 @@ rule all:
         # FastQC
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
 
+        # STAR aligner
+        # expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"), tissue_name=get_tissue_name())
+
 
 rule generate_genome:
     input:
@@ -234,18 +237,28 @@ def generate_output_tuples(output_list: list[str]):
             next_file = output_list[i+1]
             next_id = next_file.split("/")[-1].strip(".fastq.gz")
         except:
-            if id.endswith("_1"): new_list.append(output_file)
+            if id.endswith("_S"):
+                new_list.append(output_file)
+                continue
+            elif id.endswith("_2"):
+                continue
+            else:
+                warnings.warn(f"{output_file} expects additional paired-end read! Skipping....")
+                continue
 
-        if id.endswith("_2"): # skip reverse reads if not accompanied by their forward
-            continue
-        elif next_id.endswith("_2") and id.endswith("_1"):
-            new_list.append((output_file, output_list[i+1]))
-        elif id.endswith("_1"):
-            new_list.append(output_file)
+        if id.endswith("_2"):
+            continue # skip reverse reads if not accompanied by their forwar
+        elif id.endswith("_1") and next_id.endswith("_2"):
+            if id[:-3] == next_id[:-3]:
+                new_list.append((output_file, output_list[i+1]))
+            else:
+                warnings.warn(f"{output_file} and {next_file} are incorrectly called together, either the file order is getting scrambled or one end of {id} and one end of {next_id} failed to download")
         elif id.endswith("_S"):
             new_list.append(output_file)
+        elif id.endswith("_1") and not next_id.endswith("_2"):
+            warnings.warn(f"{output_file} expects additional paired-end read, it may have failed to download! Skipping....")
         else:
-            warnings.warn(f"{output_file} not handled!")
+            warnings.warn(f"{output_file} not handled, unknown reason!")
 
     return new_list
 
@@ -296,13 +309,11 @@ rule fastqc:
     output:
         os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params:
-        outdir = os.path.dirname(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip")),
-        outdir_two = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc_test")
+        outdir = os.path.dirname(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"))
     shell:
         """
         module load fastqc
         fastqc {input} -o {params.outdir}
-        # fastqc {input} -o {params.outdir_two}
         """
 
 if config["PERFORM_TRIM"]:
@@ -322,38 +333,90 @@ if config["PERFORM_TRIM"]:
             module load trim_galore
 
             # Only process on forward reads
-            if [ {params.direction} -eq "1" ]; then
-                trim_galore --paired -o "{params.output_directory}" "{params.tissue_name}_{params.tag}_1.fastq.gz" "{params.tissue_name}_{params.tag}_2.fastq.gz"
-            elif [ {params.direction} -eq "2" ]; then
+            if [ "{params.direction}" == "1" ]; then
+                trim_galore --paired \
+                -o "{params.output_directory}" \
+                "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
+            elif [ "{params.direction}" == "2" ]; then
                 touch {output}
-            elif [ {params.direction} -eq "S" ]; then
+            elif [ "{params.direction}" == "S" ]; then
                 trim_galore -o "{params.output_directory}" "{input}"
             fi
-
             """
 
-
 def collect_star_align_input(wildcards):
+    """
+
+    :param wildcards:
+    :return:
+    """
     if config["PERFORM_TRIM"]:
-        return rules.trim.output
+        # Have not expanded output from rule trim, need to expand it here
+        in_files = expand(rules.trim.output, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
     else:
-        return rules.dump_fastq.output.data
+        # already expanding output from dump_fastq, no need to expand it here
+        in_files = rules.dump_fastq.output.data
+
+    directions = get_PE_SE_Data()
+    grouped_reads = []
+    for i, (in_file, direction) in enumerate(zip(in_files, directions)):
+        try:
+            next_file = in_files[i+1]
+            next_dir = directions[i+1]
+        except:
+            if direction == "S":
+                grouped_reads.append(in_file)
+                continue
+            elif direction == "2":
+                continue
+            else:
+                warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
+                continue
+
+        if direction == "S":
+            grouped_reads.append(in_file)            # "tissue_SXRY_S"
+        elif direction == "1" and next_dir == "2":
+
+            next_file = in_files[i+1]
+            if in_file[-9] == next_file[-9]:
+                both_reads = " ".join([in_file, next_file]) # "tissue_SXRY_1 tissue_SXRY_2"
+                grouped_reads.append(both_reads)
+            else:
+                warnings.warn(f"{in_file} and {next_file} are incorrectly called together, either the file order is getting scrambled or one end of {in_file} and one end of {next_file} failed to download")
+
+        elif direction == "1" and not next_dir == "2":
+            warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
+        elif direction == "2":
+            continue
+        else:
+            warnings.warn(f"{in_file} not handled, unknown reason!")
+
+    print(type(grouped_reads))
+    print(grouped_reads)
+    return grouped_reads
+
+def test(wildcards):
+    return ["results/data/nsmB/trimmed_reads/nsmB_S1R2_2.fastq.gz", "results/data/naiveB/trimmed_reads/naiveB_S3R2_S.fastq.gz", "results/data/nsmB/trimmed_reads/nsmB_S1R2_1.fastq.gz"]
 rule star_align:
     input: collect_star_align_input
+# test
+#collect_star_align_input
     output: directory(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"))
     threads: workflow.cores * 0.90
+    envmodules: "star"
     shell:
         """
+        echo "STAR ALIGN SHELL"
         # How to get $file1 and $file2?
-        STAR --runThreadN {threads} \
-		--readFilesCommand {config[STAR][ALIGN_READS][READ_COMMAND]} \
-		--readFilesIn $file1 $file2 \
-		--genomeDir {config[STAR][GENERATE_GENOME][GENOME_DIR]} \
-		--outFileNamePrefix {output} \
-		--outSAMtype {config[STAR][ALIGN_READS][OUT_SAM_TYPE]} \
-		--outSAMunmapped {config[STAR][ALIGN_READS][OUT_SAM_UNMAPPED]} \
-		--outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
-		--quantMode {config[STAR][ALIGN_READS][QUANT_MODE]}
+        # STAR --runThreadN {threads} \
+		# --readFilesCommand {config[STAR][ALIGN_READS][READ_COMMAND]} \
+		# --readFilesIn {input} \
+		# --genomeDir {config[STAR][GENERATE_GENOME][GENOME_DIR]} \
+		# --outFileNamePrefix {output} \
+		# --outSAMtype {config[STAR][ALIGN_READS][OUT_SAM_TYPE]} \
+		# --outSAMunmapped {config[STAR][ALIGN_READS][OUT_SAM_UNMAPPED]} \
+		# --outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
+		# --quantMode {config[STAR][ALIGN_READS][QUANT_MODE]}
         """
 
 rule multiqc:
@@ -367,3 +430,4 @@ rule multiqc:
         """
         multiqc --help
         """
+    """
