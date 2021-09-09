@@ -149,7 +149,7 @@ rule all:
         expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
         # FastQC
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data())
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
 
 
 rule generate_genome:
@@ -161,16 +161,13 @@ rule generate_genome:
         rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete"))
     threads: workflow.cores * 0.35
     params:
-        run_mode = config["STAR"]["GENERATE_GENOME"]["RUN_MODE"],
         overhang = config["STAR"]["GENERATE_GENOME"]["OVERHANG"]
     envmodules: "star/2.7"
     shell:
         """
-        module load
-        
         STAR \
+        --runMode generateGenome \
         --runThreadN {threads} \
-        --runMode {params.run_mode} \
         --genomeDir {output.genome_dir} \
         --genomeFastaFiles {input.genome_fasta_file} \
         --sjdbGTFfile {input.gtf_file} \
@@ -257,7 +254,7 @@ rule dump_fastq:
         data = expand(rules.prefetch_fastq.output.data, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data())
     output:
         data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
-    threads: workflow.cores * 0.9  # max threads
+    threads: workflow.cores # max threads
     run:
         # subprocess.run(["module", "load", "parallel-fastq-dump"])
         input_list = str(input).split(" ")
@@ -275,19 +272,18 @@ rule dump_fastq:
             if type(out_files) is tuple:
                 out_directory = os.path.dirname(out_files[0])
                 os.makedirs(out_directory, exist_ok=True)
-                subprocess.run(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip --split-files", shell=True)
-                # subprocess.run(["parallel-fastq-dump", "--sra-id", f"{in_file}", "--threads", f"{threads}", "--outdir", f"{out_directory}", "--gzip", "--split-files"])
+                os.system(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip --split-files")
 
-                fastq_dumped_files = os.listdir(out_directory)
+                fastq_dumped_files = sorted(os.listdir(out_directory))
                 for j, (old_file, new_file) in enumerate(zip(fastq_dumped_files, out_files)):
-                    print(f"OLD: {old_file}\nNEW: {new_file}")
+                    print(f"NEW: {new_file}\nOLD: {old_file}")
                     old_file_path = os.path.join(out_directory, old_file)
                     os.rename(old_file_path, new_file)
             else:
                 out_directory = os.path.dirname(out_files)
-                os.makedirs(out_directory)
-                subprocess.run(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip")
-                # subprocess.run(["parallel-fastq-dump", "--sra-id", f"{in_file}", "--threads", f"{threads}", "--outdir", f"{out_directory}", "--gzip"])
+                os.makedirs(out_directory, exist_ok=True)
+
+                os.system(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip")
 
                 fastq_dumped_files = os.listdir(out_directory)
                 old_file_path = os.path.join(out_directory, fastq_dumped_files[0])
@@ -327,7 +323,7 @@ if config["PERFORM_TRIM"]:
 
             # Only process on forward reads
             if [ {params.direction} -eq "1" ]; then
-                trim_galore --paired -o "{params.output_directory}" "{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz" "{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz"
+                trim_galore --paired -o "{params.output_directory}" "{params.tissue_name}_{params.tag}_1.fastq.gz" "{params.tissue_name}_{params.tag}_2.fastq.gz"
             elif [ {params.direction} -eq "2" ]; then
                 touch {output}
             elif [ {params.direction} -eq "S" ]; then
