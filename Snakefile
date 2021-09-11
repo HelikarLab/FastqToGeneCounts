@@ -146,13 +146,14 @@ rule all:
         expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
         # Trim reads
-        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
         # FastQC
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
 
         # STAR aligner
-        # expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"), tissue_name=get_tissue_name())
+        #expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tissue_name}_{tag}_ReadsPerGene.out.tab"), zip, tissue_name=get_tissue_name(), tag=get_tag_data())
+        #directory(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"))
 
 
 rule generate_genome:
@@ -168,6 +169,7 @@ rule generate_genome:
     envmodules: "star/2.7"
     shell:
         """
+        module load star
         STAR \
         --runMode generateGenome \
         --runThreadN {threads} \
@@ -201,6 +203,7 @@ rule prefetch_fastq:
     envmodules: "SRAtoolkit/2.10"
     shell:
         """
+        module load SRAtoolkit
         IFS=","
         while read srr name endtype; do
             prefetch $srr --output-file {output.data}
@@ -319,7 +322,7 @@ rule fastqc:
 if config["PERFORM_TRIM"]:
     rule trim:
         input: get_dump_fastq_output
-        output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+        output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
             output_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads"),
             working_file = "{tissue_name}_{tag}_{PE_SE}.fastq.gz",
@@ -341,7 +344,17 @@ if config["PERFORM_TRIM"]:
                 touch {output}
             elif [ "{params.direction}" == "S" ]; then
                 trim_galore -o "{params.output_directory}" "{input}"
+                
             fi
+            # delete orignal file that trim_galore moves into the trimmed_reads directory
+            checkfile="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz"
+            if [ -f "$checkfile" ]; then   
+                rm $checkfile
+            fi
+            # rename file to something easier to handle in the context of what the untrimmed file name is for collect_star_align_input
+            filename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_{params.direction}_trimmed.fq.gz"
+            filerename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz"
+            mv $filename $filerename
             """
 
 def collect_star_align_input(wildcards):
@@ -395,28 +408,30 @@ def collect_star_align_input(wildcards):
     print(grouped_reads)
     return grouped_reads
 
-def test(wildcards):
-    return ["results/data/nsmB/trimmed_reads/nsmB_S1R2_2.fastq.gz", "results/data/naiveB/trimmed_reads/naiveB_S3R2_S.fastq.gz", "results/data/nsmB/trimmed_reads/nsmB_S1R2_1.fastq.gz"]
+#def test(wildcards):
+#    return ["results/data/nsmB/trimmed_reads/nsmB_S1R2_2.fastq.gz", "results/data/naiveB/trimmed_reads/naiveB_S3R2_S.fastq.gz", "results/data/nsmB/trimmed_reads/nsmB_S1R2_1.fastq.gz"]
 rule star_align:
     input: collect_star_align_input
-# test
-#collect_star_align_input
-    output: directory(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"))
+    output: directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads"))
+    params:
+        tissue_name = "{tissue_name}",
+        tag = "{tag}"
     threads: workflow.cores * 0.90
     envmodules: "star"
     shell:
         """
         echo "STAR ALIGN SHELL"
         # How to get $file1 and $file2?
-        # STAR --runThreadN {threads} \
-		# --readFilesCommand {config[STAR][ALIGN_READS][READ_COMMAND]} \
-		# --readFilesIn {input} \
-		# --genomeDir {config[STAR][GENERATE_GENOME][GENOME_DIR]} \
-		# --outFileNamePrefix {output} \
-		# --outSAMtype {config[STAR][ALIGN_READS][OUT_SAM_TYPE]} \
-		# --outSAMunmapped {config[STAR][ALIGN_READS][OUT_SAM_UNMAPPED]} \
-		# --outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
-		# --quantMode {config[STAR][ALIGN_READS][QUANT_MODE]}
+        bname=$(basename "
+        STAR --runThreadN {threads} \
+		--readFilesCommand {config[STAR][ALIGN_READS][READ_COMMAND]} \
+		--readFilesIn {input} \
+		--genomeDir {config[STAR][GENERATE_GENOME][GENOME_DIR]} \
+		--outFileNamePrefix {config[ROOTDIR]/data/{params.tissue_name}/aligned_reads/{params.tissue_name}_{params.tag}_ReadsPerGene.out.tab \
+		--outSAMtype {config[STAR][ALIGN_READS][OUT_SAM_TYPE]} \
+		--outSAMunmapped {config[STAR][ALIGN_READS][OUT_SAM_UNMAPPED]} \
+		--outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
+		--quantMode {config[STAR][ALIGN_READS][QUANT_MODE]}
         """
 
 rule multiqc:
@@ -428,6 +443,6 @@ rule multiqc:
     envmodules: "multiqc"
     shell:
         """
-        multiqc --help
+        module load multiqc
+        multiqc {config[ROOTDIR]}
         """
-    """
