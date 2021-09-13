@@ -430,7 +430,7 @@ rule star_align:
 		--outFileNamePrefix {config[ROOTDIR]/data/{params.tissue_name}/aligned_reads/{params.tissue_name}_{params.tag}_ReadsPerGene.out.tab \
 		--outSAMtype {config[STAR][ALIGN_READS][OUT_SAM_TYPE]} \
 		--outSAMunmapped {config[STAR][ALIGN_READS][OUT_SAM_UNMAPPED]} \
-		--outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
+		--outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]}  \
 		--quantMode {config[STAR][ALIGN_READS][QUANT_MODE]}
         """
 
