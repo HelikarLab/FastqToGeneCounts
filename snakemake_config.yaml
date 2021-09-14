@@ -1,7 +1,7 @@
 MASTER_CONTROL: "controls/master_control.csv"
 ROOTDIR: "results"
 
-PERFORM_TRIM: False  # True or False (boolean)
+PERFORM_TRIM: True  # True or False (boolean)
 
 STAR:
   GENERATE_GENOME:

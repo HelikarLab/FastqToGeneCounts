@@ -8,9 +8,6 @@ import warnings
 
 configfile: "snakemake_config.yaml"
 
-print(workflow.cores)
-
-
 def get_tissue_name():
     """
     Looking to return the base filename from the controls/init_files
