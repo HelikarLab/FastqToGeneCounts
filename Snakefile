@@ -143,8 +143,7 @@ rule all:
 
         # dump_fastq
         # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
-        expand(os.path.join(config[
-            "ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
 
         # Trim Reads
         # May not need to include this, as it is dynamic depending on what STAR aligner needs
@@ -152,16 +151,14 @@ rule all:
         # expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
         # FastQC
-        expand(os.path.join(config[
-            "ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
 
         # STAR aligner
-        expand(os.path.join(config[
-            "ROOTDIR"],"data","{tissue_name}","aligned_reads","{tissue_name}_{tag}_ReadsPerGene.out.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tissue_name}_{tag}_ReadsPerGene.out.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
         #directory(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"))
 
         # MultiQC
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc"),tissue_name=get_tissue_name())
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),tissue_name=get_tissue_name())
 
 #TODO: convert this input to snakemake's HTTP download
 # https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
@@ -462,12 +459,14 @@ rule multiqc:
         lambda wildcards: checkpoints.dump_fastq.get(**wildcards).output,
         expand(rules.fastqc.output,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
         expand(rules.star_align.output,zip,tissue_name=get_tissue_name(),tag=get_tag_data())
-    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc")
+    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html")
+    params:
+        # lambda not needed as we have tissue_name as wildcard in output
+        tissue_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}"),
+        tissue_name = "{tissue_name}"
     envmodules: "multiqc"
     shell:
         """
         module load multiqc
-        multiqc {config[ROOTDIR]/data/{params.tissue_name}/
-        echo "MultiQC INPUT: {input}"
-        echo "MultiQC OUTPUT: {output}"
+        multiqc {params.tissue_directory} --filename {params.tissue_name}_multiqc_report.html --outdir {params.tissue_directory}/multiqc/
         """
