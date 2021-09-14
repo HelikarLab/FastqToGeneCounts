@@ -303,6 +303,9 @@ checkpoint dump_fastq:
                 os.makedirs(out_directory,exist_ok=True)
                 os.system(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip --split-files")
 
+                # fastq_dumped_files pulls ALL files in output directory
+                # This is not good, as it also includes correctly-named output files
+                # We want to include only files that have "SRR" in the name
                 fastq_dumped_files = sorted(os.listdir(out_directory))
                 for index, file in enumerate(fastq_dumped_files):
                     if "SRR" not in file:
@@ -313,9 +316,11 @@ checkpoint dump_fastq:
             else:
                 out_directory = os.path.dirname(out_files)
                 os.makedirs(out_directory,exist_ok=True)
-
                 os.system(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip")
 
+                # fastq_dumped_files pulls ALL files in output directory
+                # This is not good, as it also includes correctly-named output files
+                # We want to include only files that have "SRR" in the name
                 fastq_dumped_files = sorted(os.listdir(out_directory))
                 for index, file in enumerate(fastq_dumped_files):
                     if "SRR" not in file:
