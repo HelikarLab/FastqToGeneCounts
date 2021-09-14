@@ -467,7 +467,7 @@ rule multiqc:
     shell:
         """
         module load multiqc
-        multiqc {config[ROOTDIR]}
+        multiqc {config[ROOTDIR]/data/{params.tissue_name}/
         echo "MultiQC INPUT: {input}"
         echo "MultiQC OUTPUT: {output}"
         """
