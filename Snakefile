@@ -1,7 +1,3 @@
-"""
-This is an attempt to convert HCC_Data/align_liver_PE.bash into a snakefile
-"""
-
 import glob
 import os
 import subprocess
@@ -11,6 +7,7 @@ import numpy as np
 import warnings
 configfile: "snakemake_config.yaml"
 
+print(workflow.cores)
 def get_tissue_name():
     """
     Looking to return the base filename from the controls/init_files
@@ -122,8 +119,8 @@ def get_dump_fastq_output(wildcards):
     :param wildcards:
     :return:
     """
-
-    for output in rules.dump_fastq.output.data:
+    checkpoint_output = checkpoints.dump_fastq.get(**wildcards).output
+    for output in checkpoint_output:
         # Only match tissue_name, tag, and PE_SE
         if wildcards.tissue_name in output and \
                 wildcards.tag in output and \
@@ -138,45 +135,55 @@ def get_dump_fastq_output(wildcards):
 
             return working_file_path
 
-
 rule all:
     input:
+        # Generate Genome
+        os.path.join(config["ROOTDIR"],config["STAR"]["GENERATE_GENOME"]["GENOME_DIR"]),
+
         # dump_fastq
         # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
         expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
-        # Trim reads
-        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
+        # Trim Reads
+        # May not need to include this, as it is dynamic depending on what STAR aligner needs
+        # If config["PERFORM_TRIM"] == False, including this as input will cause an error
+        # expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
         # FastQC
-        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
 
         # STAR aligner
-        #expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tissue_name}_{tag}_ReadsPerGene.out.tab"), zip, tissue_name=get_tissue_name(), tag=get_tag_data())
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tissue_name}_{tag}_ReadsPerGene.out.tab"), zip, tissue_name=get_tissue_name(), tag=get_tag_data()),
         #directory(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"))
 
+        # MultiQC
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc"), tissue_name=get_tissue_name())
 
+#TODO: convert this input to snakemake's HTTP download
+# https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
 rule generate_genome:
     input:
         genome_fasta_file = config["STAR"]["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
         gtf_file = config["STAR"]["GENERATE_GENOME"]["GTF_FILE"]
     output:
         genome_dir = directory(os.path.join(config["ROOTDIR"], config["STAR"]["GENERATE_GENOME"]["GENOME_DIR"])),
+        genome_file = os.path.join(config["ROOTDIR"],config["STAR"]["GENERATE_GENOME"]["GENOME_DIR"], "Genome"),
         rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete"))
-    threads: workflow.cores * 0.35
     params:
-        overhang = config["STAR"]["GENERATE_GENOME"]["OVERHANG"]
+        log_file = os.path.join(config["ROOTDIR"], "genome", "star", "Log.out")
+    threads: workflow.cores * 0.9
     envmodules: "star/2.7"
     shell:
         """
         module load star
-        STAR \
-        --runMode generateGenome \
+        STAR --runMode genomeGenerate \
         --runThreadN {threads} \
         --genomeDir {output.genome_dir} \
         --genomeFastaFiles {input.genome_fasta_file} \
         --sjdbGTFfile {input.gtf_file} \
-        --sjdbOverhang {params.overhang}
+        --sjdbOverhang {config[STAR][GENERATE_GENOME][OVERHANG]}
+        
+        mv Log.out {params.log_file}
         """
 
 rule distribute_init_files:
@@ -265,12 +272,12 @@ def generate_output_tuples(output_list: list[str]):
 
     return new_list
 
-rule dump_fastq:
+checkpoint dump_fastq:
     input:
         data = expand(rules.prefetch_fastq.output.data, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data())
     output:
         data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
-    threads: workflow.cores # max threads
+    threads: workflow.cores *0.9 # max threads
     run:
         # subprocess.run(["module", "load", "parallel-fastq-dump"])
         input_list = str(input).split(" ")
@@ -292,7 +299,6 @@ rule dump_fastq:
 
                 fastq_dumped_files = sorted(os.listdir(out_directory))
                 for j, (old_file, new_file) in enumerate(zip(fastq_dumped_files, out_files)):
-                    print(f"NEW: {new_file}\nOLD: {old_file}")
                     old_file_path = os.path.join(out_directory, old_file)
                     os.rename(old_file_path, new_file)
             else:
@@ -334,41 +340,36 @@ if config["PERFORM_TRIM"]:
         shell:
             """
             module load trim_galore
-
+            
             # Only process on forward reads
             if [ "{params.direction}" == "1" ]; then
-                trim_galore --paired \
-                -o "{params.output_directory}" \
-                "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
+                trim_galore --paired -o "{params.output_directory}" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
+                filename1="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_1_val_1.fq.gz" # final output paired end trimming forward  
+                filename2="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_2_val_2.fq.gz" # and reverse
+                filerename1="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_1.fastq.gz" # rename to same with trimmed_ prefix
+                filerename2="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_2.fastq.gz" # again       
+                mv $filename1 $filerename1 
+                mv $filename2 $filerename2
+            # Skip over reverse-reads. Create the output file so snakemake does not complain about the rule not generating output
             elif [ "{params.direction}" == "2" ]; then
                 touch {output}
+            # Work on single-end reads
             elif [ "{params.direction}" == "S" ]; then
                 trim_galore -o "{params.output_directory}" "{input}"
-                
+                filename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz" # final out single end trimming
+                filerename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz" # rename, same convention as PE
+                mv $filename $filerename
             fi
-            # delete orignal file that trim_galore moves into the trimmed_reads directory
-            checkfile="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz"
-            if [ -f "$checkfile" ]; then   
-                rm $checkfile
-            fi
-            # rename file to something easier to handle in the context of what the untrimmed file name is for collect_star_align_input
-            filename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_{params.direction}_trimmed.fq.gz"
-            filerename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz"
-            mv $filename $filerename
+            
             """
 
 def collect_star_align_input(wildcards):
-    """
-
-    :param wildcards:
-    :return:
-    """
     if config["PERFORM_TRIM"]:
         # Have not expanded output from rule trim, need to expand it here
         in_files = expand(rules.trim.output, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
     else:
         # already expanding output from dump_fastq, no need to expand it here
-        in_files = rules.dump_fastq.output.data
+        in_files = checkpoints.dump_fastq.get(**wildcards).output
 
     directions = get_PE_SE_Data()
     grouped_reads = []
@@ -387,11 +388,11 @@ def collect_star_align_input(wildcards):
                 continue
 
         if direction == "S":
-            grouped_reads.append(in_file)            # "tissue_SXRY_S"
+            grouped_reads.append(in_file)  # "tissue_SXRY_S"
         elif direction == "1" and next_dir == "2":
 
             next_file = in_files[i+1]
-            if in_file[-9] == next_file[-9]:
+            if in_file[-9] == next_file[-9]: # remove _1.fastq.gz to make sure they are same replicate
                 both_reads = " ".join([in_file, next_file]) # "tissue_SXRY_1 tissue_SXRY_2"
                 grouped_reads.append(both_reads)
             else:
@@ -404,15 +405,25 @@ def collect_star_align_input(wildcards):
         else:
             warnings.warn(f"{in_file} not handled, unknown reason!")
 
-    print(type(grouped_reads))
-    print(grouped_reads)
-    return grouped_reads
+    """
+    We need to return a string, or list of strings. If we return "grouped_reads" directly, some values within are not actually valid files, such as:
+        ["results/data/naiveB/naiveB_S1R1_1.fastq.gz results/data/naiveB/naiveB_S1R1_2.fastq.gz", "results/data/naiveB/naiveB_S1R2_S.fastq.gz"]
+    Index 0 is taken literally, as a string to a file location. Thus, it does not exist
+    Because of this, we are going to filter through each input file and return it if it matches our desired tissue_name and tag
+    
+    This is much like what was done in the function get_dump_fastq_output, located above rule all
+    """
+    for read in grouped_reads:
+        if wildcards.tissue_name in read and wildcards.tag in read:
+            return read.split(" ")
 
-#def test(wildcards):
-#    return ["results/data/nsmB/trimmed_reads/nsmB_S1R2_2.fastq.gz", "results/data/naiveB/trimmed_reads/naiveB_S3R2_S.fastq.gz", "results/data/nsmB/trimmed_reads/nsmB_S1R2_1.fastq.gz"]
 rule star_align:
-    input: collect_star_align_input
-    output: directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads"))
+    input:
+        reads = collect_star_align_input,
+        genome_dir = rules.generate_genome.output.genome_dir,
+        genome_file = rules.generate_genome.output.genome_file,
+        rule_complete = os.path.join(config["ROOTDIR"],"temp","rule_complete","generate_genome.complete")
+    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tissue_name}_{tag}_ReadsPerGene.out.tab")
     params:
         tissue_name = "{tissue_name}",
         tag = "{tag}"
@@ -420,29 +431,28 @@ rule star_align:
     envmodules: "star"
     shell:
         """
-        echo "STAR ALIGN SHELL"
-        # How to get $file1 and $file2?
-        bname=$(basename "
         STAR --runThreadN {threads} \
 		--readFilesCommand {config[STAR][ALIGN_READS][READ_COMMAND]} \
-		--readFilesIn {input} \
-		--genomeDir {config[STAR][GENERATE_GENOME][GENOME_DIR]} \
-		--outFileNamePrefix {config[ROOTDIR]/data/{params.tissue_name}/aligned_reads/{params.tissue_name}_{params.tag}_ReadsPerGene.out.tab \
+		--readFilesIn {input.reads} \
+		--genomeDir {input.genome_dir} \
+		--outFileNamePrefix {output} \
 		--outSAMtype {config[STAR][ALIGN_READS][OUT_SAM_TYPE]} \
 		--outSAMunmapped {config[STAR][ALIGN_READS][OUT_SAM_UNMAPPED]} \
-		--outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]}  \
+		--outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
 		--quantMode {config[STAR][ALIGN_READS][QUANT_MODE]}
         """
 
 rule multiqc:
     input:
-        rules.dump_fastq.output.data,
-        rules.fastqc.output,
-        rules.star_align.output
+        # We are using "lambda wildcards" here so we do not have to use a function that contains only "return checkpoints.dump_fastq.get(**wildcards).output"
+        lambda wildcards: checkpoints.dump_fastq.get(**wildcards).output,
+        expand(rules.fastqc.output, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
+        expand(rules.star_align.output, zip, tissue_name=get_tissue_name(), tag=get_tag_data())
     output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc")
     envmodules: "multiqc"
     shell:
         """
         module load multiqc
-        multiqc {config[ROOTDIR]}
+        echo "MultiQC INPUT: {input}"
+        echo "MultiQC OUTPUT: {output}"
         """
