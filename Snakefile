@@ -306,10 +306,7 @@ checkpoint dump_fastq:
                 # fastq_dumped_files pulls ALL files in output directory
                 # This is not good, as it also includes correctly-named output files
                 # We want to include only files that have "SRR" in the name
-                fastq_dumped_files = sorted(os.listdir(out_directory))
-                for index, file in enumerate(fastq_dumped_files):
-                    if "SRR" not in file:
-                        fastq_dumped_files.pop(index)
+                fastq_dumped_files = [file for file in sorted(os.listdir(out_directory)) if "SRR" in file]
                 for j, (old_file, new_file) in enumerate(zip(fastq_dumped_files,out_files)):
                     old_file_path = os.path.join(out_directory,old_file)
                     os.rename(old_file_path,new_file)
@@ -321,10 +318,7 @@ checkpoint dump_fastq:
                 # fastq_dumped_files pulls ALL files in output directory
                 # This is not good, as it also includes correctly-named output files
                 # We want to include only files that have "SRR" in the name
-                fastq_dumped_files = sorted(os.listdir(out_directory))
-                for index, file in enumerate(fastq_dumped_files):
-                    if "SRR" not in file:
-                        fastq_dumped_files.pop(index)
+                fastq_dumped_files = [file for file in sorted(os.listdir(out_directory)) if "SRR" in file]
                 old_file_path = os.path.join(out_directory,fastq_dumped_files[0])
                 os.rename(old_file_path,str(out_files))
 
