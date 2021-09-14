@@ -304,6 +304,9 @@ checkpoint dump_fastq:
                 os.system(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip --split-files")
 
                 fastq_dumped_files = sorted(os.listdir(out_directory))
+                for index, file in enumerate(fastq_dumped_files):
+                    if "SRR" not in file:
+                        fastq_dumped_files.pop(index)
                 for j, (old_file, new_file) in enumerate(zip(fastq_dumped_files,out_files)):
                     old_file_path = os.path.join(out_directory,old_file)
                     os.rename(old_file_path,new_file)
@@ -313,7 +316,10 @@ checkpoint dump_fastq:
 
                 os.system(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip")
 
-                fastq_dumped_files = os.listdir(out_directory)
+                fastq_dumped_files = sorted(os.listdir(out_directory))
+                for index, file in enumerate(fastq_dumped_files):
+                    if "SRR" not in file:
+                        fastq_dumped_files.pop(index)
                 old_file_path = os.path.join(out_directory,fastq_dumped_files[0])
                 os.rename(old_file_path,str(out_files))
 
