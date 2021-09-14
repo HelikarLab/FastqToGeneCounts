@@ -303,17 +303,22 @@ checkpoint dump_fastq:
                 os.makedirs(out_directory,exist_ok=True)
                 os.system(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip --split-files")
 
-                fastq_dumped_files = sorted(os.listdir(out_directory))
+                # fastq_dumped_files pulls ALL files in output directory
+                # This is not good, as it also includes correctly-named output files
+                # We want to include only files that have "SRR" in the name
+                fastq_dumped_files = [file for file in sorted(os.listdir(out_directory)) if "SRR" in file]
                 for j, (old_file, new_file) in enumerate(zip(fastq_dumped_files,out_files)):
                     old_file_path = os.path.join(out_directory,old_file)
                     os.rename(old_file_path,new_file)
             else:
                 out_directory = os.path.dirname(out_files)
                 os.makedirs(out_directory,exist_ok=True)
-
                 os.system(f"module load parallel-fastq-dump; parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip")
 
-                fastq_dumped_files = os.listdir(out_directory)
+                # fastq_dumped_files pulls ALL files in output directory
+                # This is not good, as it also includes correctly-named output files
+                # We want to include only files that have "SRR" in the name
+                fastq_dumped_files = [file for file in sorted(os.listdir(out_directory)) if "SRR" in file]
                 old_file_path = os.path.join(out_directory,fastq_dumped_files[0])
                 os.rename(old_file_path,str(out_files))
 
