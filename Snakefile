@@ -193,8 +193,7 @@ rule generate_genome:
 rule distribute_init_files:
     input: config["MASTER_CONTROL"]
     output: temp(os.path.join(config["ROOTDIR"],"controls","init_files","{tissue_name}_{tag}.csv"))
-    params:
-        id="{tissue_name}_{tag}"
+    params: id="{tissue_name}_{tag}"
     threads: 1
     resources:
         mem_mb = 1536,  # 1.5 GB
@@ -213,8 +212,7 @@ rule distribute_init_files:
 
 rule prefetch_fastq:
     input: rules.distribute_init_files.output
-    output:
-        data=temp(os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra"))
+    output: data=temp(os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra"))
     envmodules: "SRAtoolkit/2.10"
     threads: 1
     resources:
@@ -302,10 +300,8 @@ def get_dump_fastq_runtime(wildcards, input, attempt):
     return len(input) * 1200 * attempt
 
 checkpoint dump_fastq:
-    input:
-        data=expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data())
-    output:
-        data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
+    input: data=expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data())
+    output: data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
     threads: workflow.cores * 0.9  # max threads
     # TODO: Verify these resource values are correct
     resources:
@@ -351,12 +347,9 @@ checkpoint dump_fastq:
 
 
 rule fastqc_dump_fastq:
-    input:
-        get_dump_fastq_output
-    output:
-        os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
-    params:
-        outdir=os.path.dirname(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"))
+    input: get_dump_fastq_output
+    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+    params: outdir=os.path.dirname(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"))
     threads: 5
     resources:
         # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
@@ -410,9 +403,18 @@ if config["PERFORM_TRIM"]:
 
     # TODO: Complete this rule
     rule fastqc_trim:
-        input: ""
-        output: ""
-        shell: ""
+        input: rules.trim.output
+        output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+        threads: 5
+        resources:
+            # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
+            mem_mb=2048,# 2 GB
+            runtime=60  # 60 minutes
+        shell:
+            """
+            module load fastqc
+            fastqc {input} --threads {threads} -o {output}
+            """
 
 def collect_star_align_input(wildcards):
     if config["PERFORM_TRIM"]:
