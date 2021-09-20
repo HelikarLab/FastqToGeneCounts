@@ -225,7 +225,8 @@ rule prefetch_fastq:
         module load SRAtoolkit
         IFS=","
         while read srr name endtype; do
-            prefetch $srr --output-file {output.data}
+            # prefetch has a default max size of 20G. Effectively remove this size by allowing downloads up to 1TB to be downloaded
+            prefetch $srr --max-size 1024000000000 --output-file {output.data}
         done < {input}
         """
 
@@ -281,6 +282,24 @@ def generate_output_tuples(output_list: list[str]):
 
     return new_list
 
+def get_dump_fastq_runtime(wildcards, input, attempt):
+    """
+    This function will dynamicall return the length of time requested by checkpoint dump_fastq
+    Using 40 threads, it takes approximately 5 minutes per input file
+    We are going to round this up to 20 minutes (= 1200 seconds) to be extremely safe
+
+    The 'attempt' input is a snakemake global variable.
+    If this workflow fails when using the profile option "restart-times" or the command line option "--restart-times"
+        the workflow will be restarted X many times. When doing so, we will increase the amount of time requested
+        on each subsequent attempt.
+        i.e. attempt 2 will double the amount of time requested for this rule, attempt 3 will triple the amount of time requested
+
+    :param wildcards: wildcard input from checkpoint dump_fastq
+    :param input: all input files
+    :param attempt: the attempt number of the run
+    :return: integer, length of input * 20 minutes
+    """
+    return len(input) * 1200 * attempt
 
 checkpoint dump_fastq:
     input:
@@ -288,7 +307,10 @@ checkpoint dump_fastq:
     output:
         data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
     threads: workflow.cores * 0.9  # max threads
-    # TODO: Get resource data for this rule
+    # TODO: Verify these resource values are correct
+    resources:
+        mem_mb=20480,# 20 GB
+        runtime=get_dump_fastq_runtime
     run:
         # subprocess.run(["module", "load", "parallel-fastq-dump"])
         input_list = str(input).split(" ")
@@ -328,7 +350,7 @@ checkpoint dump_fastq:
                 os.rename(old_file_path,str(out_files))
 
 
-rule fastqc:
+rule fastqc_dump_fastq:
     input:
         get_dump_fastq_output
     output:
@@ -336,7 +358,6 @@ rule fastqc:
     params:
         outdir=os.path.dirname(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"))
     threads: 5
-    # TODO: Confirm resources for this rule
     resources:
         # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
         mem_mb = 2048,# 2 GB
@@ -344,7 +365,7 @@ rule fastqc:
     shell:
         """
         module load fastqc
-        fastqc {input} -o {params.outdir}
+        fastqc {input} --threads {threads} -o {params.outdir}
         """
 
 if config["PERFORM_TRIM"]:
@@ -387,6 +408,11 @@ if config["PERFORM_TRIM"]:
 
             """
 
+    # TODO: Complete this rule
+    rule fastqc_trim:
+        input: ""
+        output: ""
+        shell: ""
 
 def collect_star_align_input(wildcards):
     if config["PERFORM_TRIM"]:
@@ -442,7 +468,17 @@ def collect_star_align_input(wildcards):
         if wildcards.tissue_name in read and wildcards.tag in read:
             return read.split(" ")
 
-
+def get_star_align_runtime(wildcards, input):
+    """
+    This function will return the length of time required for star_align to complete X number of reads
+    Using 40 threads, it takes ~9 minutes per input file
+    Round this value to 20 minutes (in case using fewer threads)
+    Return an integer of: len(input) * 1200 seconds = total runtime
+    :param wildcards:
+    :param input:
+    :return:
+    """
+    return len(input) * 1200
 rule star_align:
     input:
         reads=collect_star_align_input,
@@ -455,7 +491,9 @@ rule star_align:
         tag="{tag}"
     envmodules: "star"
     threads: workflow.cores * 0.90
-    # TODO: Get resources for this rule
+    resources:
+        mem_mb=46080,# 45 GB
+        runtime=get_star_align_runtime
     shell:
         """
         module load star
@@ -476,7 +514,7 @@ rule multiqc:
     input:
         # We are using "lambda wildcards" here so we do not have to use a function that contains only "return checkpoints.dump_fastq.get(**wildcards).output"
         lambda wildcards: checkpoints.dump_fastq.get(**wildcards).output,
-        expand(rules.fastqc.output,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
+        expand(rules.fastqc_dump_fastq.output,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
         expand(rules.star_align.output,zip,tissue_name=get_tissue_name(),tag=get_tag_data())
     output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html")
     params:
