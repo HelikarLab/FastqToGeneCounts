@@ -449,7 +449,7 @@ rule star_align:
         genome_dir=rules.generate_genome.output.genome_dir,
         genome_file=rules.generate_genome.output.genome_file,
         rule_complete=os.path.join(config["ROOTDIR"],"temp","rule_complete","generate_genome.complete")
-    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tissue_name}_{tag}_ReadsPerGene.out.tab")
+    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab")
     params:
         tissue_name="{tissue_name}",
         tag="{tag}"
@@ -459,7 +459,7 @@ rule star_align:
     shell:
         """
         module load star
-        PREFIX="{config[ROOTDIR]}/data/{params.tissue_name}/aligned_reads/{params.tissue_name}_{params.tag}_"
+        PREFIX="{config[ROOTDIR]}/data/{params.tissue_name}/aligned_reads/{params.tag}/{params.tissue_name}_{params.tag}_"
         echo "prefix is $PREFIX"
         STAR --runThreadN {threads} \
 		--readFilesCommand {config[STAR][ALIGN_READS][READ_COMMAND]} \
