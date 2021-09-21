@@ -56,9 +56,6 @@ import subprocess
 input_list = str(snakemake.input.data).split(" ")
 output_list = str(snakemake.output.data).split(" ")
 
-print(input_list)
-print(output_list)
-
 # Get unique items from list in the original order they were added
 input_index = np.unique(input_list, return_index=True)[1]
 input_list = [input_list[i] for i in sorted(input_index)]
@@ -71,7 +68,7 @@ for i, (in_file, out_files) in enumerate(zip(input_list, output_list)):
     if type(out_files) is tuple:
         out_directory = os.path.dirname(out_files[0])
         os.makedirs(out_directory, exist_ok=True)
-        subprocess.run(["parallel-dump-fastq", "--sra-id", str(in_file), "--threads", str(threads), "--outdir", str(out_directory), "--gzip", "--split-files"])
+        subprocess.run(["parallel-dump-fastq", "--sra-id", str(in_file), "--threads", str(snakemake.threads), "--outdir", str(out_directory), "--gzip", "--split-files"])
         # os.system(f"parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip --split-files")
 
         # fastq_dumped_files pulls ALL files in output directory
@@ -84,7 +81,7 @@ for i, (in_file, out_files) in enumerate(zip(input_list, output_list)):
     else:
         out_directory = os.path.dirname(out_files)
         os.makedirs(out_directory, exist_ok=True)
-        subprocess.run(["parallel-fastq-dump", "--sra-id", str(in_file), "-threads", str(threads), "--outdir", str(out_directory), "--gzip"])
+        subprocess.run(["parallel-fastq-dump", "--sra-id", str(in_file), "-threads", str(snakemake.threads), "--outdir", str(out_directory), "--gzip"])
         # os.system(f"parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip")
 
         # fastq_dumped_files pulls ALL files in output directory
