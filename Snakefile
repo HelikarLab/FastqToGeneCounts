@@ -305,9 +305,8 @@ checkpoint dump_fastq:
     input: data=expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data())
     output: data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
     threads: workflow.cores * 0.9  # max threads
-    # TODO: Verify these resource values are correct
     resources:
-        mem_mb=20480,# 20 GB
+        mem_mb=20480,  # 20 GB
         runtime=get_dump_fastq_runtime
     run:
         # subprocess.run(["module", "load", "parallel-fastq-dump"])
