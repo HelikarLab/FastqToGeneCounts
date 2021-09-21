@@ -181,7 +181,6 @@ rule generate_genome:
     envmodules: "star/2.7"
     shell:
         """
-        module load star
         STAR --runMode genomeGenerate \
         --runThreadN {threads} \
         --genomeDir {output.genome_dir} \
@@ -222,7 +221,6 @@ rule prefetch_fastq:
         runtime = 30    # 30 minutes
     shell:
         """
-        module load SRAtoolkit
         IFS=","
         while read srr name endtype; do
             # prefetch has a default max size of 20G. Effectively remove this size by allowing downloads up to 1TB to be downloaded
@@ -356,9 +354,9 @@ rule fastqc_dump_fastq:
         # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
         mem_mb = 2048,# 2 GB
         runtime = 60  # 60 minutes
+    envmodules: "fastqc"
     shell:
         """
-        module load fastqc
         fastqc {input} --threads {threads} -o {params.outdir}
         """
 
@@ -378,8 +376,6 @@ if config["PERFORM_TRIM"]:
         # TODO: Get resources for this rule
         shell:
             """
-            module load trim_galore
-
             # Only process on forward reads
             if [ "{params.direction}" == "1" ]; then
                 trim_galore --paired -o "{params.output_directory}" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
@@ -410,9 +406,9 @@ if config["PERFORM_TRIM"]:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
             mem_mb=2048,# 2 GB
             runtime=60  # 60 minutes
+        envmodules: "fastqc"
         shell:
             """
-            module load fastqc
             fastqc {input} --threads {threads} -o {output}
             """
 
@@ -496,14 +492,13 @@ rule star_align:
     params:
         tissue_name="{tissue_name}",
         tag="{tag}"
-    envmodules: "star"
+    envmodules: "star/2.7"
     threads: workflow.cores * 0.90
     resources:
         mem_mb=51200,# 50 GB
         runtime=get_star_align_runtime
     shell:
         """
-        module load star
         PREFIX="{config[ROOTDIR]}/data/{params.tissue_name}/aligned_reads/{params.tag}/{params.tissue_name}_{params.tag}_"
         echo "prefix is $PREFIX"
         STAR --runThreadN {threads} \
@@ -528,7 +523,7 @@ rule multiqc:
         # lambda not needed as we have tissue_name as wildcard in output
         tissue_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}"),
         tissue_name = "{tissue_name}"
-    envmodules: "multiqc"
+    envmodules: "multiqc/py37/1.8"
     threads: 1
     resources:
         # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
@@ -536,6 +531,5 @@ rule multiqc:
         runtime=10    # 10 minutes
     shell:
         """
-        module load multiqc
         multiqc {params.tissue_directory} --filename {params.tissue_name}_multiqc_report.html --outdir {params.tissue_directory}/multiqc/
         """
