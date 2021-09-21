@@ -199,7 +199,7 @@ rule distribute_init_files:
     threads: 1
     resources:
         mem_mb = 1536,  # 1.5 GB
-        runtime = 10    # 10 minutes
+        runtime = 5    # 5 minutes
     run:
         # Get lines in master control file
         # Open output for writing
@@ -218,7 +218,7 @@ rule prefetch_fastq:
     envmodules: "SRAtoolkit/2.10"
     threads: 1
     resources:
-        mem_mb = 10240,  # 10 GB
+        mem_mb = 10240, # 10 GB
         runtime = 30    # 30 minutes
     shell:
         """
@@ -526,7 +526,10 @@ rule multiqc:
         tissue_name = "{tissue_name}"
     envmodules: "multiqc"
     threads: 1
-    # TODO: Get resources for this rule
+    resources:
+        # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
+        mem_mb=1024,  # 1 GB
+        runtime=10    # 10 minutes
     shell:
         """
         module load multiqc
