@@ -471,17 +471,22 @@ def collect_star_align_input(wildcards):
         if wildcards.tissue_name in read and wildcards.tag in read:
             return read.split(" ")
 
-def get_star_align_runtime(wildcards, input):
+def get_star_align_runtime(wildcards, input, attempt):
     """
     This function will return the length of time required for star_align to complete X number of reads
+
     Using 40 threads, it takes ~9 minutes per input file
     Round this value to 20 minutes (in case using fewer threads)
+
+    We are also going to multiply by the attempt that the workflow is on.
+    If on the second/third/etc. attempt, double/triple/etc. time is requested
+
     Return an integer of: len(input) * 1200 seconds = total runtime
     :param wildcards:
     :param input:
     :return:
     """
-    return len(input) * 1200
+    return len(input) * 1200 * attempt
 rule star_align:
     input:
         reads=collect_star_align_input,
@@ -495,7 +500,7 @@ rule star_align:
     envmodules: "star"
     threads: workflow.cores * 0.90
     resources:
-        mem_mb=46080,# 45 GB
+        mem_mb=51200,# 50 GB
         runtime=get_star_align_runtime
     shell:
         """
