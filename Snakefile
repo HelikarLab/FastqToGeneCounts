@@ -485,7 +485,7 @@ def get_star_align_runtime(wildcards, input, attempt):
     :param input:
     :return:
     """
-    return len(input) * 1200 * attempt
+    return len(input.reads) * 1200 * attempt
 rule star_align:
     input:
         reads=collect_star_align_input,
