@@ -214,7 +214,7 @@ rule distribute_init_files:
 rule prefetch_fastq:
     input: rules.distribute_init_files.output
     output: data=temp(os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra"))
-    envmodules: "SRAtoolkit/2.10"
+    conda: "envs/SRAtools.yaml"
     threads: 1
     resources:
         mem_mb = 10240, # 10 GB
@@ -273,7 +273,7 @@ rule fastqc_dump_fastq:
         # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
         mem_mb = 2048,# 2 GB
         runtime = 60  # 60 minutes
-    envmodules: "fastqc"
+    conda: "envs/fastqc.yaml"
     shell:
         """
         fastqc {input} --threads {threads} -o {params.outdir}
@@ -290,7 +290,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             tissue_name="{tissue_name}",
             tag="{tag}",
             direction="{PE_SE}"
-        envmodules: "trim_galore/0.6"
+        conda: "envs/trim.yaml"
         threads: 1
         # TODO: Get resources for this rule
         shell:
@@ -325,7 +325,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
             mem_mb=2048,# 2 GB
             runtime=60  # 60 minutes
-        envmodules: "fastqc"
+        conda: "envs/fastqc.yaml"
         shell:
             """
             fastqc {input} --threads {threads} -o {output}
@@ -411,7 +411,7 @@ rule star_align:
     params:
         tissue_name="{tissue_name}",
         tag="{tag}"
-    envmodules: "star/2.7"
+    conda: "envs/STAR.yaml"
     threads: workflow.cores * 0.90
     resources:
         mem_mb=51200,# 50 GB
@@ -442,7 +442,7 @@ rule multiqc:
         # lambda not needed as we have tissue_name as wildcard in output
         tissue_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}"),
         tissue_name = "{tissue_name}"
-    envmodules: "multiqc/py37/1.8"
+    conda: "envs/multiqc.yaml"
     threads: 1
     resources:
         # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
