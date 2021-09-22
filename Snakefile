@@ -279,6 +279,7 @@ rule fastqc_dump_fastq:
         fastqc {input} --threads {threads} -o {params.outdir}
         """
 
+
 if str(config["PERFORM_TRIM"]).lower() == "true":
     rule trim:
         input: get_dump_fastq_output
@@ -291,13 +292,13 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             tag="{tag}",
             direction="{PE_SE}"
         conda: "envs/trim.yaml"
-        threads: 1
+        threads: 4
         # TODO: Get resources for this rule
         shell:
             """
             # Only process on forward reads
             if [ "{params.direction}" == "1" ]; then
-                trim_galore --paired -o "{params.output_directory}" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
+                trim_galore --paired --threads {threads} -o "{params.output_directory}" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
                 filename1="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_1_val_1.fq.gz" # final output paired end trimming forward  
                 filename2="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_2_val_2.fq.gz" # and reverse
                 filerename1="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_1.fastq.gz" # rename to same with trimmed_ prefix
@@ -309,12 +310,11 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 touch {output}
             # Work on single-end reads
             elif [ "{params.direction}" == "S" ]; then
-                trim_galore -o "{params.output_directory}" "{input}"
+                trim_galore --threads {threads} -o "{params.output_directory}" "{input}"
                 filename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz" # final out single end trimming
                 filerename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz" # rename, same convention as PE
                 mv $filename $filerename
             fi
-
             """
 
     rule fastqc_trim:
