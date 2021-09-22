@@ -178,15 +178,10 @@ rule generate_genome:
     resources:
         mem_mb = 50000, # 50 GB
         runtime = 45    # 45 minutes
-    conda: "envs/STAR.yaml"
+    conda: "envs/star.yaml"
     shell:
         """
-        STAR --runMode genomeGenerate \
-        --runThreadN {threads} \
-        --genomeDir {output.genome_dir} \
-        --genomeFastaFiles {input.genome_fasta_file} \
-        --sjdbGTFfile {input.gtf_file} \
-        --sjdbOverhang {config[STAR][GENERATE_GENOME][OVERHANG]}
+        echo "Test"
 
         mv Log.out {params.log_file}
         """
@@ -411,7 +406,7 @@ rule star_align:
     params:
         tissue_name="{tissue_name}",
         tag="{tag}"
-    conda: "envs/STAR.yaml"
+    conda: "envs/star.yaml"
     threads: workflow.cores * 0.90
     resources:
         mem_mb=51200,# 50 GB
@@ -421,14 +416,14 @@ rule star_align:
         PREFIX="{config[ROOTDIR]}/data/{params.tissue_name}/aligned_reads/{params.tag}/{params.tissue_name}_{params.tag}_"
         echo "prefix is $PREFIX"
         STAR --runThreadN {threads} \
-		--readFilesCommand {config[STAR][ALIGN_READS][READ_COMMAND]} \
+		--readFilesCommand {config[ALIGN_READS][READ_COMMAND]} \
 		--readFilesIn {input.reads} \
 		--genomeDir {input.genome_dir} \
 		--outFileNamePrefix $PREFIX \
-		--outSAMtype {config[STAR][ALIGN_READS][OUT_SAM_TYPE]} \
-		--outSAMunmapped {config[STAR][ALIGN_READS][OUT_SAM_UNMAPPED]} \
-		--outSAMattributes {config[STAR][ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
-		--quantMode {config[STAR][ALIGN_READS][QUANT_MODE]}
+		--outSAMtype {config[ALIGN_READS][OUT_SAM_TYPE]} \
+		--outSAMunmapped {config[ALIGN_READS][OUT_SAM_UNMAPPED]} \
+		--outSAMattributes {config[ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
+		--quantMode {config[ALIGN_READS][QUANT_MODE]}
         """
 
 rule multiqc:
