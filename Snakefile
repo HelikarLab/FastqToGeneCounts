@@ -178,7 +178,7 @@ rule generate_genome:
     resources:
         mem_mb = 50000, # 50 GB
         runtime = 45    # 45 minutes
-    envmodules: "star/2.7"
+    conda: "envs/STAR.yaml"
     shell:
         """
         STAR --runMode genomeGenerate \
