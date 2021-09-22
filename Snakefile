@@ -5,6 +5,7 @@ import re
 import csv
 import numpy as np
 import warnings
+import math
 
 configfile: "snakemake_config.yaml"
 
@@ -145,6 +146,7 @@ rule all:
         # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
 
+
         # FastQC
         # Untrimed reads (from checkpoint dump_fastq)
         # Trimmed reads (from rule trim)
@@ -216,6 +218,8 @@ rule prefetch_fastq:
         runtime = 30    # 30 minutes
     shell:
         """
+        mkdir -p $(dirname {output})
+        
         IFS=","
         while read srr name endtype; do
             # prefetch has a default max size of 20G. Effectively remove this size by allowing downloads up to 1TB to be downloaded
@@ -223,12 +227,20 @@ rule prefetch_fastq:
         done < {input}
         """
 
+def get_dump_fastq_input(wildcards):
+    prefetch_output = set(expand(rules.prefetch_fastq.output.data, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data()))
+    for output in prefetch_output:
+        print(output)
+    exit(0)
+        # if wildcards.tissue_name in output and wildcards.tag in output:
+        #     print(f"Returning {output}")
+        #     return output
 
 def get_dump_fastq_runtime(wildcards, input, attempt):
     """
     This function will dynamicall return the length of time requested by checkpoint dump_fastq
     Using 40 threads, it takes approximately 5 minutes per input file
-    We are going to round this up to 20 minutes (= 1200 seconds) to be extremely safe
+    We are going to round this up to 10 minutes to be safe
 
     The 'attempt' input is a snakemake global variable.
     If this workflow fails when using the profile option "restart-times" or the command line option "--restart-times"
@@ -236,12 +248,14 @@ def get_dump_fastq_runtime(wildcards, input, attempt):
         on each subsequent attempt.
         i.e. attempt 2 will double the amount of time requested for this rule, attempt 3 will triple the amount of time requested
 
+    We are dividing the input by 2 because duplicates are input, one for the forward read and one for the reverse read
+
     :param wildcards: wildcard input from checkpoint dump_fastq
     :param input: all input files
     :param attempt: the attempt number of the run
     :return: integer, length of input * 20 minutes
     """
-    return len(input) * 1200 * attempt
+    return len(input) * 10 * attempt
 
 """
 Shifted this section to using "scripts" and "conda" because it allows us to package everything we need within the script itself
@@ -292,6 +306,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             runtime=90  # 90 minutes
         shell:
             """
+            
             # Only process on forward reads
             if [ "{params.direction}" == "1" ]; then
                 trim_galore --paired --threads {threads} -o "{params.output_directory}" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
