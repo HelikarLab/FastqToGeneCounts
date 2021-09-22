@@ -139,7 +139,7 @@ def get_dump_fastq_output(wildcards):
 rule all:
     input:
         # Generate Genome
-        os.path.join(config["ROOTDIR"],config["STAR"]["GENERATE_GENOME"]["GENOME_DIR"]),
+        os.path.join(config["ROOTDIR"],config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
 
         # dump_fastq
         # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
@@ -166,11 +166,11 @@ rule all:
 # https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
 rule generate_genome:
     input:
-        genome_fasta_file=config["STAR"]["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
-        gtf_file=config["STAR"]["GENERATE_GENOME"]["GTF_FILE"]
+        genome_fasta_file=config["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
+        gtf_file=config["GENERATE_GENOME"]["GTF_FILE"]
     output:
-        genome_dir=directory(os.path.join(config["ROOTDIR"],config["STAR"]["GENERATE_GENOME"]["GENOME_DIR"])),
-        genome_file=os.path.join(config["ROOTDIR"],config["STAR"]["GENERATE_GENOME"]["GENOME_DIR"],"Genome"),
+        genome_dir=directory(os.path.join(config["ROOTDIR"],config["GENERATE_GENOME"]["GENOME_SAVE_DIR"])),
+        genome_file=os.path.join(config["ROOTDIR"],config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],"Genome"),
         rule_complete=touch(os.path.join(config["ROOTDIR"],"temp","rule_complete","generate_genome.complete"))
     params:
         log_file=os.path.join(config["ROOTDIR"],"genome","star","Log.out")
@@ -279,7 +279,7 @@ rule fastqc_dump_fastq:
         fastqc {input} --threads {threads} -o {params.outdir}
         """
 
-if config["PERFORM_TRIM"]:
+if str(config["PERFORM_TRIM"]).lower() == "true":
     rule trim:
         input: get_dump_fastq_output
         output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
@@ -332,7 +332,7 @@ if config["PERFORM_TRIM"]:
             """
 
 def collect_star_align_input(wildcards):
-    if config["PERFORM_TRIM"]:
+    if str(config["PERFORM_TRIM"]).lower() == "true":
         # Have not expanded output from rule trim, need to expand it here
         in_files = expand(rules.trim.output,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data())
     else:
