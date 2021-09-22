@@ -186,7 +186,7 @@ rule generate_genome:
         --genomeDir {output.genome_dir} \
         --genomeFastaFiles {input.genome_fasta_file} \
         --sjdbGTFfile {input.gtf_file} \
-        --sjdbOverhang {config[STAR][GENERATE_GENOME][OVERHANG]}
+        --sjdbOverhang {config[GENERATE_GENOME][OVERHANG]}
 
         mv Log.out {params.log_file}
         """
