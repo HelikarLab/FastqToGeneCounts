@@ -181,7 +181,12 @@ rule generate_genome:
     conda: "envs/star.yaml"
     shell:
         """
-        echo "Test"
+        STAR --runMode genomeGenerate \
+        --runThreadN {threads} \
+        --genomeDir {output.genome_dir} \
+        --genomeFastaFiles {input.genome_fasta_file} \
+        --sjdbGTFfile {input.gtf_file} \
+        --sjdbOverhang {config[STAR][GENERATE_GENOME][OVERHANG]}
 
         mv Log.out {params.log_file}
         """
