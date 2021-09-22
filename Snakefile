@@ -145,19 +145,14 @@ rule all:
         # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
 
-        # Trim Reads
-        # May not need to include this, as it is dynamic depending on what STAR aligner needs
-        # If config["PERFORM_TRIM"] == False, including this as input will cause an error
-        # expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
-
         # FastQC
-        # Untrimed reads (i.e. from dump fastq)
+        # Untrimed reads (from checkpoint dump_fastq)
+        # Trimmed reads (from rule trim)
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
         # STAR aligner
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
-        #directory(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads"))
 
         # MultiQC
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),tissue_name=get_tissue_name())
@@ -287,7 +282,6 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         params:
             output_directory=os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads"),
             working_file="{tissue_name}_{tag}_{PE_SE}.fastq.gz",
-            dump_fastq_output_dir=get_dump_fastq_output,
             tissue_name="{tissue_name}",
             tag="{tag}",
             direction="{PE_SE}"
