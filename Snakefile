@@ -287,7 +287,9 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             direction="{PE_SE}"
         conda: "envs/trim.yaml"
         threads: 4
-        # TODO: Get resources for this rule
+        resources:
+            mem_mb=1536,# 1.5 GB
+            runtime=90  # 90 minutes
         shell:
             """
             # Only process on forward reads
