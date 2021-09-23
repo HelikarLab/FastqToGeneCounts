@@ -83,7 +83,7 @@ for i, (in_file, out_files) in enumerate(zip(input_list, output_list)):
     else:
         out_directory = os.path.dirname(out_files)
         os.makedirs(out_directory, exist_ok=True)
-        subprocess.run(["parallel-fastq-dump", "--sra-id", str(in_file), "-threads", str(snakemake.threads), "--outdir", str(out_directory), "--gzip"])
+        subprocess.run(["parallel-fastq-dump", "--sra-id", str(in_file), "--threads", str(snakemake.threads), "--outdir", str(out_directory), "--gzip"])
         # os.system(f"parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip")
 
         # fastq_dumped_files pulls ALL files in output directory
