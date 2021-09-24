@@ -161,6 +161,13 @@ rule all:
 
 #TODO: convert this input to snakemake's HTTP download
 # https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
+def generate_genome_runtime(wildcards):
+    """
+    Request 90 minutes on first run, 180 on second run, etc.
+    :param wildcards:
+    :return: integer of number of minutes to run
+    """
+    return 90 * attempt
 rule generate_genome:
     input:
         genome_fasta_file=config["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
@@ -174,7 +181,7 @@ rule generate_genome:
     threads: 40
     resources:
         mem_mb = 50000, # 50 GB
-        runtime = 45    # 45 minutes
+        runtime = generate_genome_runtime
     conda: "envs/star.yaml"
     shell:
         """
