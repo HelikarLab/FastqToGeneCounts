@@ -310,7 +310,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         conda: "envs/trim.yaml"
         threads: 4
         resources:
-            mem_mb=1536,# 1.5 GB
+            mem_mb=10240,# 10 GB
             runtime=90  # 90 minutes
         shell:
             """
