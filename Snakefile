@@ -293,7 +293,7 @@ rule fastqc_dump_fastq:
     conda: "envs/fastqc.yaml"
     shell:
         """
-        fastqc {input} --threads {threads} -o {params.outdir}
+        fastqc {input} --threads {threads} -o {output}
         """
 
 
