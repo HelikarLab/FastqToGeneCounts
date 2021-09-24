@@ -292,7 +292,7 @@ rule fastqc_dump_fastq:
     conda: "envs/fastqc.yaml"
     shell:
         """
-        fastqc {input} --threads {threads} -o {output}
+        fastqc {input} --threads {threads} -o $(dirname {output})
         """
 
 
@@ -346,7 +346,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         conda: "envs/fastqc.yaml"
         shell:
             """
-            fastqc {input} --threads {threads} -o {output}
+            fastqc {input} --threads {threads} -o $(dirname {output})
             """
 
 def collect_star_align_input(wildcards):
