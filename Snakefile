@@ -161,10 +161,11 @@ rule all:
 
 #TODO: convert this input to snakemake's HTTP download
 # https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
-def generate_genome_runtime(wildcards):
+def generate_genome_runtime(wildcards, attempt):
     """
     Request 90 minutes on first run, 180 on second run, etc.
     :param wildcards:
+    :param attempt: The attempt number of the run
     :return: integer of number of minutes to run
     """
     return 90 * attempt
