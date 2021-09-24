@@ -284,6 +284,7 @@ checkpoint dump_fastq:
 rule fastqc_dump_fastq:
     input: get_dump_fastq_output
     output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+    params: out_dir = os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads")
     threads: 5
     resources:
         # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
@@ -292,6 +293,8 @@ rule fastqc_dump_fastq:
     conda: "envs/fastqc.yaml"
     shell:
         """
+        mkdir -p $(dirname {output})
+        touch {output}
         fastqc {input} --threads {threads} -o $(dirname {output})
         """
 
@@ -346,6 +349,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         conda: "envs/fastqc.yaml"
         shell:
             """
+            mkdir -p $(dirname {output})
+            touch {output}
             fastqc {input} --threads {threads} -o $(dirname {output})
             """
 
