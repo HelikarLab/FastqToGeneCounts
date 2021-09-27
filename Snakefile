@@ -156,6 +156,7 @@ rule all:
         # STAR aligner
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
 
+
         # MultiQC
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),tissue_name=get_tissue_name())
 
@@ -218,7 +219,9 @@ rule distribute_init_files:
 
 rule prefetch_fastq:
     input: rules.distribute_init_files.output
-    output: data=temp(os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra"))
+    output:
+        data=temp(os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra")),
+        rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "prefetch", "{tissue_name}_{tag}_{srr_code}.complete"))
     conda: "envs/SRAtools.yaml"
     threads: 1
     resources:
