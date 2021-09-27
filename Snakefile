@@ -154,7 +154,7 @@ rule all:
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
         # STAR aligner
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
+        expand(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
 
         # MultiQC
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),tissue_name=get_tissue_name())
@@ -430,10 +430,11 @@ rule star_align:
         genome_dir=rules.generate_genome.output.genome_dir,
         genome_file=rules.generate_genome.output.genome_file,
         rule_complete=os.path.join(config["ROOTDIR"],"temp","rule_complete","generate_genome.complete")
-    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab")
+    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab")
     params:
         tissue_name="{tissue_name}",
-        tag="{tag}"
+        tag="{tag}",
+        star_output = os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab")
     conda: "envs/star.yaml"
     threads: 40
     resources:
@@ -452,6 +453,8 @@ rule star_align:
 		--outSAMunmapped {config[ALIGN_READS][OUT_SAM_UNMAPPED]} \
 		--outSAMattributes {config[ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
 		--quantMode {config[ALIGN_READS][QUANT_MODE]}
+		
+		mv {params.star_output} {output}
         """
 
 rule multiqc:
