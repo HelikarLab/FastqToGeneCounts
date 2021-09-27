@@ -142,6 +142,9 @@ rule all:
         # Generate Genome
         os.path.join(config["ROOTDIR"],config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
 
+        # Download SRR codes
+        expand(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "prefetch", "{tissue_name}_{tag}_{srr_code}.complete"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data()),
+
         # dump_fastq
         # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
