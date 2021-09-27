@@ -154,7 +154,7 @@ rule all:
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
         # STAR aligner
-        expand(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
 
         # MultiQC
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),tissue_name=get_tissue_name())
