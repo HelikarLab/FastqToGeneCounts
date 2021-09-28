@@ -358,13 +358,13 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             mkdir -p $(dirname {output})
             
             # Process forward reads and reverse reads after trim_galore has finished them
-            if [ {params.direction} == "1" ]; then
+            if [ "{params.direction}" == "1" ]; then
                 
                 fastqc {params.file_one_out} --threads {threads} -o $(dirname {output})
                 fastqc {params.file_two_out} --threads {threads} -o $(dirname {output})
-            elif [ {params.direction} == "2"]; then
+            elif [ "{params.direction}" == "2"]; then
                 touch {output}
-            elif [ {params.direction} == "S"]; then
+            elif [ "{params.direction}" == "S"]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
             fi
             """
