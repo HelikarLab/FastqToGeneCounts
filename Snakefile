@@ -362,9 +362,9 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 
                 fastqc {params.file_one_out} --threads {threads} -o $(dirname {output})
                 fastqc {params.file_two_out} --threads {threads} -o $(dirname {output})
-            elif [ "{params.direction}" == "2"]; then
+            elif [ "{params.direction}" == "2" ]; then
                 touch {output}
-            elif [ "{params.direction}" == "S"]; then
+            elif [ "{params.direction}" == "S" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
             fi
             """
