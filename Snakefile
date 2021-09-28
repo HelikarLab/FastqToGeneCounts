@@ -301,7 +301,7 @@ rule fastqc_dump_fastq:
 if str(config["PERFORM_TRIM"]).lower() == "true":
     rule trim:
         input: get_dump_fastq_output
-        output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+        output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
             output_directory=os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads"),
             working_file="{tissue_name}_{tag}_{PE_SE}.fastq.gz",
@@ -339,10 +339,10 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
 
     rule fastqc_trim:
         input: rules.trim.output
-        output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+        output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
         params:
-            file_one_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "{tissue_name}_{tag}_1_fastqc.zip"),
-            file_two_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "{tissue_name}_{tag}_2_fastqc.zip"),
+            file_one_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_1_fastqc.zip"),
+            file_two_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
             direction = "{PE_SE}"
         threads: 5
         resources:
