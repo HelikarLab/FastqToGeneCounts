@@ -153,8 +153,8 @@ rule all:
         # FastQC
         # Untrimed reads (from checkpoint dump_fastq)
         # Trimmed reads (from rule trim)
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
 
         # STAR aligner
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
@@ -282,7 +282,7 @@ checkpoint dump_fastq:
 
 rule fastqc_dump_fastq:
     input: get_dump_fastq_output
-    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params: out_dir = os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads")
     threads: 5
     resources:
@@ -356,7 +356,6 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             
             # Process forward reads and reverse reads after trim_galore has finished them
             if [ "{params.direction}" == "1" ]; then
-                
                 fastqc {params.file_one_out} --threads {threads} -o $(dirname {output})
                 fastqc {params.file_two_out} --threads {threads} -o $(dirname {output})
             elif [ "{params.direction}" == "2" ]; then
