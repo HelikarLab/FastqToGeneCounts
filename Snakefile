@@ -337,6 +337,24 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             fi
             """
 
+    def get_tag(file_path: str) -> str:
+        file_name = os.path.basename(file_path)
+        purge_extension = file_name.split(".")[0]
+        tag = purge_extension.split("_")[-1]
+        return str(tag)
+    def get_fastqc_trim_threads(wildcards, input):
+        threads = 1
+        tag = get_tag(str(input))
+        if tag in ["1", "S"]: threads = 10
+        elif tag == "2": threads = 1
+        return threads
+    def get_fastqc_trim_runtime(wildcards, input):
+        tag = get_tag(str(input))
+        runtime = 1
+        if tag in ["1", "S"]: runtime = 60
+        elif tag == "2": runtime = 5
+        return runtime
+
     rule fastqc_trim:
         input: rules.trim.output
         output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
@@ -344,11 +362,11 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             file_one_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_1_fastqc.zip"),
             file_two_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
             direction = "{PE_SE}"
-        threads: 5
+        threads: get_fastqc_trim_threads
         resources:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
             mem_mb=2048,# 2 GB
-            runtime=60  # 60 minutes
+            runtime=get_fastqc_trim_runtime  # 60 minutes
         conda: "envs/fastqc.yaml"
         shell:
             """
