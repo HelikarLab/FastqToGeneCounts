@@ -183,7 +183,7 @@ rule generate_genome:
         rule_complete=touch(os.path.join(config["ROOTDIR"],"temp","rule_complete","generate_genome.complete"))
     params:
         log_file=os.path.join(config["ROOTDIR"],"genome","star","Log.out")
-    threads: 40
+    threads: 50
     resources:
         mem_mb = 50000, # 50 GB
         runtime = generate_genome_runtime
@@ -271,7 +271,7 @@ checkpoint dump_fastq:
         data = expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data()),
         rule_complete = expand(rules.prefetch_fastq.output.rule_complete, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data())
     output: data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
-    threads: 40
+    threads: 50
     conda: "envs/parallel-fastq-dump.yaml"
     resources:
         mem_mb=20480,  # 20 GB
@@ -448,7 +448,7 @@ rule star_align:
         tag="{tag}",
         star_output = os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab")
     conda: "envs/star.yaml"
-    threads: 40
+    threads: 50
     resources:
         mem_mb=51200,# 50 GB
         runtime=get_star_align_runtime
