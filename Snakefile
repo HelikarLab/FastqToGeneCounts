@@ -23,15 +23,16 @@ def get_tissue_name():
     with open(config["MASTER_CONTROL"],"r") as rfile:
         reader = csv.reader(rfile)
         for i, line in enumerate(reader):
-            id = line[1].split("_")[0]  # naiveB_S1R1 -> naiveB
-            pe_se = line[2]
+            if line != "":
+                id = line[1].split("_")[0]  # naiveB_S1R1 -> naiveB
+                pe_se = line[2]
 
-            # append tissue name twice of paired end, allows for naming "_1" and "_2"
-            if pe_se == "PE":
-                tissue_data.append(id)
-                tissue_data.append(id)
-            elif pe_se == "SE":
-                tissue_data.append(id)
+                # append tissue name twice of paired end, allows for naming "_1" and "_2"
+                if pe_se == "PE":
+                    tissue_data.append(id)
+                    tissue_data.append(id)
+                elif pe_se == "SE":
+                    tissue_data.append(id)
 
     return tissue_data
 
@@ -158,7 +159,6 @@ rule all:
 
         # STAR aligner
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
-
 
         # MultiQC
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),tissue_name=get_tissue_name())
@@ -373,8 +373,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             
             # Process forward reads and reverse reads after trim_galore has finished them
             if [ "{params.direction}" == "1" ]; then
-                fastqc {params.file_one_out} --threads {threads} -o $(dirname {output})
-                fastqc {params.file_two_out} --threads {threads} -o $(dirname {output})
+                fastqc {params.file_one_out} --threads {threads} -o $(dirname {params.file_one_out})
+                fastqc {params.file_two_out} --threads {threads} -o $(dirname {params.file_two_out})
             elif [ "{params.direction}" == "2" ]; then
                 touch {output}
             elif [ "{params.direction}" == "S" ]; then
