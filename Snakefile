@@ -224,7 +224,7 @@ rule prefetch_fastq:
     input: rules.distribute_init_files.output
     output:
         data=temp(os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra")),
-        rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "prefetch", "{tissue_name}_{tag}_{srr_code}.complete"))
+        rule_complete = os.path.join(config["ROOTDIR"], "temp", "rule_complete", "prefetch", "{tissue_name}_{tag}_{srr_code}.complete")
     conda: "envs/SRAtools.yaml"
     threads: 1
     resources:
@@ -239,16 +239,10 @@ rule prefetch_fastq:
             # prefetch has a default max size of 20G. Effectively remove this size by allowing downloads up to 1TB to be downloaded
             prefetch $srr --max-size 1024000000000 --output-file {output.data}
         done < {input}
+        
+        sleep 10
+        touch {output.rule_complete}
         """
-
-def get_dump_fastq_input(wildcards):
-    prefetch_output = set(expand(rules.prefetch_fastq.output.data, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data()))
-    for output in prefetch_output:
-        print(output)
-    exit(0)
-        # if wildcards.tissue_name in output and wildcards.tag in output:
-        #     print(f"Returning {output}")
-        #     return output
 
 def get_dump_fastq_runtime(wildcards, input, attempt):
     """
@@ -349,6 +343,10 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
     rule fastqc_trim:
         input: rules.trim.output
         output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+        params:
+            file_one_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "{tissue_name}_{tag}_1_fastqc.zip"),
+            file_two_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "{tissue_name}_{tag}_2_fastqc.zip"),
+            direction = "{PE_SE}",
         threads: 5
         resources:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
@@ -358,8 +356,17 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         shell:
             """
             mkdir -p $(dirname {output})
-            touch {output}
-            fastqc {input} --threads {threads} -o $(dirname {output})
+            
+            # Process forward reads and reverse reads after trim_galore has finished them
+            if [ {params.direction} == "1" ]; then
+                
+                fastqc {params.file_one_out} --threads {threads} -o $(dirname {output})
+                fastqc {params.file_two_out} --threads {threads} -o $(dirname {output})
+            elif [ {params.direction} == "2"]; then
+                touch {output}
+            elif [ {params.direction} == "S"]; then
+                fastqc {input} --threads {threads} -o $(dirname {output})
+            fi
             """
 
 def collect_star_align_input(wildcards):
