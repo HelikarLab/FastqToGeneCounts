@@ -276,7 +276,9 @@ Shifted this section to using "scripts" and "conda" because it allows us to pack
 We are able to download the parallel-fastq-dump pacakge from Anaconda where-ever we are, and do not depend on a cluster having it installed 
 """
 checkpoint dump_fastq:
-    input: data = expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data())
+    input:
+        data = expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data()),
+        rule_complete = expand(rules.prefetch_fastq.output.rule_complete, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data())
     output: data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
     threads: 40
     conda: "envs/parallel-fastq-dump.yaml"
