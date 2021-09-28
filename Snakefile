@@ -343,7 +343,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         params:
             file_one_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "{tissue_name}_{tag}_1_fastqc.zip"),
             file_two_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "{tissue_name}_{tag}_2_fastqc.zip"),
-            direction = "{PE_SE}",
+            direction = "{PE_SE}"
         threads: 5
         resources:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
@@ -431,8 +431,9 @@ def get_star_align_runtime(wildcards, input, attempt):
     If on the second/third/etc. attempt, double/triple/etc. time is requested
 
     Return an integer of: len(input) * 1200 seconds = total runtime
-    :param wildcards:
-    :param input:
+    :param wildcards: Wildcard data
+    :param input: The input data
+    :param attempt: The current attempt snakemake is on
     :return:
     """
     return len(input.reads) * 1200 * attempt
