@@ -322,7 +322,6 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
             output_directory=os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads"),
-            working_file="{tissue_name}_{tag}_{PE_SE}.fastq.gz",
             tissue_name="{tissue_name}",
             tag="{tag}",
             direction="{PE_SE}"
