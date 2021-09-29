@@ -202,7 +202,8 @@ rule generate_genome:
 
 rule distribute_init_files:
     input: config["MASTER_CONTROL"]
-    output: temp(os.path.join(config["ROOTDIR"],"controls","init_files","{tissue_name}_{tag}.csv"))
+    output: os.path.join(config["ROOTDIR"],"controls","init_files","{tissue_name}_{tag}.csv")
+            # temp(os.path.join(config["ROOTDIR"],"controls","init_files","{tissue_name}_{tag}.csv"))
     params: id="{tissue_name}_{tag}"
     threads: 1
     resources:
