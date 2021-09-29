@@ -137,6 +137,23 @@ def get_dump_fastq_output(wildcards):
 
             return working_file_path
 
+def trim(wildcards):
+    """
+    If we are performing trimming, return trim's output
+    """
+    if str(config["PERFORM_TRIM"]).lower() == "true":
+        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
+    else:
+        return []
+
+def fastqc_trimmed_reads(wildcards):
+    """
+    If we are going to trim, return output for rule fastqc_trim
+    """
+    if str(config["PERFORM_TRIM"]).lower() == "true":
+        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
+    else:
+        return []
 
 rule all:
     input:
@@ -150,12 +167,14 @@ rule all:
         # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
 
+        # trim reads
+        trim,
 
         # FastQC
         # Untrimed reads (from checkpoint dump_fastq)
         # Trimmed reads (from rule trim)
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),zip,tissue_name=get_tissue_name(),tag=get_tag_data(),PE_SE=get_PE_SE_Data()),
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data()),
+        fastqc_trimmed_reads,
 
         # STAR aligner
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"),zip,tissue_name=get_tissue_name(),tag=get_tag_data()),
@@ -226,7 +245,6 @@ rule prefetch_fastq:
     output:
         # data=temp(os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra")),
         data=os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra")
-        # rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "prefetch", "{tissue_name}_{tag}_{srr_code}.complete"))
     conda: "envs/SRAtools.yaml"
     threads: 1
     resources:
@@ -304,8 +322,6 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
     def get_trim_threads(wildcards):
         """
         Trim galore uses 9 threads on single-ended data, and 15 cores for paired-end data.
-        :param wildcards:
-        :return:
         """
         threads = 1
         if str(wildcards.PE_SE) == "1": threads = 15
@@ -313,6 +329,10 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         elif str(wildcards.PE_SE) == "S": threads = 4
         return threads
     def get_trim_runtime(wildcards, attempt):
+        """
+        Trim galore takes more time on single-ended data and the forward read of paired end data
+        It only touches the output file of the reverse-read paired-end data
+        """
         runtime = 5  # minutes
         if str(wildcards.PE_SE) == "1": runtime = 120 * attempt
         elif str(wildcards.PE_SE) == "2": runtime = 5
