@@ -286,9 +286,7 @@ Shifted this section to using "scripts" and "conda" because it allows us to pack
 We are able to download the parallel-fastq-dump pacakge from Anaconda where-ever we are, and do not depend on a cluster having it installed 
 """
 checkpoint dump_fastq:
-    input:
-        data = expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data())
-        # rule_complete = expand(rules.prefetch_fastq.output.rule_complete, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data())
+    input: data = expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data())
     output: data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
     threads: 50
     conda: "envs/parallel-fastq-dump.yaml"
@@ -405,7 +403,6 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         conda: "envs/fastqc.yaml"
         shell:
             """
-            mkdir -p $(dirname {output})
             # Process forward reads and reverse reads after trim_galore has finished them
             if [ "{params.direction}" == "1" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
@@ -421,6 +418,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 mv "$out_directory/$file_one_basename" "$out_directory/$file_one_rename"
                 mv "$out_directory/$file_two_basename" "$out_directory/$file_two_rename"
             elif [ "{params.direction}" == "2" ]; then
+                mkdir -p $(dirname {output})
                 touch {output}
             elif [ "{params.direction}" == "S" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})

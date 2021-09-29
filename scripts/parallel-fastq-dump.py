@@ -65,13 +65,10 @@ output_list = generate_output_tuples(output_list)
 
 # iterate through input and output items
 for i, (in_file, out_files) in enumerate(zip(input_list, output_list)):
-    print(f"dump_fastq is working on file: {in_file}")
-
     if type(out_files) is tuple:
         out_directory = os.path.dirname(out_files[0])
         os.makedirs(out_directory, exist_ok=True)
         subprocess.run(["parallel-fastq-dump", "--sra-id", str(in_file), "--threads", str(snakemake.threads), "--outdir", str(out_directory), "--gzip", "--split-files"])
-        # os.system(f"parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip --split-files")
 
         # fastq_dumped_files pulls ALL files in output directory
         # This is not good, as it also includes correctly-named output files
@@ -84,7 +81,6 @@ for i, (in_file, out_files) in enumerate(zip(input_list, output_list)):
         out_directory = os.path.dirname(out_files)
         os.makedirs(out_directory, exist_ok=True)
         subprocess.run(["parallel-fastq-dump", "--sra-id", str(in_file), "--threads", str(snakemake.threads), "--outdir", str(out_directory), "--gzip"])
-        # os.system(f"parallel-fastq-dump --sra-id {in_file} --threads {threads} --outdir {out_directory} --gzip")
 
         # fastq_dumped_files pulls ALL files in output directory
         # This is not good, as it also includes correctly-named output files
