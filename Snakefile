@@ -370,6 +370,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         params:
             file_one_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_1_fastqc.zip"),
             file_two_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
+            file_two_input = os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"),
             direction = "{PE_SE}"
         threads: get_fastqc_trim_threads
         resources:
@@ -384,9 +385,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             # Process forward reads and reverse reads after trim_galore has finished them
             if [ "{params.direction}" == "1" ]; then
                 rm -f {params.file_two_out}  # Remove _2 output file if it is present
-                 
-                fastqc {params.file_one_out} --threads {threads} -o $(dirname {params.file_one_out})
-                fastqc {params.file_two_out} --threads {threads} -o $(dirname {params.file_two_out})
+                fastqc {input} --threads {threads} -o $(dirname {params.file_one_out})
+                fastqc {params.file_two_input} --threads {threads} -o $(dirname {params.file_two_out})
             elif [ "{params.direction}" == "2" ]; then
                 touch {output}
             elif [ "{params.direction}" == "S" ]; then
