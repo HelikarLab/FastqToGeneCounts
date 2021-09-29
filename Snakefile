@@ -326,7 +326,6 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             runtime=lambda wildcards, attempt: 120 * attempt  # 120 minutes
         shell:
             """
-            
             # Only process on forward reads
             if [ "{params.direction}" == "1" ]; then
                 trim_galore --paired --cores {threads} -o "{params.output_directory}" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
