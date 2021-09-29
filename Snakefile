@@ -223,8 +223,9 @@ rule distribute_init_files:
 rule prefetch_fastq:
     input: rules.distribute_init_files.output
     output:
-        data=temp(os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra")),
-        rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "prefetch", "{tissue_name}_{tag}_{srr_code}.complete"))
+        # data=temp(os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra")),
+        data=os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{srr_code}","{srr_code}.sra")
+        # rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "prefetch", "{tissue_name}_{tag}_{srr_code}.complete"))
     conda: "envs/SRAtools.yaml"
     threads: 1
     resources:
@@ -268,8 +269,8 @@ We are able to download the parallel-fastq-dump pacakge from Anaconda where-ever
 """
 checkpoint dump_fastq:
     input:
-        data = expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data()),
-        rule_complete = expand(rules.prefetch_fastq.output.rule_complete, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data())
+        data = expand(rules.prefetch_fastq.output.data,zip,tissue_name=get_tissue_name(),tag=get_tag_data(),srr_code=get_srr_data())
+        # rule_complete = expand(rules.prefetch_fastq.output.rule_complete, zip, tissue_name=get_tissue_name(), tag=get_tag_data(), srr_code=get_srr_data())
     output: data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tag_data(), PE_SE=get_PE_SE_Data())
     threads: 50
     conda: "envs/parallel-fastq-dump.yaml"
