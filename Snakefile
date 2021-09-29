@@ -374,9 +374,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         input: rules.trim.output
         output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
         params:
-            file_one_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_1_fastqc.zip"),
+            file_two_input = os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"),
             file_two_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
-            file_two_input = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"),
             direction = "{PE_SE}"
         threads: get_fastqc_trim_threads
         resources:
@@ -387,15 +386,29 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         shell:
             """
             mkdir -p $(dirname {output})
-            
             # Process forward reads and reverse reads after trim_galore has finished them
             if [ "{params.direction}" == "1" ]; then
-                fastqc {input} --threads {threads} -o $(dirname {params.file_one_out})
+                fastqc {input} --threads {threads} -o $(dirname {output})
                 fastqc {params.file_two_input} --threads {threads} -o $(dirname {params.file_two_out})
+                
+                # Fastqc does not output file names, only to file directories. Must rename
+                out_directory=$(dirname {output}) 
+                file_one_basename=$(basename {input})
+                file_two_basename=$(basename {params.file_two_input})
+                file_one_rename=$(basename {output})
+                file_two_rename=$(basename {params.file_two_out})
+                
+                mv "$out_directory/$file_one_basename" "$out_directory/$file_one_rename"
+                mv "$out_directory/$file_two_basename" "$out_directory/$file_two_rename"
             elif [ "{params.direction}" == "2" ]; then
                 touch {output}
             elif [ "{params.direction}" == "S" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
+                
+                out_directory=$(dirname {output})
+                file_basename=$(basename {input})
+                file_rename=$(basename {output})
+                mv "$out_directory/$file_basename" "$out_directory/$file_rename"
             fi
             """
 
