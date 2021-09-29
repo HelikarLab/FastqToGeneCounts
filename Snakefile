@@ -376,7 +376,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         params:
             file_one_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_1_fastqc.zip"),
             file_two_out = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
-            file_two_input = os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"),
+            file_two_input = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"),
             direction = "{PE_SE}"
         threads: get_fastqc_trim_threads
         resources:
