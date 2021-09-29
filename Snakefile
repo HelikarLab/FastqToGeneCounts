@@ -252,8 +252,7 @@ rule prefetch_fastq:
         runtime = 30    # 30 minutes
     shell:
         """
-        mkdir -p $(dirname {output})
-        
+    
         IFS=","
         while read srr name endtype; do
             # prefetch has a default max size of 20G. Effectively remove this size by allowing downloads up to 1TB to be downloaded
