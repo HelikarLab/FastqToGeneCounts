@@ -299,6 +299,17 @@ rule fastqc_dump_fastq:
 
 
 if str(config["PERFORM_TRIM"]).lower() == "true":
+    def get_trim_threads(wildcards):
+        """
+        Trim galore uses 9 threads on single-ended data, and 15 cores for paired-end data.
+        :param wildcards:
+        :return:
+        """
+        threads = 1
+        if str(wildcards.PE_SE) == "1": threads = 15
+        elif str(wildcards.PE_SE) == "2": threads = 1
+        elif str(wildcards.PE_SE) == "S": threads = 4
+        return threads
     rule trim:
         input: get_dump_fastq_output
         output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
@@ -309,10 +320,10 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             tag="{tag}",
             direction="{PE_SE}"
         conda: "envs/trim.yaml"
-        threads: 4
+        threads: get_trim_threads
         resources:
             mem_mb=10240,# 10 GB
-            runtime=90  # 90 minutes
+            runtime=lambda wildcards, attempt: 120 * attempt  # 120 minutes
         shell:
             """
             
@@ -373,6 +384,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             
             # Process forward reads and reverse reads after trim_galore has finished them
             if [ "{params.direction}" == "1" ]; then
+                rm -f {params.file_two_out}  # Remove _2 output file if it is present
+                 
                 fastqc {params.file_one_out} --threads {threads} -o $(dirname {params.file_one_out})
                 fastqc {params.file_two_out} --threads {threads} -o $(dirname {params.file_two_out})
             elif [ "{params.direction}" == "2" ]; then
