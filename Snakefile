@@ -133,7 +133,7 @@ def get_dump_fastq_output(wildcards):
 
             # Generate our working file name, and working file path
             working_file = f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq.gz"
-            working_file_path = os.path.join(directory_name,working_file)
+            working_file_path = os.path.join(directory_name, working_file)
 
             return working_file_path
 
@@ -311,6 +311,12 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         elif str(wildcards.PE_SE) == "2": threads = 1
         elif str(wildcards.PE_SE) == "S": threads = 4
         return threads
+    def get_trim_runtime(wildcards, attempt):
+        runtime = 5  # minutes
+        if str(wildcards.PE_SE) == "1": runtime = 120 * attempt
+        elif str(wildcards.PE_SE) == "2": runtime = 5
+        elif str(wildcards.PE_SE) == "S": runtime = 120 * attempt
+        return runtime
     rule trim:
         input: get_dump_fastq_output
         output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
@@ -324,7 +330,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         threads: get_trim_threads
         resources:
             mem_mb=10240,# 10 GB
-            runtime=lambda wildcards, attempt: 120 * attempt  # 120 minutes
+            runtime=get_trim_runtime
         shell:
             """
             # Only process on forward reads
@@ -377,7 +383,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         resources:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
             mem_mb=2048,# 2 GB
-            runtime=get_fastqc_trim_runtime  # 60 minutes
+            runtime=get_fastqc_trim_runtime
         conda: "envs/fastqc.yaml"
         shell:
             """
