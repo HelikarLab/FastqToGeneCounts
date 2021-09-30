@@ -313,6 +313,7 @@ rule fastqc_dump_fastq:
         mkdir -p $(dirname {output})
         fastqc {input} --threads {threads} -o $(dirname {output})
         mv {params.fastqc_output_name} {output}
+        echo "\nFastQC finished for {input} (1/1)\n"K
         """
 
 
@@ -380,7 +381,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
     def get_fastqc_trim_threads(wildcards, input):
         threads = 1
         tag = get_tag(str(input))
-        if tag in ["1", "S"]: threads = 10
+        if tag in ["1", "S"]: threads = 15
         elif tag == "2": threads = 1
         return threads
     def get_fastqc_trim_runtime(wildcards, input, attempt):
@@ -407,8 +408,9 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             # Process forward reads and reverse reads after trim_galore has finished them
             if [ "{params.direction}" == "1" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
-                echo "FastQC finished $(basename {input}) (1/2)"
+                echo "\nFastQC finished $(basename {input}) (1/2)\n"
                 fastqc {params.file_two_input} --threads {threads} -o $(dirname {params.file_two_out})
+                echo "\nFastQC finished $(basename {params.file_two_input} (2/2)\n"
             elif [ "{params.direction}" == "2" ]; then
                 mkdir -p $(dirname {output})
                 touch {output}
