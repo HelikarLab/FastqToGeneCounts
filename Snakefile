@@ -300,7 +300,7 @@ checkpoint dump_fastq:
 rule fastqc_dump_fastq:
     input: get_dump_fastq_output
     output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
-    params: out_dir = os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads")
+    params: fastqc_output_name=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastq.zip")
     threads: 5
     resources:
         # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
@@ -310,8 +310,8 @@ rule fastqc_dump_fastq:
     shell:
         """
         mkdir -p $(dirname {output})
-        touch {output}
         fastqc {input} --threads {threads} -o $(dirname {output})
+        mv {params.fastqc_output_name} {output}
         """
 
 
