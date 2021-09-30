@@ -383,10 +383,10 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         if tag in ["1", "S"]: threads = 10
         elif tag == "2": threads = 1
         return threads
-    def get_fastqc_trim_runtime(wildcards, input):
+    def get_fastqc_trim_runtime(wildcards, input, attempt):
         tag = get_tag(str(input))
         runtime = 1
-        if tag in ["1", "S"]: runtime = 60
+        if tag in ["1", "S"]: runtime = 60 * attempt
         elif tag == "2": runtime = 5
         return runtime
     rule fastqc_trim:
@@ -487,7 +487,8 @@ def get_star_align_runtime(wildcards, input, attempt):
     :param attempt: The current attempt snakemake is on
     :return:
     """
-    return len(input.reads) * 1200 * attempt
+    # Max time is 7 days (10,080 minutes). Do not let this function return more than this time
+    return min(len(input.reads) * 20 * attempt, 10079)
 rule star_align:
     input:
         reads=collect_star_align_input,
