@@ -407,7 +407,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             # Process forward reads and reverse reads after trim_galore has finished them
             if [ "{params.direction}" == "1" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
-                echo "FastQC finished $(basename {input}) (1/2)
+                echo "FastQC finished $(basename {input}) (1/2)"
                 fastqc {params.file_two_input} --threads {threads} -o $(dirname {params.file_two_out})
             elif [ "{params.direction}" == "2" ]; then
                 mkdir -p $(dirname {output})
