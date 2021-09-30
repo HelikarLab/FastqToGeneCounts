@@ -279,7 +279,8 @@ def get_dump_fastq_runtime(wildcards, input, attempt):
     :param attempt: the attempt number of the run
     :return: integer, length of input * 20 minutes
     """
-    return len(input) * 10 * attempt
+    # Max time is 10,080 minutes (7 days), do not let this function return more than that amount of time
+    return min(len(input) * 10 * attempt, 10079)
 
 """
 Shifted this section to using "scripts" and "conda" because it allows us to package everything we need within the script itself
