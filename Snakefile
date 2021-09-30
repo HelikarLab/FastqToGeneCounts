@@ -407,26 +407,11 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             if [ "{params.direction}" == "1" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
                 fastqc {params.file_two_input} --threads {threads} -o $(dirname {params.file_two_out})
-                
-                # Fastqc does not output file names, only to file directories. Must rename
-                out_directory=$(dirname {output}) 
-                file_one_basename=$(basename {input})
-                file_two_basename=$(basename {params.file_two_input})
-                file_one_rename=$(basename {output})
-                file_two_rename=$(basename {params.file_two_out})
-                
-                mv "$out_directory/$file_one_basename" "$out_directory/$file_one_rename"
-                mv "$out_directory/$file_two_basename" "$out_directory/$file_two_rename"
             elif [ "{params.direction}" == "2" ]; then
                 mkdir -p $(dirname {output})
                 touch {output}
             elif [ "{params.direction}" == "S" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
-                
-                out_directory=$(dirname {output})
-                file_basename=$(basename {input})
-                file_rename=$(basename {output})
-                mv "$out_directory/$file_basename" "$out_directory/$file_rename"
             fi
             """
 
