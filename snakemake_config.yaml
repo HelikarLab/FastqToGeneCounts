@@ -1,8 +1,12 @@
 # Please modify these settings to ones that suit your needs
 # Only change values after the colon (':')
 MASTER_CONTROL: "controls/master_control.csv"
+DUMP_FASTQ_FILES: "results"  #
 ROOTDIR: "results"
-PERFORM_TRIM: True  # True or False (boolean)
+
+PERFORM_TRIM: True  # True or False
+PERFORM_PREFETCH: False  # True or False
+
 GENERATE_GENOME:
   GENOME_SAVE_DIR: "genome/star"
   GENOME_FASTA_FILE: "genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
