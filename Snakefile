@@ -204,8 +204,8 @@ rule generate_genome:
         log_file=os.path.join(config["ROOTDIR"],"genome","star","Log.out")
     threads: 50
     resources:
-        mem_mb = 50000, # 50 GB
-        runtime = generate_genome_runtime
+        mem_mb=50000, # 50 GB
+        runtime=generate_genome_runtime
     conda: "envs/star.yaml"
     shell:
         """
@@ -226,8 +226,8 @@ rule distribute_init_files:
     params: id="{tissue_name}_{tag}"
     threads: 1
     resources:
-        mem_mb = 1536,  # 1.5 GB
-        runtime = 5    # 5 minutes
+        mem_mb=1536,  # 1.5 GB
+        runtime=5    # 5 minutes
     run:
         # Get lines in master control file
         # Open output for writing
@@ -248,8 +248,8 @@ rule prefetch_fastq:
     conda: "envs/SRAtools.yaml"
     threads: 1
     resources:
-        mem_mb = 10240, # 10 GB
-        runtime = 30    # 30 minutes
+        mem_mb=10240, # 10 GB
+        runtime=30    # 30 minutes
     shell:
         """
     
