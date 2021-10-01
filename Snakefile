@@ -77,6 +77,7 @@ def get_dump_fastq_output(wildcards):
     :return:
     """
     checkpoint_output = checkpoints.dump_fastq.get(**wildcards).output
+    print(checkpoint_output)
     for output in checkpoint_output:
         # Only match tissue_name, tag, and PE_SE
         if wildcards.tissue_name in output and \
@@ -94,23 +95,45 @@ def get_dump_fastq_output(wildcards):
 def perform_trim(wildcards):
     if str(config["PERFORM_TRIM"]).lower() == "true":
         return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
-
     else:
         return []
 
+def fastqc_trimmed_reads(wildcards):
+    """
+    If we are going to trim, return output for rule fastqc_trim
+    """
+    if str(config["PERFORM_TRIM"]).lower() == "true":
+        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+    else:
+        return []
+
+
 rule all:
     input:
-        # Generate genome
+        # Generate Genome
         os.path.join(config["ROOTDIR"],config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
 
-        # Dump Fastq
-        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()),
+        # Download SRR codes
+        # expand(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "prefetch", "{tissue_name}_{tag}_{srr_code}.complete"), zip, tissue_name=get_tissue_name(), tag=get_tags()(), srr_code=get_srr_data()),
 
-        # FastQC Dump Fastq
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()),
+        # dump_fastq
+        # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()),
 
+        # trim reads
         perform_trim,
 
+        # FastQC
+        # Untrimed reads (from checkpoint dump_fastq)
+        # Trimmed reads (from rule trim)
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()),
+        fastqc_trimmed_reads,
+
+        # STAR aligner
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"), zip, tissue_name=get_tissue_name(),tag=get_tags()),
+
+        # MultiQC
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"), tissue_name=get_tissue_name()),
 
 rule generate_genome:
     input:
@@ -259,3 +282,228 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             fi
             """
 
+    def get_tag(file_path: str) -> str:
+        file_name = os.path.basename(file_path)
+        purge_extension = file_name.split(".")[0]
+        tag = purge_extension.split("_")[-1]
+        return str(tag)
+    def get_fastqc_trim_threads(wildcards, input):
+        threads = 1
+        tag = get_tag(str(input))
+        if tag in ["1", "S"]:
+            threads = 15
+        elif tag == "2":
+            threads = 1
+        return threads
+    def get_fastqc_trim_runtime(wildcards, input, attempt):
+        tag = get_tag(str(input))
+        runtime = 1
+        if tag in ["1", "S"]:
+            runtime = 60 * attempt
+        elif tag == "2":
+            runtime = 5
+        return runtime
+    rule fastqc_trim:
+        input: rules.trim.output
+        output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+        params:
+            file_two_input=os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"),
+            file_two_out=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
+            direction="{PE_SE}"
+        threads: get_fastqc_trim_threads
+        resources:
+            # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
+            mem_mb=2048,# 2 GB
+            runtime=get_fastqc_trim_runtime
+        conda: "envs/fastqc.yaml"
+        shell:
+            """
+            # Process forward reads and reverse reads after trim_galore has finished them
+            if [ "{params.direction}" == "1" ]; then
+                fastqc {input} --threads {threads} -o $(dirname {output})
+                echo "\nFastQC finished $(basename {input}) (1/2)\n"
+                fastqc {params.file_two_input} --threads {threads} -o $(dirname {params.file_two_out})
+                echo "\nFastQC finished $(basename {params.file_two_input} (2/2)\n"
+            elif [ "{params.direction}" == "2" ]; then
+                mkdir -p $(dirname {output})
+                touch {output}
+            elif [ "{params.direction}" == "S" ]; then
+                fastqc {input} --threads {threads} -o $(dirname {output})
+                echo "\nFastQC finished $(basename {input}) (1/1)\n"
+            fi
+            """
+
+
+def collect_star_align_input(wildcards):
+    if str(config["PERFORM_TRIM"]).lower() == "true":
+        # Have not expanded output from rule trim, need to expand it here
+        in_files = expand(rules.trim.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+    else:
+        # already expanding output from dump_fastq, no need to expand it here
+        in_files = checkpoints.dump_fastq.get(**wildcards).output
+
+    directions = get_PE_SE()
+    grouped_reads = []
+    for i, (in_file, direction) in enumerate(zip(in_files, directions)):
+        try:
+            next_file = in_files[i + 1]
+            next_dir = directions[i + 1]
+        except:
+            if direction == "S":
+                grouped_reads.append(in_file)
+                continue
+            elif direction == "2":
+                continue
+            else:
+                warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
+                continue
+
+        if direction == "S":
+            grouped_reads.append(in_file)  # "tissue_SXRY_S"
+        elif direction == "1" and next_dir == "2":
+
+            next_file = in_files[i + 1]
+            if in_file[-9] == next_file[-9]:  # remove _1.fastq.gz to make sure they are same replicate
+                both_reads = " ".join([in_file, next_file])  # "tissue_SXRY_1 tissue_SXRY_2"
+                grouped_reads.append(both_reads)
+            else:
+                warnings.warn(f"{in_file} and {next_file} are incorrectly called together, either the file order is getting scrambled or one end of {in_file} and one end of {next_file} failed to download")
+
+        elif direction == "1" and not next_dir == "2":
+            warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
+        elif direction == "2":
+            continue
+        else:
+            warnings.warn(f"{in_file} not handled, unknown reason!")
+
+    """
+    We need to return a string, or list of strings. If we return "grouped_reads" directly, some values within are not actually valid files, such as:
+        ["results/data/naiveB/naiveB_S1R1_1.fastq.gz results/data/naiveB/naiveB_S1R1_2.fastq.gz", "results/data/naiveB/naiveB_S1R2_S.fastq.gz"]
+    Index 0 is taken literally, as a string to a file location. Thus, it does not exist
+    Because of this, we are going to filter through each input file and return it if it matches our desired tissue_name and tag
+    This is much like what was done in the function get_dump_fastq_output, located above rule all
+    """
+    for read in grouped_reads:
+        if wildcards.tissue_name in read and wildcards.tag in read:
+            return read.split(" ")
+def get_direction_from_name(file: str):
+    file_name = os.path.basename(file)
+    purge_extension = file_name.split(".")[0]
+    direction = purge_extension.split("_")[-1]
+    return direction
+def collect_star_align_input_new(wildcards):
+    if str(config["PERFORM_TRIM"]).lower() == "true":
+        # Have not expanded output from rule trim, need to expand it here
+        in_files = sorted(expand(rules.trim.output,zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()))
+    else:
+        # already expanding output from dump_fastq, no need to expand it here
+        in_files = sorted(checkpoints.dump_fastq.get(**wildcards).output)
+
+    grouped_reads = []
+    for i, in_file in enumerate(in_files):
+        direction = get_direction_from_name(in_file)
+        try:
+            next_file = in_files[i + 1]
+            next_direction = get_direction_from_name(next_file)
+        except:
+            if direction == "S":
+                grouped_reads.append(in_file)
+                continue
+            elif direction == "2": continue
+            else:
+                warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
+                continue
+
+        if direction == "S":
+            grouped_reads.append(in_file)
+        elif direction == "1" and next_direction == "2":
+            if in_file[:-10] == next_file[:-10]:  # remove _1.fastq.gz to make sure they are same replicate
+                both_reads = " ".join([in_file, next_file])
+                grouped_reads.append(both_reads)
+            else:
+                warnings.warn(f"{in_file} and {next_file} are incorrectly called together, either the file order is getting scrambled or one end of {in_file} and one end of {next_file} failed to download")
+
+        elif direction == "1" and not next_dir == "2":
+            warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
+        elif direction == "2":
+            continue
+        else:
+            warnings.warn(f"{in_file} not handled, unknown reason!")
+
+    """
+    We need to return a string, or list of strings. If we return "grouped_reads" directly, some values within are not actually valid files, such as:
+        ["results/data/naiveB/naiveB_S1R1_1.fastq.gz results/data/naiveB/naiveB_S1R1_2.fastq.gz", "results/data/naiveB/naiveB_S1R2_S.fastq.gz"]
+    Index 0 is taken literally, as a string to a file location. Thus, it does not exist
+    Because of this, we are going to filter through each input file and return it if it matches our desired tissue_name and tag
+    This is much like what was done in the function get_dump_fastq_output, located above rule all
+    """
+    for read in grouped_reads:
+        if wildcards.tissue_name in read and wildcards.tag in read:
+            return read.split(" ")
+
+
+def get_star_align_runtime(wildcards, input, attempt):
+    """
+    This function will return the length of time required for star_align to complete X number of reads
+    Using 40 threads, it takes ~9 minutes per input file
+    Round this value to 20 minutes (in case using fewer threads)
+    We are also going to multiply by the attempt that the workflow is on.
+    If on the second/third/etc. attempt, double/triple/etc. time is requested
+    Return an integer of: len(input) * 20 minutes = total runtime
+    """
+    # Max time is 7 days (10,080 minutes). Do not let this function return more than this time
+    return min(len(input.reads) * 20 * attempt, 10079)
+
+
+rule star_align:
+    input:
+        reads=collect_star_align_input_new,
+        genome_dir=rules.generate_genome.output.genome_dir,
+        genome_file=rules.generate_genome.output.genome_file,
+        rule_complete=os.path.join(config["ROOTDIR"],"temp","rule_complete","generate_genome.complete")
+    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab")
+    params:
+        tissue_name="{tissue_name}",
+        tag="{tag}",
+        star_output=os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab")
+    conda: "envs/star.yaml"
+    threads: 50
+    resources:
+        mem_mb=51200,# 50 GB
+        runtime=get_star_align_runtime
+    shell:
+        """
+        PREFIX="{config[ROOTDIR]}/data/{params.tissue_name}/aligned_reads/{params.tag}/{params.tissue_name}_{params.tag}_"
+        echo "prefix is $PREFIX"
+        STAR --runThreadN {threads} \
+		--readFilesCommand {config[ALIGN_READS][READ_COMMAND]} \
+		--readFilesIn {input.reads} \
+		--genomeDir {input.genome_dir} \
+		--outFileNamePrefix $PREFIX \
+		--outSAMtype {config[ALIGN_READS][OUT_SAM_TYPE]} \
+		--outSAMunmapped {config[ALIGN_READS][OUT_SAM_UNMAPPED]} \
+		--outSAMattributes {config[ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
+		--quantMode {config[ALIGN_READS][QUANT_MODE]}
+
+		mv {params.star_output} {output}
+        """
+
+def get_fastqc_output(wildcards):
+    if str(config["PERFORM_TRIM"]).lower() == "true":
+        return expand(rules.fastqc_trim.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+    else:
+        return expand(rules.fastqc_dump_fastq.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+rule multiqc:
+    input:
+        get_fastqc_output,
+        expand(rules.star_align.output, zip, tissue_name=get_tissue_name(), tag=get_tags()),
+        lambda wildcards: expand(os.path.join(config["ROOTDIR"], "data", wildcards.tissue_name, "raw", f"{wildcards.tissue_name}_{{tag}}_{{PE_SE}}.fastq.gz"), zip, tag=get_tags(), PE_SE=get_PE_SE())
+    output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}","multiqc","{tissue_name}_multiqc_report.html")
+    params:
+        # lambda not needed as we have tissue_name as wildcard in output
+        tissue_directory=os.path.join(config["ROOTDIR"],"data","{tissue_name}"),
+        tissue_name="{tissue_name}"
+    shell:
+        """
+        multiqc {params.tissue_directory} --filename {params.tissue_name}_multiqc_report.html --outdir {params.tissue_directory}/multiqc/
+        """
