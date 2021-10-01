@@ -212,7 +212,7 @@ def dump_fastq_input(wildcards):
         PE_SE = get_PE_SE()
         expanded_files = expand(f"{config['DUMP_FASTQ_FILES']}/{{tissue_name}}_{{tag}}_{{PE_SE}}.fastq.gz", zip, tissue_name=tissue_name, tag=tags, PE_SE=PE_SE)
         for sub_file in expanded_files:
-            for sub_tissue, sub_tag, sub_direction in zip(tissue_name, tag, PE_SE):
+            for sub_tissue, sub_tag, sub_direction in zip(tissue_name, tags, PE_SE):
                 if f"{sub_tissue}" in sub_file and f"_{sub_tag}" in sub_file:
                     return sub_file
 checkpoint dump_fastq:
