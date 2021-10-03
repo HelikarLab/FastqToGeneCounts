@@ -223,7 +223,7 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
         input: expand(rules.prefetch.output.data, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
         output: expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
         threads: 40
-        conda: "envs/parallel-fastq-dump.yaml"
+        conda: "envs/SRAtools.yaml"
         resources:
             mem_mb = 20480,  # 20 GB
             runtime = get_dump_fastq_runtime

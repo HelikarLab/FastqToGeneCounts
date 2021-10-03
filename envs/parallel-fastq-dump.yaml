@@ -1,5 +1,0 @@
-channels:
-  - bioconda
-dependencies:
-  - parallel-fastq-dump=0.6.7
-  - numpy=1.20.3
