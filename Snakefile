@@ -294,7 +294,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
             tissue_name="{tissue_name}",
-            tag="{tag}"
+            tag="{tag}",
+            direction="{PE_SE}"
         threads: get_trim_threads
         conda: "envs/trim.yaml"
         resources:
