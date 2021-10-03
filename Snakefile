@@ -118,7 +118,6 @@ rule all:
         # dump_fastq
         # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()),
-        # expand("config['ROOTDIR']/data/{tissue_name}/raw/{tissue_name}_{tag}_{PE_SE}.fastq.gz",zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()),
 
         # trim reads
         perform_trim,
@@ -200,6 +199,24 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
             done < {input}
             """
 
+def get_dump_fastq_runtime(wildcards, input, attempt):
+    """
+    This function will dynamicall return the length of time requested by checkpoint dump_fastq
+    Using 40 threads, it takes approximately 5 minutes per input file
+    We are going to round this up to 10 minutes to be safe
+    The 'attempt' input is a snakemake global variable.
+    If this workflow fails when using the profile option "restart-times" or the command line option "--restart-times"
+        the workflow will be restarted X many times. When doing so, we will increase the amount of time requested
+        on each subsequent attempt.
+        i.e. attempt 2 will double the amount of time requested for this rule, attempt 3 will triple the amount of time requested
+    We are dividing the input by 2 because duplicates are input, one for the forward read and one for the reverse read
+    :param wildcards: wildcard input from checkpoint dump_fastq
+    :param input: all input files
+    :param attempt: the attempt number of the run
+    :return: integer, length of input * 20 minutes
+    """
+    # Max time is 10,080 minutes (7 days), do not let this function return more than that amount of time
+    return min(len(input) * 10 * attempt, 10079)
 def dump_fastq_input(wildcards):
     """
     Return appropriate input for dump_fastq depending on the state of PERFORM_PREFETCH
@@ -214,12 +231,22 @@ def dump_fastq_input(wildcards):
 rule dump_fastq:
     input: dump_fastq_input
     output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+    threads: 40
+    conda: "envs/parallel-fastq-dump.yaml"
+    resources:
+        mem_mb = 20480,  # 20 GB
+        runtime = get_dump_fastq_runtime
     script: "scripts/parallel-fastq-dump.py"
 
 rule fastqc_dump_fastq:
     input: rules.dump_fastq.output
     output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params: fastqc_output_name=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+    threads: 10
+    conda: "envs/fastqc.yaml"
+    resources:
+        mem_mb=2048,  # 2 GB
+        runtime=60    # 60 minutes
     shell:
         """
         mkdir ($dirname {output})
@@ -262,6 +289,10 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             tag="{tag}",
             direction="{PE_SE}"
         threads: get_trim_threads
+        conda: "envs/trim.yaml"
+        resources:
+            mem_mb = 10240,  # 10 GB
+            runtime = get_trim_runtime
         shell:
             """
             # Only process on forward reads
@@ -314,11 +345,11 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             file_two_out=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
             direction="{PE_SE}"
         threads: get_fastqc_trim_threads
+        conda: "envs/fastqc.yaml"
         resources:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
             mem_mb=2048,# 2 GB
             runtime=get_fastqc_trim_runtime
-        conda: "envs/fastqc.yaml"
         shell:
             """
             # Process forward reads and reverse reads after trim_galore has finished them
@@ -413,8 +444,8 @@ rule star_align:
         tissue_name="{tissue_name}",
         tag="{tag}",
         star_output=os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab")
-    conda: "envs/star.yaml"
     threads: 50
+    conda: "envs/star.yaml"
     resources:
         mem_mb=51200,# 50 GB
         runtime=get_star_align_runtime
@@ -470,6 +501,11 @@ rule multiqc:
         # lambda not needed as we have tissue_name as wildcard in output
         tissue_directory = os.path.join(config["ROOTDIR"],"data","{tissue_name}"),
         tissue_name = "{tissue_name}"
+    threads: 1
+    conda: "envs/multiqc.yaml"
+    resources:
+        mem_mb = 1024,  # 1 GB
+        runtime = 10  # 10 minutes
     shell:
         """
         multiqc {params.tissue_directory} --filename {params.tissue_name}_multiqc_report.html --outdir {params.tissue_directory}/multiqc/
