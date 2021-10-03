@@ -309,8 +309,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 file_in_2="$(dirname {input})/{params.tissue_name}_{params.tag}_2.fastq.gz"         # Input file 2
                 trim_galore --paired --cores 8 -o "$(dirname {output})" "$file_in_1" "$file_in_2"
                        
-                file_out_1="$(dirname {output})/{params.tissue_name}_{params.tag}_1_val_1.fq.gz     # final output paired end, forward read
-                file_out_2=$(dirname {output})/{params.tissue_name}_{params.tag}_2_val_2.fq.gz      # final output paired end, reverse read
+                file_out_1="$(dirname {output})/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"     # final output paired end, forward read
+                file_out_2="$(dirname {output})/{params.tissue_name}_{params.tag}_2_val_2.fq.gz"      # final output paired end, reverse read
                 file_rename_1="$(dirname {output})/{params.tissue_name}_{params.tag}_1.fastq.gz"    # final renamed output paired end, forward read
                 file_rename_2="$(dirname {output})/{params.tissue_name}_{params.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
                 
@@ -325,8 +325,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             elif [ "{params.direction}" == "S" ]; then
                 trim_galore --cores 4 -o "$(dirname {output})" "{input}"
                 
-                file_name=$(dirname {output})/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz     # final output single end
-                file_rename=$(dirname {output})/{params.tissue_name}_{params.tag}_S.fastq.gz        # final renamed output single end
+                file_name="$(dirname {output})/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"     # final output single end
+                file_rename="$(dirname {output})/{params.tissue_name}_{params.tag}_S.fastq.gz"        # final renamed output single end
                 
                 mv "$file_name" "$file_rename"
             fi
