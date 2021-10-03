@@ -248,7 +248,7 @@ rule fastqc_dump_fastq:
         runtime=60    # 60 minutes
     shell:
         """
-        mkdir ($dirname {output})
+        mkdir -p $(dirname {output})
         fastqc {input} -o $(dirname {output})
         mv {params.fastqc_output_name} {output}
         echo "\nFastQC finished for {input} (1/1)\n"
