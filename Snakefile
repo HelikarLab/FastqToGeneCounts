@@ -464,14 +464,14 @@ rule star_align:
         """
 
 
-def multiqc_dump_fastq_input(wildcards):
+def multiqc_get_dump_fastq_data(wildcards):
     output = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     return_files = []
     for file in output:
         if wildcards.tissue_name in file:
             return_files.append(file)
     return return_files
-def get_fastqc_output(wildcards):
+def multiqc_get_fastqc_data(wildcards):
     if str(config["PERFORM_TRIM"]).lower() == "true":
         output_files = expand(rules.fastqc_trim.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     else:
@@ -482,7 +482,7 @@ def get_fastqc_output(wildcards):
         if wildcards.tissue_name in file:
             return_files.append(file)
     return return_files
-def get_star_output(wildcards):
+def multiqc_get_star_data(wildcards):
     return_files = []
     for file in expand(rules.star_align.output, zip, tissue_name=get_tissue_name(), tag=get_tags()):
         if wildcards.tissue_name in file:
@@ -490,9 +490,9 @@ def get_star_output(wildcards):
     return return_files
 rule multiqc:
     input:
-        get_fastqc_output,
-        get_star_output,
-        multiqc_dump_fastq_input
+        multiqc_get_fastqc_data,
+        multiqc_get_star_data,
+        multiqc_get_dump_fastq_data
     output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}","multiqc","{tissue_name}_multiqc_report.html")
     params:
         # lambda not needed as we have tissue_name as wildcard in output
@@ -503,7 +503,4 @@ rule multiqc:
     resources:
         mem_mb = 1024,  # 1 GB
         runtime = 10  # 10 minutes
-    shell:
-        """
-        multiqc {params.tissue_directory} --filename {params.tissue_name}_multiqc_report.html --outdir {params.tissue_directory}/multiqc/
-        """
+    shell: "multiqc {params.tissue_directory} --filename {params.tissue_name}_multiqc_report.html --outdir {params.tissue_directory}/multiqc/"
