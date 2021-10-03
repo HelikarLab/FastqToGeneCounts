@@ -106,18 +106,20 @@ def fastqc_trimmed_reads(wildcards):
     else:
         return []
 
+def perform_dump_fastq(wildcards):
+    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()),
+    else:
+        return []
+
 
 rule all:
     input:
         # Generate Genome
         os.path.join(config["ROOTDIR"],config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
 
-        # Download SRR codes
-        # expand(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "prefetch", "{tissue_name}_{tag}_{srr_code}.complete"), zip, tissue_name=get_tissue_name(), tag=get_tags()(), srr_code=get_srr_data()),
-
         # dump_fastq
-        # This will also request the input of distribute_init_files and prefetch_fastq, without saving their outputs longer than necessary
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()),
+        perform_dump_fastq,
 
         # trim reads
         perform_trim,
@@ -161,6 +163,24 @@ rule generate_genome:
         mv Log.out {params.log_file}
         """
 
+def get_dump_fastq_runtime(wildcards, input, attempt):
+    """
+    This function will dynamicall return the length of time requested by checkpoint dump_fastq
+    Using 40 threads, it takes approximately 5 minutes per input file
+    We are going to round this up to 10 minutes to be safe
+    The 'attempt' input is a snakemake global variable.
+    If this workflow fails when using the profile option "restart-times" or the command line option "--restart-times"
+        the workflow will be restarted X many times. When doing so, we will increase the amount of time requested
+        on each subsequent attempt.
+        i.e. attempt 2 will double the amount of time requested for this rule, attempt 3 will triple the amount of time requested
+    We are dividing the input by 2 because duplicates are input, one for the forward read and one for the reverse read
+    :param wildcards: wildcard input from checkpoint dump_fastq
+    :param input: all input files
+    :param attempt: the attempt number of the run
+    :return: integer, length of input * 20 minutes
+    """
+    # Max time is 10,080 minutes (7 days), do not let this function return more than that amount of time
+    return min(len(input) * 10 * attempt, 10079)
 if str(config["PERFORM_PREFETCH"]).lower() == "true":
     rule distribute_init_files:
         input: config["MASTER_CONTROL"]
@@ -199,49 +219,26 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
             done < {input}
             """
 
-def get_dump_fastq_runtime(wildcards, input, attempt):
-    """
-    This function will dynamicall return the length of time requested by checkpoint dump_fastq
-    Using 40 threads, it takes approximately 5 minutes per input file
-    We are going to round this up to 10 minutes to be safe
-    The 'attempt' input is a snakemake global variable.
-    If this workflow fails when using the profile option "restart-times" or the command line option "--restart-times"
-        the workflow will be restarted X many times. When doing so, we will increase the amount of time requested
-        on each subsequent attempt.
-        i.e. attempt 2 will double the amount of time requested for this rule, attempt 3 will triple the amount of time requested
-    We are dividing the input by 2 because duplicates are input, one for the forward read and one for the reverse read
-    :param wildcards: wildcard input from checkpoint dump_fastq
-    :param input: all input files
-    :param attempt: the attempt number of the run
-    :return: integer, length of input * 20 minutes
-    """
-    # Max time is 10,080 minutes (7 days), do not let this function return more than that amount of time
-    return min(len(input) * 10 * attempt, 10079)
-def dump_fastq_input(wildcards):
-    """
-    Return appropriate input for dump_fastq depending on the state of PERFORM_PREFETCH
-    """
-    if str(config["PERFORM_PREFETCH"]).lower() == "true":
-        return expand(rules.prefetch.output.data, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
-    else:
-        sra_files = []
-        for path, subdir, files in os.walk(os.path.join(config["DUMP_FASTQ_FILES"])):
-            for file in files:
-                if str(".sra") in str(file):
-                    sra_files.append(os.path.join(path, file))
-        return sra_files
-checkpoint dump_fastq:
-    input: dump_fastq_input
-    output: expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
-    threads: 40
-    conda: "envs/parallel-fastq-dump.yaml"
-    resources:
-        mem_mb = 20480,  # 20 GB
-        runtime = get_dump_fastq_runtime
-    script: "scripts/parallel-fastq-dump.py"
+    checkpoint dump_fastq:
+        input: expand(rules.prefetch.output.data, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
+        output: expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+        threads: 40
+        conda: "envs/parallel-fastq-dump.yaml"
+        resources:
+            mem_mb = 20480,  # 20 GB
+            runtime = get_dump_fastq_runtime
+        script: "scripts/parallel-fastq-dump.py"
 
+def fastqc_dump_fastq_input(wildcards):
+    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+        return checkpoints.dump_fastq.get(**wildcards)[0]
+    else:
+        for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
+            for file in files:
+                if (wildcards.tissue_name in file) and (wildcards.tag in file) and (wildcards.PE_SE in file):
+                    return os.path.join(path, file)
 rule fastqc_dump_fastq:
-    input: rules.dump_fastq.output
+    input: fastqc_dump_fastq_input
     output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params: fastqc_output_name=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     threads: 10
@@ -259,7 +256,15 @@ rule fastqc_dump_fastq:
 
 if str(config["PERFORM_TRIM"]).lower() == "true":
     def get_trim_input(wildcards):
-        dump_fastq_output = expand(checkpoints.dump_fastq.get(**wildcards).output[0], zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+        if str(config["PERFORM_PREFETCH"]).lower() == "true":
+            dump_fastq_output = expand(checkpoints.dump_fastq.get(**wildcards).output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+        else:
+            dump_fastq_output = []
+            for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
+                for file in files:
+                    if file.endswith(".fastq.gz"):
+                        dump_fastq_output.append(os.path.join(path, file))
+
         for file in dump_fastq_output:
             if (wildcards.tissue_name in file) and (wildcards.tag in file) and (wildcards.PE_SE in file):
                 return file
@@ -470,7 +475,13 @@ rule star_align:
 
 
 def multiqc_get_dump_fastq_data(wildcards):
-    output = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+        output = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+    else:
+        output = []
+        for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
+            for file in files:
+                output.append(os.path.join(path, file))
     return_files = []
     for file in output:
         if wildcards.tissue_name in file:
