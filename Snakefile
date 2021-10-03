@@ -273,9 +273,9 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         Trim galore uses 9 threads on single-ended data, and 15 cores for paired-end data.
         """
         threads = 1
-        if str(wildcards.PE_SE) == "1": threads = 15
+        if str(wildcards.PE_SE) == "1": threads = 16
         elif str(wildcards.PE_SE) == "2": threads = 1
-        elif str(wildcards.PE_SE) == "S": threads = 4
+        elif str(wildcards.PE_SE) == "S": threads = 9
         return threads
     def get_trim_runtime(wildcards, attempt):
         """
@@ -304,7 +304,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             """
             # Only process on forward reads
             if [ "{params.direction}" == "1" ]; then
-                trim_galore --paired --cores {threads} -o "{params.output_directory}" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
+                trim_galore --paired --cores 8 -o "{params.output_directory}" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
                 filename1="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_1_val_1.fq.gz" # final output paired end trimming forward  
                 filename2="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_2_val_2.fq.gz" # and reverse
                 filerename1="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_1.fastq.gz" # rename to same with trimmed_ prefix
@@ -316,7 +316,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 touch {output}
             # Work on single-end reads
             elif [ "{params.direction}" == "S" ]; then
-                trim_galore --cores {threads} -o "{params.output_directory}" "{input}"
+                trim_galore --cores 4 -o "{params.output_directory}" "{input}"
                 filename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz" # final out single end trimming
                 filerename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz" # rename, same convention as PE
                 mv $filename $filerename
