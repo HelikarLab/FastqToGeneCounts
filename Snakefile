@@ -224,7 +224,12 @@ def dump_fastq_input(wildcards):
     if str(config["PERFORM_PREFETCH"]).lower() == "true":
         return expand(rules.prefetch.output.data, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
     else:
-        return expand(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+        sra_files = []
+        for path, subdir, files in os.walk(os.path.join(config["DUMP_FASTQ_FILES"])):
+            for file in files:
+                if str(".sra") in str(file):
+                    sra_files.append(os.path.join(path, file))
+        return sra_files
 checkpoint dump_fastq:
     input: dump_fastq_input
     output: expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
