@@ -1,7 +1,7 @@
 # Please modify these settings to ones that suit your needs
 # Only change values after the colon (':')
 MASTER_CONTROL: "controls/master_control.csv"
-DUMP_FASTQ_FILES: "results"  #
+DUMP_FASTQ_FILES: "results/raw_input"  #
 ROOTDIR: "results"
 
 PERFORM_TRIM: True  # True or False
