@@ -59,6 +59,9 @@ input_list = sorted(str(snakemake.input).split(" "))
 snakemake_output = sorted(str(snakemake.output).split(" "))
 output_list = generate_output_tuples(snakemake_output)
 
+
+warnings.warn(output_list)
+
 # Get unique items from list in the original order they were added
 # input_index = np.unique(input_list, return_index=True)[1]
 # input_list = [input_list[i] for i in sorted(input_index)]
