@@ -271,6 +271,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
     def get_trim_threads(wildcards):
         """
         Trim galore uses 9 threads on single-ended data, and 15 cores for paired-end data.
+        Note: The actual trim_galore call below does not request the maximum threads given.
+        Trim galore's MAN page states that it can use UP TO this many threads, however
         """
         threads = 1
         if str(wildcards.PE_SE) == "1": threads = 16
@@ -291,10 +293,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         input: get_trim_input
         output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
-            output_directory=os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads"),
             tissue_name="{tissue_name}",
-            tag="{tag}",
-            direction="{PE_SE}"
+            tag="{tag}"
         threads: get_trim_threads
         conda: "envs/trim.yaml"
         resources:
@@ -304,22 +304,30 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             """
             # Only process on forward reads
             if [ "{params.direction}" == "1" ]; then
-                trim_galore --paired --cores 8 -o "{params.output_directory}" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_1.fastq.gz" "{config[ROOTDIR]}/data/{params.tissue_name}/raw/{params.tissue_name}_{params.tag}_2.fastq.gz"
-                filename1="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_1_val_1.fq.gz" # final output paired end trimming forward  
-                filename2="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_2_val_2.fq.gz" # and reverse
-                filerename1="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_1.fastq.gz" # rename to same with trimmed_ prefix
-                filerename2="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_2.fastq.gz" # again       
-                mv $filename1 $filerename1 
-                mv $filename2 $filerename2
+                file_in_1="{input}"                                                                 # Input file 1
+                file_in_2="$(dirname {input})/{params.tissue_name}_{params.tag}_2.fastq.gz"         # Input file 2
+                trim_galore --paired --cores 8 -o "$(dirname {output})" "$file_in_1" "$file_in_2"
+                       
+                file_out_1="$(dirname {output})/{params.tissue_name}_{params.tag}_1_val_1.fq.gz     # final output paired end, forward read
+                file_out_2=$(dirname {output})/{params.tissue_name}_{params.tag}_2_val_2.fq.gz      # final output paired end, reverse read
+                file_rename_1="$(dirname {output})/{params.tissue_name}_{params.tag}_1.fastq.gz"    # final renamed output paired end, forward read
+                file_rename_2="$(dirname {output})/{params.tissue_name}_{params.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
+                
+                mv "$file_out_1" "$file_rename_1"
+                mv "$file_out_2" "$file_rename_2"
+            
             # Skip over reverse-reads. Create the output file so snakemake does not complain about the rule not generating output
             elif [ "{params.direction}" == "2" ]; then
                 touch {output}
+            
             # Work on single-end reads
             elif [ "{params.direction}" == "S" ]; then
-                trim_galore --cores 4 -o "{params.output_directory}" "{input}"
-                filename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz" # final out single end trimming
-                filerename="{config[ROOTDIR]}/data/{params.tissue_name}/trimmed_reads/trimmed_{params.tissue_name}_{params.tag}_{params.direction}.fastq.gz" # rename, same convention as PE
-                mv $filename $filerename
+                trim_galore --cores 4 -o "$(dirname {output})" "{input}"
+                
+                file_name=$(dirname {output})/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz     # final output single end
+                file_rename=$(dirname {output})/{params.tissue_name}_{params.tag}_S.fastq.gz        # final renamed output single end
+                
+                mv "$file_name" "$file_rename"
             fi
             """
 
