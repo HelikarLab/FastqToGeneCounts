@@ -222,15 +222,12 @@ def dump_fastq_input(wildcards):
     Return appropriate input for dump_fastq depending on the state of PERFORM_PREFETCH
     """
     if str(config["PERFORM_PREFETCH"]).lower() == "true":
-        return rules.prefetch.output.data
+        return expand(rules.prefetch.output.data, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
     else:
-        expanded_files = expand(f"{config['DUMP_FASTQ_FILES']}/{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq.gz")
-        for file in expanded_files:
-            if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
-                return file
-rule dump_fastq:
+        return expand(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+checkpoint dump_fastq:
     input: dump_fastq_input
-    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+    output: expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     threads: 40
     conda: "envs/parallel-fastq-dump.yaml"
     resources:
@@ -257,7 +254,7 @@ rule fastqc_dump_fastq:
 
 if str(config["PERFORM_TRIM"]).lower() == "true":
     def get_trim_input(wildcards):
-        dump_fastq_output = expand(rules.dump_fastq.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+        dump_fastq_output = expand(checkpoints.dump_fastq.get(**wildcards).output[0], zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
         for file in dump_fastq_output:
             if (wildcards.tissue_name in file) and (wildcards.tag in file) and (wildcards.PE_SE in file):
                 return file
