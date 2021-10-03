@@ -55,8 +55,8 @@ import subprocess
 import os
 import warnings
 
-input_list = str(snakemake.input.data).split(" ")
-output_list = str(snakemake.output.data).split(" ")
+input_list = str(snakemake.input).split(" ")
+output_list = str(snakemake.output).split(" ")
 
 # Get unique items from list in the original order they were added
 input_index = np.unique(input_list, return_index=True)[1]
