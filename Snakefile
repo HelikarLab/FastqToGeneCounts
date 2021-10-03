@@ -205,7 +205,7 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
     rule prefetch:
         input: rules.distribute_init_files.output
         output: data=os.path.join(config["ROOTDIR"], "temp", "prefetch", "{tissue_name}_{tag}", "{srr_code}.sra")
-        conda: "../../../../../PycharmProjects/FastqToGeneCounts/envs/SRAtools.yaml"
+        conda: "envs/SRAtools.yaml"
         threads: 1
         resources:
             mem_mb=10240,
