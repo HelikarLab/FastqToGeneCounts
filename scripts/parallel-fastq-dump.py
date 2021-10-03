@@ -58,6 +58,9 @@ import warnings
 input_list = str(snakemake.input).split(" ")
 output_list = str(snakemake.output).split(" ")
 
+print(f"INPUT LIST: {input_list}")
+print(f"OUTPUT LIST: {output_list}")
+
 # Get unique items from list in the original order they were added
 input_index = np.unique(input_list, return_index=True)[1]
 input_list = [input_list[i] for i in sorted(input_index)]
