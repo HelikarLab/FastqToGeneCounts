@@ -370,15 +370,15 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             """
             # Process forward reads and reverse reads after trim_galore has finished them
             if [ "{params.direction}" == "1" ]; then
-                fastqc {input} --threads {threads} -o $(dirname {output})
+                fastqc "{input}" --threads {threads} -o $(dirname "{output}")
                 echo "\nFastQC finished $(basename {input}) (1/2)\n"
-                fastqc {params.file_two_input} --threads {threads} -o $(dirname {params.file_two_out})
+                fastqc "{params.file_two_input}" --threads {threads} -o $(dirname {params.file_two_out})
                 echo "\nFastQC finished $(basename {params.file_two_input} (2/2)\n"
             elif [ "{params.direction}" == "2" ]; then
-                mkdir -p $(dirname {output})
-                touch {output}
+                mkdir -p "$(dirname {output})"
+                touch "{output}"
             elif [ "{params.direction}" == "S" ]; then
-                fastqc {input} --threads {threads} -o $(dirname {output})
+                fastqc "{input}" --threads {threads} -o "$(dirname {output})"
                 echo "\nFastQC finished $(basename {input}) (1/1)\n"
             fi
             """
