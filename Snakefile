@@ -307,7 +307,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             if [ "{params.direction}" == "1" ]; then
                 file_in_1="{input}"                                                                 # Input file 1
                 file_in_2="$(dirname {input})/{params.tissue_name}_{params.tag}_2.fastq.gz"         # Input file 2
-                trim_galore --paired --cores 8 -o "$(dirname {output})" "$file_in_1" "$file_in_2"
+                trim_galore --paired --cores 4 -o "$(dirname {output})" "$file_in_1" "$file_in_2"
                        
                 file_out_1="$(dirname {output})/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"     # final output paired end, forward read
                 file_out_2="$(dirname {output})/{params.tissue_name}_{params.tag}_2_val_2.fq.gz"      # final output paired end, reverse read
