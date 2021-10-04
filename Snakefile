@@ -266,7 +266,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                         dump_fastq_output.append(os.path.join(path, file))
 
         for file in dump_fastq_output:
-            if (wildcards.tissue_name in file) and (wildcards.tag in file) and (wildcards.PE_SE in file):
+            if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
                 return file
     def get_trim_threads(wildcards):
         """
