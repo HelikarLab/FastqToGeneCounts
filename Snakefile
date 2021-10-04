@@ -369,16 +369,16 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         shell:
             """
             if [ "{params.direction}" == "1" ]; then
-                fastqc "{input}" --threads {threads} -o "$(dirname {output})"
+                fastqc {input} --threads {threads} -o $(dirname {output})
                 printf "\nFastQC finished $(basename {input}) (1/2)\n"
                 
-                fastqc "{params.file_two_input}" --threads {threads} -o "$(basename {params.file_two_out})"
-                printf "\nFastQC finished $(basename {params.file_two_input} (2/2)\n"
+                fastqc {params.file_two_input} --threads {threads} -o $(basename {params.file_two_out})
+                printf "\nFastQC finished $(basename {params.file_two_input}) (2/2)\n"
             elif [ "{params.direction}" == "2" ]; then
-                mkdir -p "$(dirname {output})"
-                touch "{output}"
+                mkdir -p $(dirname {output})
+                touch {output}
             elif [ "{params.direction}" == "S" ]; then
-                fastqc "{input}" --threads {threads} -o "$(dirname {output})"
+                fastqc {input} --threads {threads} -o $(dirname {output})
                 printf "\nFastQC finished $(basename {input}) (1/1)\n"
             fi
             
