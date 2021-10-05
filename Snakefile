@@ -235,7 +235,7 @@ def fastqc_dump_fastq_input(wildcards):
     else:
         for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
             for file in files:
-                if (wildcards.tissue_name in file) and (wildcards.tag in file) and (wildcards.PE_SE in file):
+                if (wildcards.tissue_name in file) and (wildcards.tag in file) and (f"_{wildcards.PE_SE}" in file):
                     return os.path.join(path, file)
 rule fastqc_dump_fastq:
     input: fastqc_dump_fastq_input
