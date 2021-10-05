@@ -367,7 +367,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         conda: "envs/fastqc.yaml"
         resources:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
-            mem_mb=2048,# 2 GB
+            mem_mb=15360, # 15 GB
             runtime=get_fastqc_trim_runtime
         shell:
             """
