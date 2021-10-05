@@ -74,14 +74,14 @@ def get_tags() -> list[str]:
     if str(config["PERFORM_PREFETCH"]).lower() == "true":
         return get_from_master_config("tag")
     else:
-        fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"],"{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
+        fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
         return fastq_input.tag
 
 def get_PE_SE() -> list[str]:
     if str(config["PERFORM_PREFETCH"]).lower() == "true":
         return get_from_master_config("PE_SE")
     else:
-        fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"],"{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
+        fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
         return fastq_input.PE_SE
 
 def get_dump_fastq_output(wildcards):
@@ -112,7 +112,7 @@ def get_dump_fastq_output(wildcards):
 
 def perform_trim(wildcards):
     if str(config["PERFORM_TRIM"]).lower() == "true":
-        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+        return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     else:
         return []
 
@@ -121,7 +121,7 @@ def fastqc_trimmed_reads(wildcards):
     If we are going to trim, return output for rule fastqc_trim
     """
     if str(config["PERFORM_TRIM"]).lower() == "true":
-        return expand(os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+        return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     else:
         return []
 
@@ -129,7 +129,6 @@ def perform_dump_fastq(wildcards):
     if str(config["PERFORM_PREFETCH"]).lower() == "true":
         data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
         return data
-        # return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()),
     else:
         return []
 
@@ -137,7 +136,7 @@ def perform_dump_fastq(wildcards):
 rule all:
     input:
         # Generate Genome
-        os.path.join(config["ROOTDIR"],config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
+        os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
 
         # dump_fastq
         perform_dump_fastq,
@@ -148,29 +147,29 @@ rule all:
         # FastQC
         # Untrimed reads (from checkpoint dump_fastq)
         # Trimmed reads (from rule trim)
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()),
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()),
         fastqc_trimmed_reads,
 
         # STAR aligner
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"), zip, tissue_name=get_tissue_name(), tag=get_tags()),
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"), zip, tissue_name=get_tissue_name(), tag=get_tags()),
 
         # MultiQC
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"), tissue_name=get_tissue_name()),
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"), tissue_name=get_tissue_name()),
 
 rule generate_genome:
     input:
         genome_fasta_file=config["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
         gtf_file=config["GENERATE_GENOME"]["GTF_FILE"]
     output:
-        genome_dir=directory(os.path.join(config["ROOTDIR"],config["GENERATE_GENOME"]["GENOME_SAVE_DIR"])),
-        genome_file=os.path.join(config["ROOTDIR"],config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],"Genome"),
-        rule_complete=touch(os.path.join(config["ROOTDIR"],"temp","rule_complete","generate_genome.complete"))
+        genome_dir=directory(os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"])),
+        genome_file=os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "Genome"),
+        rule_complete=touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete"))
     params:
-        log_file=os.path.join(config["ROOTDIR"],"genome","star","Log.out")
+        log_file=os.path.join(config["GENOME_SAVE_DIR"], "Log.out")
     threads: 40
     resources:
         mem_mb=50000, # 50 GB
-        runtime=lambda wildcards, attempt: 90 * attempt
+        runtime=lambda wildcards, attempt: 120 * attempt
     conda: "envs/star.yaml"
     shell:
         """
@@ -205,7 +204,7 @@ def get_dump_fastq_runtime(wildcards, input, attempt):
 if str(config["PERFORM_PREFETCH"]).lower() == "true":
     rule distribute_init_files:
         input: config["MASTER_CONTROL"]
-        output: os.path.join(config["ROOTDIR"],"controls","init_files","{tissue_name}_{tag}.csv")
+        output: os.path.join(config["ROOTDIR"], "controls", "init_files", "{tissue_name}_{tag}.csv")
         params: id="{tissue_name}_{tag}"
         threads: 1
         resources:
@@ -214,8 +213,8 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
         run:
             # Get lines in master control file
             # Open output for writing
-            lines = open(str(input),"r").readlines()
-            wfile = open(str(output),"w")
+            lines = open(str(input), "r").readlines()
+            wfile = open(str(output), "w")
             for line in lines:
 
                 # Only write line if the output file has the current tissue-name_tag (naiveB_S1R1) in the file name
@@ -230,10 +229,10 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
         threads: 1
         resources:
             mem_mb=10240,
-            runtime=30
+            runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
-            IFS=","
+            IFS=", "
             while read srr name endtype; do
                 # prefetch has a default max size of 20G. Effectively remove this size by allowing downloads up to 1TB to be downloaded
                 prefetch $srr --max-size 1024000000000 --output-file {output}
@@ -246,8 +245,8 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
         threads: 40
         conda: "envs/SRAtools.yaml"
         resources:
-            mem_mb = 20480,  # 20 GB
-            runtime = get_dump_fastq_runtime
+            mem_mb=20480,  # 20 GB
+            runtime=get_dump_fastq_runtime
         script: "scripts/parallel-fastq-dump.py"
 
 def fastqc_dump_fastq_input(wildcards):
@@ -260,7 +259,7 @@ def fastqc_dump_fastq_input(wildcards):
                     return os.path.join(path, file)
 rule fastqc_dump_fastq:
     input: fastqc_dump_fastq_input
-    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params: fastqc_output_name=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     threads: 10
     conda: "envs/fastqc.yaml"
@@ -312,7 +311,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         return runtime
     rule trim:
         input: get_trim_input
-        output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+        output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
             tissue_name="{tissue_name}",
             tag="{tag}",
@@ -321,7 +320,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         conda: "envs/trim.yaml"
         resources:
             mem_mb = 10240,  # 10 GB
-            runtime = get_trim_runtime
+            runtime=get_trim_runtime
         shell:
             """
             # Only process on forward reads
@@ -379,10 +378,10 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         return runtime
     rule fastqc_trim:
         input: rules.trim.output
-        output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
+        output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
         params:
-            file_two_input=os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"),
-            file_two_out=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
+            file_two_input=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"),
+            file_two_out=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
             direction="{PE_SE}"
         threads: get_fastqc_trim_threads
         conda: "envs/fastqc.yaml"
@@ -418,10 +417,10 @@ def get_direction_from_name(file: str):
 def collect_star_align_input(wildcards):
     if str(config["PERFORM_TRIM"]).lower() == "true":
         # Have not expanded output from rule trim, need to expand it here
-        in_files = sorted(expand(rules.trim.output,zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()))
+        in_files = sorted(expand(rules.trim.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()))
     else:
         # already expanding output from dump_fastq, no need to expand it here
-        in_files = sorted(expand(rules.dump_fastq.output, zip, tissue_name=get_tissue_name(),tag=get_tags(), PE_SE=get_PE_SE()))
+        in_files = sorted(expand(rules.dump_fastq.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()))
 
     grouped_reads = []
     for i, in_file in enumerate(in_files):
@@ -480,12 +479,12 @@ rule star_align:
         reads=collect_star_align_input,
         genome_dir=rules.generate_genome.output.genome_dir,
         genome_file=rules.generate_genome.output.genome_file,
-        rule_complete=os.path.join(config["ROOTDIR"],"temp","rule_complete","generate_genome.complete")
-    output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab")
+        rule_complete=os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete")
+    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab")
     params:
         tissue_name="{tissue_name}",
         tag="{tag}",
-        star_output=os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab")
+        star_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_ReadsPerGene.out.tab")
     threads: 40
     conda: "envs/star.yaml"
     resources:
@@ -545,15 +544,15 @@ rule multiqc:
         star_data = multiqc_get_star_data,
         dump_fastq_data = multiqc_get_dump_fastq_data
     output:
-        output_file = os.path.join(config["ROOTDIR"],"data", "{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),
+        output_file = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
         output_directory = directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc"))
     params:
-        input_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}")
+        input_directory=os.path.join(config["ROOTDIR"], "data", "{tissue_name}")
     threads: 1
     conda: "envs/multiqc.yaml"
     resources:
-        mem_mb = 1024,  # 1 GB
-        runtime = 30  # 10 minutes
+        mem_mb=1024,  # 1 GB
+        runtime=lambda wildcards, attempt: 30 * (attempt * 0.75)  # 30 minutes, don't need much more time than this if it fails
     shell:
         """
         mkdir -p "{output}"
