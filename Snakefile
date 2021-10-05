@@ -304,11 +304,13 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         shell:
             """
             # Only process on forward reads
-            output_directory="$(dirname {output})
+            input_directory="$(dirname {input})"
+            output_directory="$(dirname {output})"
+            
             
             if [ "{params.direction}" == "1" ]; then
                 file_in_1="{input}"                                                                 # Input file 1
-                file_in_2="$(dirname {input})/{params.tissue_name}_{params.tag}_2.fastq.gz"         # Input file 2
+                file_in_2="$input_directory/{params.tissue_name}_{params.tag}_2.fastq.gz"         # Input file 2
                 trim_galore --paired --cores 4 -o "$(dirname {output})" "$file_in_1" "$file_in_2"
                        
                 file_out_1="$output_directory/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"    # final output paired end, forward read
