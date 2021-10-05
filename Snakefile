@@ -178,7 +178,7 @@ rule generate_genome:
         --genomeDir {output.genome_dir} \
         --genomeFastaFiles {input.genome_fasta_file} \
         --sjdbGTFfile {input.gtf_file} \
-        --sjdbOverhang {config[GENERATE_GENOME][OVERHANG]}
+        --sjdbOverhang 99
 
         mv Log.out {params.log_file}
         """
@@ -495,14 +495,14 @@ rule star_align:
         PREFIX="{config[ROOTDIR]}/data/{params.tissue_name}/aligned_reads/{params.tag}/{params.tissue_name}_{params.tag}_"
         printf "prefix is $PREFIX"
         STAR --runThreadN {threads} \
-		--readFilesCommand {config[ALIGN_READS][READ_COMMAND]} \
+		--readFilesCommand "zcat" \
 		--readFilesIn {input.reads} \
 		--genomeDir {input.genome_dir} \
 		--outFileNamePrefix $PREFIX \
-		--outSAMtype {config[ALIGN_READS][OUT_SAM_TYPE]} \
-		--outSAMunmapped {config[ALIGN_READS][OUT_SAM_UNMAPPED]} \
-		--outSAMattributes {config[ALIGN_READS][OUT_SAM_ATTRIBUTES]} \
-		--quantMode {config[ALIGN_READS][QUANT_MODE]}
+		--outSAMtype "BAM SortedByCoordinate" \
+		--outSAMunmapped "Within" \
+		--outSAMattributes "Standard" \
+		--quantMode "GeneCounts"
 
 		mv {params.star_output} {output}
         """

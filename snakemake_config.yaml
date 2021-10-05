@@ -1,4 +1,4 @@
-# Please modify these settings to ones that suit your needs
+# Modify these settings to reflect your paths
 # Only change values after the colon (':')
 MASTER_CONTROL: "controls/master_control.csv"
 DUMP_FASTQ_FILES: "results/dump_fastq_input"
@@ -7,17 +7,11 @@ ROOTDIR: "results"
 PERFORM_TRIM: True  # True or False
 PERFORM_PREFETCH: True  # True or False
 
+
 GENERATE_GENOME:
+  # The full path where the genome generation data should be saved
   GENOME_SAVE_DIR: "genome/star"
+
+  # The full input path of the genome fasta file and the GTF file
   GENOME_FASTA_FILE: "genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
   GTF_FILE: "genome/Homo_sapiens.GRCh38.104.gtf"
-  # The "OVERHANG" value does not need to be modified
-  OVERHANG: 99
-
-# Please do not changes values below this line
-ALIGN_READS:
-  READ_COMMAND: "zcat"
-  OUT_SAM_TYPE: "BAM SortedByCoordinate"
-  OUT_SAM_UNMAPPED: "Within"
-  OUT_SAM_ATTRIBUTES: "Standard"
-  QUANT_MODE: "GeneCounts"
