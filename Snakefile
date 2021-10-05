@@ -531,4 +531,8 @@ rule multiqc:
     resources:
         mem_mb = 1024,  # 1 GB
         runtime = 10  # 10 minutes
-    shell: "multiqc {wildcards.tissue_name} --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}"
+    shell:
+        """
+        mkdir -p "{output}"
+        multiqc {wildcards.tissue_name} --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}
+        """
