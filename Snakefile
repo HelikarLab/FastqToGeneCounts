@@ -19,36 +19,42 @@ def get_from_master_config(attribute: str) -> list[str]:
 
         # We have to subtract one because "tissue" and "tag" are in the same index, thus the index value in valid_inputs is increased by one
         if index_value >= 2: index_value -= 1
+        i_stream = open(config["MASTER_CONTROL"], "r")
+        reader = csv.reader(i_stream)
+        for line in reader:
 
-        with open(config["MASTER_CONTROL"], "r") as i_stream:
-            reader = csv.reader(i_stream)
-            for line in reader:
-                # Get the column from master_control we are interested in
-                column_value = line[index_value]
-                PE_SE_value = line[2]  # get PE or SE
+            # Get the column from master_control we are interested in
+            column_value = line[index_value]
+            PE_SE_value = line[2]  # get PE or SE
 
-                # test if we are looking for "tissue" or "tag", as these two values are located at master_control index 1
-                if attribute in sub_list:
-                    sub_index = sub_list.index(attribute)
-                    split_list = str(line[index_value]).split("_")
-                    target_attribute = split_list[sub_index]
-                    if PE_SE_value == "PE":
-                        collect_attributes.append(target_attribute)
-                        collect_attributes.append(target_attribute)
-                    elif PE_SE_value == "SE":
-                        collect_attributes.append(target_attribute)
+            # test if we are looking for "tissue" or "tag", as these two values are located at master_control index 1
+            if attribute in sub_list:
+                sub_index = sub_list.index(attribute)
+                split_list = str(line[index_value]).split("_")
 
-                elif attribute == "PE_SE":
-                    if column_value == "PE":
-                        collect_attributes.append("1")
-                        collect_attributes.append("2")
-                    elif column_value == "SE":
-                        collect_attributes.append("S")
+                # We must append the target attribute twice if it is paired end, once if it is single end
+                if PE_SE_value == "PE":
+                    target_attribute = [split_list[sub_index], split_list[sub_index]]
+                else:  # Single end
+                    target_attribute = [split_list[sub_index]]
 
+            elif attribute == "PE_SE":
+                # We must append the target attribute twice if it is paired end, once if it is single end
+                if column_value == "PE":
+                    target_attribute = ["1", "2"]
+                else:  # Single end
+                    target_attribute = ["S"]
+
+            else:
+                if PE_SE_value == "PE":
+                    target_attribute = [line[index_value], line[index_value]]
                 else:
-                    collect_attributes.append(line[index_value])
-        return collect_attributes
+                    target_attribute = [line[index_value]]
 
+            collect_attributes += target_attribute
+
+        i_stream.close()
+        return collect_attributes
 
 def get_srr_code() -> list[str]:
     """
@@ -219,7 +225,7 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
 
     rule prefetch:
         input: rules.distribute_init_files.output
-        output: data=os.path.join(config["ROOTDIR"], "temp", "prefetch", "{tissue_name}_{tag}", "{srr_code}.sra")
+        output: os.path.join(config["ROOTDIR"], "temp", "prefetch", "{tissue_name}_{tag}", "{srr_code}.sra")
         conda: "envs/SRAtools.yaml"
         threads: 1
         resources:
@@ -230,12 +236,12 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
             IFS=","
             while read srr name endtype; do
                 # prefetch has a default max size of 20G. Effectively remove this size by allowing downloads up to 1TB to be downloaded
-                prefetch $srr --max-size 1024000000000 --output-file {output.data}
+                prefetch $srr --max-size 1024000000000 --output-file {output}
             done < {input}
             """
 
     checkpoint dump_fastq:
-        input: expand(rules.prefetch.output.data, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
+        input: expand(rules.prefetch.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
         output: expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
         threads: 40
         conda: "envs/SRAtools.yaml"
