@@ -165,7 +165,7 @@ rule generate_genome:
         genome_file=os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "Genome"),
         rule_complete=touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete"))
     params:
-        log_file=os.path.join(config["GENOME_SAVE_DIR"], "Log.out")
+        log_file=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "Log.out")
     threads: 40
     resources:
         mem_mb=50000, # 50 GB
