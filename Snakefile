@@ -352,7 +352,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
         tag = get_tag(str(input))
         runtime = 1
         if tag in ["1", "S"]:
-            runtime = 60 * attempt
+            runtime = 150 * attempt  # 2.5 hours
         elif tag == "2":
             runtime = 5
         return runtime
