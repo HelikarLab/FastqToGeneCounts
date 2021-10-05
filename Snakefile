@@ -531,7 +531,7 @@ rule multiqc:
     conda: "envs/multiqc.yaml"
     resources:
         mem_mb = 1024,  # 1 GB
-        runtime = 60  # 10 minutes
+        runtime = 30  # 10 minutes
     shell:
         """
         mkdir -p "{output}"
