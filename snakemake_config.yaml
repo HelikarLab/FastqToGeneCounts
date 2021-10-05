@@ -5,7 +5,7 @@ DUMP_FASTQ_FILES: "results/dump_fastq_input"
 ROOTDIR: "results"
 
 PERFORM_TRIM: True  # True or False
-PERFORM_PREFETCH: False  # True or False
+PERFORM_PREFETCH: True  # True or False
 
 GENERATE_GENOME:
   GENOME_SAVE_DIR: "genome/star"

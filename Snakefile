@@ -25,13 +25,26 @@ def get_from_master_config(attribute: str) -> list[str]:
             for line in reader:
                 # Get the column from master_control we are interested in
                 column_value = line[index_value]
+                PE_SE_value = line[2]  # get PE or SE
 
                 # test if we are looking for "tissue" or "tag", as these two values are located at master_control index 1
                 if attribute in sub_list:
                     sub_index = sub_list.index(attribute)
                     split_list = str(line[index_value]).split("_")
                     target_attribute = split_list[sub_index]
-                    collect_attributes.append(target_attribute)
+                    if PE_SE_value == "PE":
+                        collect_attributes.append(target_attribute)
+                        collect_attributes.append(target_attribute)
+                    elif PE_SE_value == "SE":
+                        collect_attributes.append(target_attribute)
+
+                elif attribute == "PE_SE":
+                    if column_value == "PE":
+                        collect_attributes.append("1")
+                        collect_attributes.append("2")
+                    elif column_value == "SE":
+                        collect_attributes.append("S")
+
                 else:
                     collect_attributes.append(line[index_value])
         return collect_attributes
@@ -102,13 +115,15 @@ def fastqc_trimmed_reads(wildcards):
     If we are going to trim, return output for rule fastqc_trim
     """
     if str(config["PERFORM_TRIM"]).lower() == "true":
-        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+        return expand(os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     else:
         return []
 
 def perform_dump_fastq(wildcards):
     if str(config["PERFORM_PREFETCH"]).lower() == "true":
-        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()),
+        data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+        return data
+        # return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()),
     else:
         return []
 
@@ -127,11 +142,11 @@ rule all:
         # FastQC
         # Untrimed reads (from checkpoint dump_fastq)
         # Trimmed reads (from rule trim)
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE()),
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()),
         fastqc_trimmed_reads,
 
         # STAR aligner
-        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"), zip, tissue_name=get_tissue_name(),tag=get_tags()),
+        expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"), zip, tissue_name=get_tissue_name(), tag=get_tags()),
 
         # MultiQC
         expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"), tissue_name=get_tissue_name()),
