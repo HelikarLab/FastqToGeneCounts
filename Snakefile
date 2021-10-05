@@ -257,15 +257,15 @@ rule fastqc_dump_fastq:
 if str(config["PERFORM_TRIM"]).lower() == "true":
     def get_trim_input(wildcards):
         if str(config["PERFORM_PREFETCH"]).lower() == "true":
-            dump_fastq_output = expand(checkpoints.dump_fastq.get(**wildcards).output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+            fastq_gz_files = expand(checkpoints.dump_fastq.get(**wildcards).output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
         else:
-            dump_fastq_output = []
+            fastq_gz_files = []
             for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
                 for file in files:
                     if file.endswith(".fastq.gz"):
-                        dump_fastq_output.append(os.path.join(path, file))
+                        fastq_gz_files.append(os.path.join(path, file))
 
-        for file in dump_fastq_output:
+        for file in fastq_gz_files:
             if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
                 return file
     def get_trim_threads(wildcards):
@@ -309,8 +309,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 file_in_2="$(dirname {input})/{params.tissue_name}_{params.tag}_2.fastq.gz"         # Input file 2
                 trim_galore --paired --cores 4 -o "$(dirname {output})" "$file_in_1" "$file_in_2"
                        
-                file_out_1="$(dirname {output})/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"     # final output paired end, forward read
-                file_out_2="$(dirname {output})/{params.tissue_name}_{params.tag}_2_val_2.fq.gz"      # final output paired end, reverse read
+                file_out_1="$(dirname {output})/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"    # final output paired end, forward read
+                file_out_2="$(dirname {output})/{params.tissue_name}_{params.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
                 file_rename_1="$(dirname {output})/{params.tissue_name}_{params.tag}_1.fastq.gz"    # final renamed output paired end, forward read
                 file_rename_2="$(dirname {output})/{params.tissue_name}_{params.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
                 
@@ -325,8 +325,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             elif [ "{params.direction}" == "S" ]; then
                 trim_galore --cores 4 -o "$(dirname {output})" "{input}"
                 
-                file_name="$(dirname {output})/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"     # final output single end
-                file_rename="$(dirname {output})/{params.tissue_name}_{params.tag}_S.fastq.gz"        # final renamed output single end
+                file_name="$(dirname {output})/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"   # final output single end
+                file_rename="$(dirname {output})/{params.tissue_name}_{params.tag}_S.fastq.gz"      # final renamed output single end
                 
                 mv "$file_name" "$file_rename"
             fi
@@ -460,7 +460,7 @@ rule star_align:
         tissue_name="{tissue_name}",
         tag="{tag}",
         star_output=os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab")
-    threads: 50
+    threads: 40
     conda: "envs/star.yaml"
     resources:
         mem_mb=51200,# 50 GB
