@@ -522,11 +522,12 @@ rule multiqc:
     input:
         fastqc_data = multiqc_get_fastqc_data,
         star_data = multiqc_get_star_data,
-        dump_fastq_data = multiqc_get_dump_fastq_data,
-        input_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}"),
+        dump_fastq_data = multiqc_get_dump_fastq_data
     output:
         output_file = os.path.join(config["ROOTDIR"],"data", "{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),
         output_directory = directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc"))
+    params:
+        input_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}")
     threads: 1
     conda: "envs/multiqc.yaml"
     resources:
@@ -535,5 +536,5 @@ rule multiqc:
     shell:
         """
         mkdir -p "{output}"
-        multiqc "{input.input_directory}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}
+        multiqc "{params.input_directory}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}
         """
