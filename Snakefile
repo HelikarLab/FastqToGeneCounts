@@ -167,7 +167,7 @@ rule generate_genome:
         rule_complete=touch(os.path.join(config["ROOTDIR"],"temp","rule_complete","generate_genome.complete"))
     params:
         log_file=os.path.join(config["ROOTDIR"],"genome","star","Log.out")
-    threads: 50
+    threads: 40
     resources:
         mem_mb=50000, # 50 GB
         runtime=lambda wildcards, attempt: 90 * attempt
@@ -266,7 +266,7 @@ rule fastqc_dump_fastq:
     conda: "envs/fastqc.yaml"
     resources:
         mem_mb=2048,  # 2 GB
-        runtime=60    # 60 minutes
+        runtime=lambda wildcards, attempt: 150 * attempt    # 150 minutes * attempt number
     shell:
         """
         mkdir -p $(dirname {output})
