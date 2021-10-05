@@ -526,7 +526,7 @@ rule multiqc:
         input_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}"),
     output:
         output_file = os.path.join(config["ROOTDIR"],"data", "{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),
-        output_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc")
+        output_directory = directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc"))
     threads: 1
     conda: "envs/multiqc.yaml"
     resources:
