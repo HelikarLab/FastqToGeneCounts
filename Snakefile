@@ -520,9 +520,10 @@ def multiqc_get_star_data(wildcards):
     return return_files
 rule multiqc:
     input:
-        multiqc_get_fastqc_data,
-        multiqc_get_star_data,
-        multiqc_get_dump_fastq_data
+        fastqc_data = multiqc_get_fastqc_data,
+        star_data = multiqc_get_star_data,
+        dump_fastq_data = multiqc_get_dump_fastq_data,
+        input_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}"),
     output:
         output_file = os.path.join(config["ROOTDIR"],"data", "{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),
         output_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc")
@@ -534,5 +535,5 @@ rule multiqc:
     shell:
         """
         mkdir -p "{output}"
-        multiqc {wildcards.tissue_name} --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}
+        multiqc "{input.input_directory}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}
         """
