@@ -332,6 +332,11 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 file_name="$output_directory/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"   # final output single end
                 file_rename="$output_directory/{params.tissue_name}_{params.tag}_S.fastq.gz"      # final renamed output single end
                 
+                echo HERE
+                echo "move in: $file_name"
+                echo "move out: $file_rename"
+                echo -e "ls\n$(ls $(dirname {output}))"
+                
                 mv "$file_name" "$file_rename"
             fi
             """
