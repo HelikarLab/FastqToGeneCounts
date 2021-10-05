@@ -371,6 +371,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             runtime=get_fastqc_trim_runtime
         shell:
             """
+            mkdir -p $(dirname {output})
+            
             if [ "{params.direction}" == "1" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
                 printf "\nFastQC finished $(basename {input}) (1/2)\n"
@@ -378,7 +380,6 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 fastqc {params.file_two_input} --threads {threads} -o $(basename {params.file_two_out})
                 printf "\nFastQC finished $(basename {params.file_two_input}) (2/2)\n"
             elif [ "{params.direction}" == "2" ]; then
-                mkdir -p $(dirname {output})
                 touch {output}
             elif [ "{params.direction}" == "S" ]; then
                 fastqc {input} --threads {threads} -o $(dirname {output})
@@ -521,14 +522,12 @@ rule multiqc:
         multiqc_get_fastqc_data,
         multiqc_get_star_data,
         multiqc_get_dump_fastq_data
-    output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}","multiqc","{tissue_name}_multiqc_report.html")
-    params:
-        # lambda not needed as we have tissue_name as wildcard in output
-        tissue_directory = os.path.join(config["ROOTDIR"],"data","{tissue_name}"),
-        tissue_name = "{tissue_name}"
+    output:
+        output_file = os.path.join(config["ROOTDIR"],"data", "{tissue_name}","multiqc","{tissue_name}_multiqc_report.html"),
+        output_directory = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc")
     threads: 1
     conda: "envs/multiqc.yaml"
     resources:
         mem_mb = 1024,  # 1 GB
         runtime = 10  # 10 minutes
-    shell: "multiqc {params.tissue_directory} --filename {params.tissue_name}_multiqc_report.html --outdir {params.tissue_directory}/multiqc/"
+    shell: "multiqc {wildcards.tissue_name} --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}"
