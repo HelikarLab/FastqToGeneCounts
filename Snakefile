@@ -376,15 +376,15 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             
             if [ "{params.direction}" == "1" ]; then
                 fastqc {input} --threads {threads} -o "$output_directory"
-                printf "\nFastQC finished $(basename {input}) (1/2)\n"
+                printf "FastQC finished $(basename {input}) (1/2)\n\n"
                 
                 fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
-                printf "\nFastQC finished $(basename {params.file_two_input}) (2/2)\n"
+                printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
             elif [ "{params.direction}" == "2" ]; then
                 touch {output}
             elif [ "{params.direction}" == "S" ]; then
                 fastqc {input} --threads {threads} -o "$output_directory"
-                printf "\nFastQC finished $(basename {input}) (1/1)\n"
+                printf "FastQC finished $(basename {input}) (1/1)\n\n"
             fi
             
             """
