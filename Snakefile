@@ -315,8 +315,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                        
                 file_out_1="$output_directory/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"    # final output paired end, forward read
                 file_out_2="$output_directory/{params.tissue_name}_{params.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
-                file_rename_1="$output_directory/{params.tissue_name}_{params.tag}_1.fastq.gz"    # final renamed output paired end, forward read
-                file_rename_2="$output_directory/{params.tissue_name}_{params.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
+                file_rename_1="$output_directory/trimmed_{params.tissue_name}_{params.tag}_1.fastq.gz"    # final renamed output paired end, forward read
+                file_rename_2="$output_directory/trimmed_{params.tissue_name}_{params.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
                 
                 mv "$file_out_1" "$file_rename_1"
                 mv "$file_out_2" "$file_rename_2"
@@ -330,14 +330,8 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 trim_galore --cores 4 -o "$(dirname {output})" "{input}"
                 
                 file_name="$output_directory/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"   # final output single end
-                file_rename="$output_directory/{params.tissue_name}_{params.tag}_S.fastq.gz"      # final renamed output single end
                 
-                echo HERE
-                echo "move in: $file_name"
-                echo "move out: $file_rename"
-                echo -e "ls\n$(ls $(dirname {output}))"
-                
-                mv "$file_name" "$file_rename"
+                mv "$file_name" "{output}"
             fi
             """
 
