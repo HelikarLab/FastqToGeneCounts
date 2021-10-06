@@ -348,7 +348,7 @@ rule fastqc_dump_fastq:
 if perform_trim():
     def get_trim_input(wildcards):
         if perform_prefetch():
-            fastq_gz_files = expand(checkpoints.dump_fastq.get(**wildcards).output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+            return checkpoints.dump_fastq.get(**wildcards).output
         else:
             fastq_gz_files = []
             for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
