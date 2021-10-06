@@ -307,7 +307,7 @@ def get_fastqc_runtime(wildcards, input, attempt):
     return runtime
 def fastqc_dump_fastq_input(wildcards):
     if perform_prefetch():
-        return checkpoints.dump_fastq.get(**wildcards)[0]
+        return checkpoints.dump_fastq.get(**wildcards).output
     else:
         for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
             for file in files:
