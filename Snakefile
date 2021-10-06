@@ -175,8 +175,6 @@ rule generate_genome:
         genome_dir=directory(os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"])),
         genome_file=os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "Genome"),
         rule_complete=touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete"))
-    params:
-        log_file=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "Log.out")
     threads: 40
     resources:
         mem_mb=50000, # 50 GB
@@ -184,14 +182,13 @@ rule generate_genome:
     conda: "envs/star.yaml"
     shell:
         """
+        cd {output.genome_dir}
         STAR --runMode genomeGenerate \
         --runThreadN {threads} \
         --genomeDir {output.genome_dir} \
         --genomeFastaFiles {input.genome_fasta_file} \
         --sjdbGTFfile {input.gtf_file} \
         --sjdbOverhang 99
-
-        mv Log.out {params.log_file}
         """
 
 def get_dump_fastq_runtime(wildcards, input, attempt):
