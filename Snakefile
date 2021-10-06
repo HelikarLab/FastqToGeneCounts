@@ -410,7 +410,7 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 fastqc {input} --threads {threads} -o $(dirname {output})
                 echo "\nFastQC finished $(basename {input}) (1/2)\n"
                 fastqc {params.file_two_input} --threads {threads} -o $(dirname {params.file_two_out})
-                echo "\nFastQC finished $(basename {params.file_two_input} (2/2)\n"
+                echo "\nFastQC finished $(basename {params.file_two_input}) (2/2)\n"
             elif [ "{params.direction}" == "2" ]; then
                 mkdir -p $(dirname {output})
                 touch {output}
