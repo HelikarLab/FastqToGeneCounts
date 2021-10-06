@@ -354,6 +354,15 @@ rule fastqc_dump_fastq:
             
             fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
             printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
+            
+            
+            file_one_name="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}_1.fastq.gz"
+            file_two_name="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}_2.fastq.gz"
+            
+            file_one_rename="$output_directory/untrimmed_{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}_1.fastq.gz"
+            file_one_rename="$output_directory/untrimmed_{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}_2.fastq.gz"
+
+            
         elif [ "{params.direction}" == "2" ]; then
             touch {output}
         elif [ "{params.direction}" == "S" ]; then
