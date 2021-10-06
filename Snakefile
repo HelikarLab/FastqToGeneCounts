@@ -296,7 +296,7 @@ if perform_prefetch():
             elif [ "{wildcards.PE_SE}" == "S" ]; then
                 parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip
                 
-                mv "$output_dir/{params.srr_code}_S.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_S.fastq.gz"
+                mv "$output_dir/{params.srr_code}.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_S.fastq.gz"
             fi
             """
 
