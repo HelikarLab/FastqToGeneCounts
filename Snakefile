@@ -499,10 +499,10 @@ rule star_align:
 		--readFilesIn {input.reads} \
 		--genomeDir {input.genome_dir} \
 		--outFileNamePrefix $PREFIX \
-		--outSAMtype "BAM SortedByCoordinate" \
-		--outSAMunmapped "Within" \
-		--outSAMattributes "Standard" \
-		--quantMode "GeneCounts"
+		--outSAMtype BAM SortedByCoordinate \
+		--outSAMunmapped Within \
+		--outSAMattributes Standard \
+		--quantMode GeneCounts
 
 		mv {params.star_output} {output}
         """
