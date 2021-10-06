@@ -261,11 +261,22 @@ if perform_prefetch():
         if str(wildcards.PE_SE) in ["1", "S"]: threads = 40
         elif str(wildcards.PE_SE) == "2": threads = 1
         return threads
+    def get_dump_fastq_srr_code(wildcards):
+        """Get SRR codes corresponding to dump_fastq output"""
+        lines = open(config["MASTER_CONTROL"], "r").readlines()
+        if wildcards.PE_SE in ["1", "2"]: direction = "PE"
+        else: direction = "SE"
+        for line in lines:
+            if f"{wildcards.tissue_name}_{wildcards.tag},{direction}" in line:
+                srr_code = line.split(",")[0]
+                return srr_code
 
     checkpoint dump_fastq:
         input: dump_fastq_input
             # expand(rules.prefetch.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
         output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+        params:
+            srr_code=get_dump_fastq_srr_code
         threads: get_dump_fastq_threads
         conda: "envs/SRAtools.yaml"
         resources:
@@ -275,11 +286,17 @@ if perform_prefetch():
             """
             output_dir="$(dirname {output})"
             if [ "{wildcards.PE_SE}" == "1" ]; then
-                parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip --split-files 
+                parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip --split-files
+                
+                mv "$output_dir/{params.srr_code}_1.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"
+                mv "$output_dir/{params.srr_code}_2.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"
+                 
             elif [ "{wildcards.PE_SE}" == "2" ]; then
                 touch {output}
             elif [ "{wildcards.PE_SE}" == "S" ]; then
                 parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip
+                
+                mv "$output_dir/{params.srr_code}_S.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_S.fastq.gz"
             fi
             """
 
