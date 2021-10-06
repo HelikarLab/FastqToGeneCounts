@@ -341,7 +341,7 @@ rule fastqc_dump_fastq:
     threads: get_fastqc_threads
     conda: "envs/fastqc.yaml"
     resources:
-        mem_mb=2048,  # 2 GB
+        mem_mb=15360,  # 15 GB
         runtime=get_fastqc_runtime    # 150 minutes * attempt number
     shell:
         """
