@@ -334,7 +334,7 @@ rule fastqc_dump_fastq:
     input: fastqc_dump_fastq_input
     output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params:
-        file_two_input = os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"),
+        file_two_input = os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_2.fastq.gz"),
 
         file_one_zip=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
         file_one_html=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
