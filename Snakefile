@@ -239,16 +239,62 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
             done < {input}
             """
 
+    def dump_fastq_input(wildcards):
+        output_files = expand(rules.prefetch.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
+        for file in output_files:
+            if (wildcards.tissue_name in file) and (wildcards.tag in file):
+                return file
+    def get_dump_fastq_threads(wildcards):
+        """Get threads for dump fastq"""
+        threads = 1
+        if str(wildcards.PE_SE) in ["1", "S"]: threads = 40
+        elif str(wildcards.PE_SE) == "2": threads = 1
+        return threads
+
     checkpoint dump_fastq:
-        input: expand(rules.prefetch.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
-        output: expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
-        threads: 40
+        input: dump_fastq_input
+            # expand(rules.prefetch.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
+        output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+        threads: get_dump_fastq_threads
         conda: "envs/SRAtools.yaml"
         resources:
             mem_mb=20480,  # 20 GB
             runtime=get_dump_fastq_runtime
-        script: "scripts/parallel-fastq-dump.py"
+        shell:
+            """
+            output_dir="$(dirname {output})"
+            if [ "{wildcards.PE_SE}" == "1" ]; then
+                parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip --split-files 
+            elif [ "{wildcards.PE_SE}" == "2" ]; then
+                touch {output}
+            elif [ "{wildcards.PE_SE}" == "S" ]; then
+                parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip
+            fi
+            """
+        # script: "scripts/parallel-fastq-dump.py"
 
+
+def get_tag(file_path: str) -> str:
+    file_name = os.path.basename(file_path)
+    purge_extension = file_name.split(".")[0]
+    tag = purge_extension.split("_")[-1]
+    return str(tag)
+def get_fastqc_threads(wildcards, input):
+    threads = 1
+    tag = get_tag(str(input))
+    if tag in ["1", "S"]:
+        threads = 15
+    elif tag == "2":
+        threads = 1
+    return threads
+def get_fastqc_runtime(wildcards, input, attempt):
+    tag = get_tag(str(input))
+    runtime = 1
+    if tag in ["1", "S"]:
+        runtime = 150 * attempt  # 2.5 hours
+    elif tag == "2":
+        runtime = 5
+    return runtime
 def fastqc_dump_fastq_input(wildcards):
     if str(config["PERFORM_PREFETCH"]).lower() == "true":
         return checkpoints.dump_fastq.get(**wildcards)[0]
@@ -260,18 +306,33 @@ def fastqc_dump_fastq_input(wildcards):
 rule fastqc_dump_fastq:
     input: fastqc_dump_fastq_input
     output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
-    params: fastqc_output_name=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
-    threads: 10
+    params:
+        fastqc_output_name=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
+        file_two_input=os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"),
+        file_two_out=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
+        direction="{PE_SE}"
+    threads: get_fastqc_threads
     conda: "envs/fastqc.yaml"
     resources:
         mem_mb=2048,  # 2 GB
-        runtime=lambda wildcards, attempt: 150 * attempt    # 150 minutes * attempt number
+        runtime=get_fastqc_runtime    # 150 minutes * attempt number
     shell:
         """
-        mkdir -p $(dirname {output})
-        fastqc {input} -o $(dirname {output})
-        mv {params.fastqc_output_name} {output}
-        printf "\nFastQC finished for {input} (1/1)\n"
+        output_directory="$(dirname {output})"
+        mkdir -p "$output_directory"
+        
+        if [ "{params.direction}" == "1" ]; then
+            fastqc {input} --threads {threads} -o "$output_directory"
+            printf "FastQC finished $(basename {input}) (1/2)\n\n"
+            
+            fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
+            printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
+        elif [ "{params.direction}" == "2" ]; then
+            touch {output}
+        elif [ "{params.direction}" == "S" ]; then
+            fastqc {input} --threads {threads} -o "$output_directory"
+            printf "FastQC finished $(basename {input}) (1/1)\n\n"
+        fi
         """
 
 if str(config["PERFORM_TRIM"]).lower() == "true":
@@ -355,27 +416,6 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             fi
             """
 
-    def get_tag(file_path: str) -> str:
-        file_name = os.path.basename(file_path)
-        purge_extension = file_name.split(".")[0]
-        tag = purge_extension.split("_")[-1]
-        return str(tag)
-    def get_fastqc_trim_threads(wildcards, input):
-        threads = 1
-        tag = get_tag(str(input))
-        if tag in ["1", "S"]:
-            threads = 15
-        elif tag == "2":
-            threads = 1
-        return threads
-    def get_fastqc_trim_runtime(wildcards, input, attempt):
-        tag = get_tag(str(input))
-        runtime = 1
-        if tag in ["1", "S"]:
-            runtime = 150 * attempt  # 2.5 hours
-        elif tag == "2":
-            runtime = 5
-        return runtime
     rule fastqc_trim:
         input: rules.trim.output
         output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
@@ -383,21 +423,19 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
             file_two_input=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"),
             file_two_out=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
             direction="{PE_SE}"
-        threads: get_fastqc_trim_threads
+        threads: get_fastqc_threads
         conda: "envs/fastqc.yaml"
         resources:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
             mem_mb=15360, # 15 GB
-            runtime=get_fastqc_trim_runtime
+            runtime=get_fastqc_runtime
         shell:
             """
             output_directory="$(dirname {output})"
             mkdir -p "$output_directory"
-            
             if [ "{params.direction}" == "1" ]; then
                 fastqc {input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {input}) (1/2)\n\n"
-                
                 fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
             elif [ "{params.direction}" == "2" ]; then
@@ -406,7 +444,6 @@ if str(config["PERFORM_TRIM"]).lower() == "true":
                 fastqc {input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {input}) (1/1)\n\n"
             fi
-            
             """
 
 def get_direction_from_name(file: str):
