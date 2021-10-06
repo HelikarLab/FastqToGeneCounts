@@ -8,6 +8,17 @@ import warnings
 import math
 configfile: "snakemake_config.yaml"
 
+def perform_trim():
+    if str(config["PERFORM_TRIM"]).lower() == "true":
+        return True
+    else:
+        return False
+def perform_prefetch():
+    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+        return True
+    else:
+        return False
+
 def get_from_master_config(attribute: str) -> list[str]:
     valid_inputs = ["SRR", "tissue", "tag", "PE_SE"]
     sub_list = ["tissue", "tag"]
@@ -60,25 +71,25 @@ def get_srr_code() -> list[str]:
     """
     Only should be getting SRR values if we are performing prefetch
     """
-    if str(config["PERFORM_TRIM"]).lower() == "true":
+    if perform_trim():
         return get_from_master_config("SRR")
 
 def get_tissue_name() -> list[str]:
-    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+    if perform_prefetch():
         return get_from_master_config("tissue")
     else:
         fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
         return fastq_input.tissue_name
 
 def get_tags() -> list[str]:
-    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+    if perform_prefetch():
         return get_from_master_config("tag")
     else:
         fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
         return fastq_input.tag
 
 def get_PE_SE() -> list[str]:
-    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+    if perform_prefetch():
         return get_from_master_config("PE_SE")
     else:
         fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
@@ -110,8 +121,8 @@ def get_dump_fastq_output(wildcards):
 
             return working_file_path
 
-def perform_trim(wildcards):
-    if str(config["PERFORM_TRIM"]).lower() == "true":
+def perform_trim_rule(wildcards):
+    if perform_trim():
         return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     else:
         return []
@@ -120,13 +131,13 @@ def fastqc_trimmed_reads(wildcards):
     """
     If we are going to trim, return output for rule fastqc_trim
     """
-    if str(config["PERFORM_TRIM"]).lower() == "true":
+    if perform_trim():
         return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     else:
         return []
 
 def perform_dump_fastq(wildcards):
-    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+    if perform_prefetch():
         data = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
         return data
     else:
@@ -142,7 +153,7 @@ rule all:
         perform_dump_fastq,
 
         # trim reads
-        perform_trim,
+        perform_trim_rule,
 
         # FastQC
         # Untrimed reads (from checkpoint dump_fastq)
@@ -201,7 +212,7 @@ def get_dump_fastq_runtime(wildcards, input, attempt):
     """
     # Max time is 10,080 minutes (7 days), do not let this function return more than that amount of time
     return min(len(input) * 10 * attempt, 10079)
-if str(config["PERFORM_PREFETCH"]).lower() == "true":
+if perform_prefetch():
     rule distribute_init_files:
         input: config["MASTER_CONTROL"]
         output: os.path.join(config["ROOTDIR"], "controls", "init_files", "{tissue_name}_{tag}.csv")
@@ -234,7 +245,7 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
             """
             IFS=", "
             while read srr name endtype; do
-                # prefetch has a default max size of 20G. Effectively remove this size by allowing downloads up to 1TB to be downloaded
+                # prefetch has a default max size of 20G. Effectively remove this size by allowing files up to 1TB to be downloaded
                 prefetch $srr --max-size 1024000000000 --output-file {output}
             done < {input}
             """
@@ -271,7 +282,6 @@ if str(config["PERFORM_PREFETCH"]).lower() == "true":
                 parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip
             fi
             """
-        # script: "scripts/parallel-fastq-dump.py"
 
 
 def get_tag(file_path: str) -> str:
@@ -296,7 +306,7 @@ def get_fastqc_runtime(wildcards, input, attempt):
         runtime = 5
     return runtime
 def fastqc_dump_fastq_input(wildcards):
-    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+    if perform_prefetch():
         return checkpoints.dump_fastq.get(**wildcards)[0]
     else:
         for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
@@ -335,9 +345,9 @@ rule fastqc_dump_fastq:
         fi
         """
 
-if str(config["PERFORM_TRIM"]).lower() == "true":
+if perform_trim():
     def get_trim_input(wildcards):
-        if str(config["PERFORM_PREFETCH"]).lower() == "true":
+        if perform_prefetch():
             fastq_gz_files = expand(checkpoints.dump_fastq.get(**wildcards).output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
         else:
             fastq_gz_files = []
@@ -452,7 +462,7 @@ def get_direction_from_name(file: str):
     direction = purge_extension.split("_")[-1]
     return direction
 def collect_star_align_input(wildcards):
-    if str(config["PERFORM_TRIM"]).lower() == "true":
+    if perform_trim():
         # Have not expanded output from rule trim, need to expand it here
         in_files = sorted(expand(rules.trim.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()))
     else:
@@ -546,7 +556,7 @@ rule star_align:
 
 
 def multiqc_get_dump_fastq_data(wildcards):
-    if str(config["PERFORM_PREFETCH"]).lower() == "true":
+    if perform_prefetch():
         output = expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     else:
         output = []
@@ -559,7 +569,7 @@ def multiqc_get_dump_fastq_data(wildcards):
             return_files.append(file)
     return return_files
 def multiqc_get_fastqc_data(wildcards):
-    if str(config["PERFORM_TRIM"]).lower() == "true":
+    if perform_trim():
         output_files = expand(rules.fastqc_trim.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
     else:
         output_files = expand(rules.fastqc_dump_fastq.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
