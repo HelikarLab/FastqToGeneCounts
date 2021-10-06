@@ -211,7 +211,7 @@ def get_dump_fastq_runtime(wildcards, input, attempt):
     :return: integer, length of input * 20 minutes
     """
     # Max time is 10,080 minutes (7 days), do not let this function return more than that amount of time
-    return min(len(input) * 10 * attempt, 10079)
+    return 30 * attempt
 if perform_prefetch():
     rule distribute_init_files:
         input: config["MASTER_CONTROL"]
