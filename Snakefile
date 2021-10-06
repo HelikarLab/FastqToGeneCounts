@@ -334,10 +334,17 @@ rule fastqc_dump_fastq:
     input: fastqc_dump_fastq_input
     output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params:
-        fastqc_output_name=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
-        file_two_input=os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"),
-        file_two_out=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
-        direction="{PE_SE}"
+        file_two_input = os.path.join(config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"),
+
+        file_one_zip=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
+        file_one_html=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
+        file_two_zip=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_2_fastqc.zip"),
+        file_two_html=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_2_fastqc.html"),
+
+        file_one_zip_rename=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
+        file_one_html_rename=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
+        file_two_zip_rename=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.zip"),
+        file_two_html_rename=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.html")
     threads: get_fastqc_threads
     conda: "envs/fastqc.yaml"
     resources:
@@ -348,26 +355,27 @@ rule fastqc_dump_fastq:
         output_directory="$(dirname {output})"
         mkdir -p "$output_directory"
         
-        if [ "{params.direction}" == "1" ]; then
+        if [ "{wildcards.PE_SE}" == "1" ]; then
             fastqc {input} --threads {threads} -o "$output_directory"
             printf "FastQC finished $(basename {input}) (1/2)\n\n"
             
             fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
             printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
             
+            mv "{params.file_one_zip}" "{params.file_one_zip_rename}"
+            mv "{params.file_one_html}" "{params.file_one_html_rename}"
+            mv "{params.file_two_zip}" "{params.file_two_zip_rename}"
+            mv "{params.file_two_html}" "{params.file_two_html_rename}"
             
-            file_one_name="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}_1.fastq.gz"
-            file_two_name="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}_2.fastq.gz"
-            
-            file_one_rename="$output_directory/untrimmed_{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}_1.fastq.gz"
-            file_one_rename="$output_directory/untrimmed_{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}_2.fastq.gz"
-
-            
-        elif [ "{params.direction}" == "2" ]; then
+        elif [ "{wildcards.PE_SE}" == "2" ]; then
             touch {output}
-        elif [ "{params.direction}" == "S" ]; then
+            
+        elif [ "{wildcards.PE_SE}" == "S" ]; then
             fastqc {input} --threads {threads} -o "$output_directory"
             printf "FastQC finished $(basename {input}) (1/1)\n\n"
+            
+            mv "{params.file_one_zip}" "{params.file_one_zip_rename}"
+            mv "{params.file_one_html}" "{params.file_one_html_rename}"
         fi
         """
 
@@ -457,8 +465,7 @@ if perform_trim():
         output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
         params:
             file_two_input=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"),
-            file_two_out=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"),
-            direction="{PE_SE}"
+            file_two_out=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip")
         threads: get_fastqc_threads
         conda: "envs/fastqc.yaml"
         resources:
@@ -469,14 +476,18 @@ if perform_trim():
             """
             output_directory="$(dirname {output})"
             mkdir -p "$output_directory"
-            if [ "{params.direction}" == "1" ]; then
+            
+            if [ "{wildcards.PE_SE}" == "1" ]; then
                 fastqc {input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {input}) (1/2)\n\n"
+                
                 fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
-            elif [ "{params.direction}" == "2" ]; then
+            
+            elif [ "{wildcards.PE_SE}" == "2" ]; then
                 touch {output}
-            elif [ "{params.direction}" == "S" ]; then
+            
+            elif [ "{wildcards.PE_SE}" == "S" ]; then
                 fastqc {input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {input}) (1/1)\n\n"
             fi
