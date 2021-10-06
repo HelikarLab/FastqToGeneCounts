@@ -473,7 +473,7 @@ def get_star_align_runtime(wildcards, input, attempt):
     Return an integer of: len(input) * 20 minutes = total runtime
     """
     # Max time is 7 days (10,080 minutes). Do not let this function return more than this time
-    return min(len(input.reads) * 20 * attempt, 10079)
+    return min(len(input.reads) * 60 * attempt, 10079)
 rule star_align:
     input:
         reads=collect_star_align_input,
