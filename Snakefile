@@ -268,7 +268,6 @@ if perform_prefetch():
 
     checkpoint dump_fastq:
         input: dump_fastq_input
-            # expand(rules.prefetch.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
         output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
             srr_code=get_dump_fastq_srr_code
@@ -317,7 +316,7 @@ def get_fastqc_runtime(wildcards, input, attempt):
     elif tag == "2":
         runtime = 5
     return runtime
-def fastqc_dump_fastq_input(wildcards, file_path):
+def fastqc_dump_fastq_input(wildcards):
     """
     This function will return the input for fastqc_dump_fastq
     It is going to return forward read AND reverse read if the input file is the forward read
@@ -343,7 +342,7 @@ def fastqc_dump_fastq_input(wildcards, file_path):
                         return file_one
 
 rule fastqc_dump_fastq:
-    input: lambda wildcards: fastqc_dump_fastq_input(wildcards, "x")
+    input: fastqc_dump_fastq_input
     output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params:
         file_one_zip=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
