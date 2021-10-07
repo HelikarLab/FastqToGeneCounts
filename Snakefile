@@ -326,7 +326,7 @@ def fastqc_dump_fastq_input(wildcards):
     if perform_prefetch():
         checkpoint_output = str(checkpoints.dump_fastq.get(**wildcards).output)
         if str(wildcards.PE_SE) == "1":
-            file_two = os.path.join(config["ROOTDIR"],"data",wildcards.tissue_name,"raw",f"{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz")
+            file_two = os.path.join(os.path.dirname(checkpoint_output) ,f"{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz")
             return [checkpoint_output, file_two]
         else:
             return checkpoint_output
