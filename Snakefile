@@ -173,7 +173,6 @@ rule generate_genome:
         gtf_file=config["GENERATE_GENOME"]["GTF_FILE"]
     output:
         genome_dir=directory(os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"])),
-        genome_file=os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "Genome"),
         rule_complete=touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete"))
     threads: 40
     resources:
