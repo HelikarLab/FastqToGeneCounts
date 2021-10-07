@@ -557,7 +557,6 @@ rule star_align:
     input:
         reads=collect_star_align_input,
         genome_dir=rules.generate_genome.output.genome_dir,
-        genome_file=rules.generate_genome.output.genome_file,
         rule_complete=os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete")
     output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab")
     params:
