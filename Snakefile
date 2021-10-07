@@ -317,20 +317,35 @@ def get_fastqc_runtime(wildcards, input, attempt):
     elif tag == "2":
         runtime = 5
     return runtime
-def fastqc_dump_fastq_input(wildcards):
+def fastqc_dump_fastq_input(wildcards, file_path):
+    """
+    This function will return the input for fastqc_dump_fastq
+    It is going to return forward read AND reverse read if the input file is the forward read
+    If input is the reverse read, it will only return the reverse read
+    If input is a single end read, it will only return the single end read
+    """
     if perform_prefetch():
-        return checkpoints.dump_fastq.get(**wildcards).output
+        checkpoint_output = str(checkpoints.dump_fastq.get(**wildcards).output)
+        if str(wildcards.PE_SE) == "1":
+            file_two = os.path.join(config["ROOTDIR"],"data",wildcards.tissue_name,"raw",f"{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz")
+            return [checkpoint_output, file_two]
+        else:
+            return checkpoint_output
     else:
         for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
             for file in files:
                 if (wildcards.tissue_name in file) and (wildcards.tag in file) and (f"_{wildcards.PE_SE}" in file):
-                    return os.path.join(path, file)
+                    file_one = os.path.join(path,file)
+                    if str(wildcards.PE_SE) == "1":
+                        file_two = os.path.join(path, f"{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz")
+                        return [file_one, file_two]
+                    else:
+                        return file_one
+
 rule fastqc_dump_fastq:
-    input: fastqc_dump_fastq_input
+    input: lambda wildcards: fastqc_dump_fastq_input(wildcards, "x")
     output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params:
-        file_two_input = os.path.join(config["ROOTDIR"],"data","{tissue_name}","raw","{tissue_name}_{tag}_2.fastq.gz"),
-
         file_one_zip=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
         file_one_html=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
         file_two_zip=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_2_fastqc.zip"),
@@ -352,10 +367,6 @@ rule fastqc_dump_fastq:
         
         if [ "{wildcards.PE_SE}" == "1" ]; then
             fastqc {input} --threads {threads} -o "$output_directory"
-            printf "FastQC finished $(basename {input}) (1/2)\n\n"
-            
-            fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
-            printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
             
             mv "{params.file_one_zip}" "{params.file_one_zip_rename}"
             mv "{params.file_one_html}" "{params.file_one_html_rename}"
@@ -367,7 +378,6 @@ rule fastqc_dump_fastq:
             
         elif [ "{wildcards.PE_SE}" == "S" ]; then
             fastqc {input} --threads {threads} -o "$output_directory"
-            printf "FastQC finished $(basename {input}) (1/1)\n\n"
             
             mv "{params.file_one_zip}" "{params.file_one_zip_rename}"
             mv "{params.file_one_html}" "{params.file_one_html_rename}"

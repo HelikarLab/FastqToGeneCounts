@@ -50,17 +50,6 @@ def generate_output_tuples(output_list: list[str]):
     return new_list
 
 
-def perform_fastq_dump(in_data, out_data) -> False:
-    """
-    This function will double check that input files are not being ran again
-    It will return True if fastq-dump should be performed, otherwise false
-    :return:
-    """
-    print(in_data)
-    print(out_data)
-
-    return False
-
 
 import numpy as np
 import subprocess
@@ -78,8 +67,6 @@ output_list = generate_output_tuples(snakemake_output)
 
 # iterate through input and output items
 for i, (in_file, out_files) in enumerate(zip(input_list, output_list)):
-    if not perform_fastq_dump(in_file, out_files):
-        continue
     if type(out_files) is tuple:
         out_directory = os.path.dirname(out_files[0])
         os.makedirs(out_directory, exist_ok=True)
