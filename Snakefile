@@ -147,7 +147,7 @@ def perform_dump_fastq(wildcards):
 rule all:
     input:
         # Generate Genome
-        os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
+        config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],
 
         # dump_fastq
         perform_dump_fastq,
@@ -172,7 +172,7 @@ rule generate_genome:
         genome_fasta_file=config["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
         gtf_file=config["GENERATE_GENOME"]["GTF_FILE"]
     output:
-        genome_dir=directory(os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"])),
+        genome_dir=directory(os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"])),
         genome_file=os.path.join(config["ROOTDIR"], config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "Genome"),
         rule_complete=touch(os.path.join(config["ROOTDIR"], "temp", "rule_complete", "generate_genome.complete"))
     threads: 40
@@ -182,7 +182,6 @@ rule generate_genome:
     conda: "envs/star.yaml"
     shell:
         """
-        cd {output.genome_dir}
         STAR --runMode genomeGenerate \
         --runThreadN {threads} \
         --genomeDir {output.genome_dir} \
