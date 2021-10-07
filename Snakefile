@@ -309,7 +309,7 @@ def get_fastqc_threads(wildcards, input):
         threads = 1
     return threads
 def get_fastqc_runtime(wildcards, input, attempt):
-    tag = get_tag(str(input))
+    tag = get_tag(str(input[0]))
     runtime = 1
     if tag in ["1", "S"]:
         runtime = 150 * attempt  # 2.5 hours
