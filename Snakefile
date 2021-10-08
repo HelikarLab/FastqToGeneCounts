@@ -257,21 +257,16 @@ if perform_prefetch():
         if str(wildcards.PE_SE) in ["1", "S"]: threads = 40
         elif str(wildcards.PE_SE) == "2": threads = 1
         return threads
-    def get_dump_fastq_srr_code(wildcards):
+    def get_dump_fastq_srr_code(wildcards, input):
         """Get SRR codes corresponding to dump_fastq output"""
-        lines = open(config["MASTER_CONTROL"], "r").readlines()
-        if wildcards.PE_SE in ["1", "2"]: direction = "PE"
-        else: direction = "SE"
-        for line in lines:
-            if f"{wildcards.tissue_name}_{wildcards.tag},{direction}" in line:
-                srr_code = line.split(",")[0]
-                return srr_code
-
+        file_name = os.path.basename(str(input))
+        srr_code = file_name.split(".")[0]
+        return srr_code
     checkpoint dump_fastq:
         input: dump_fastq_input
         output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
-            srr_code=get_dump_fastq_srr_code
+            srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards, input)
         threads: get_dump_fastq_threads
         conda: "envs/SRAtools.yaml"
         resources:
