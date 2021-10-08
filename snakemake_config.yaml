@@ -10,8 +10,12 @@ PERFORM_PREFETCH: True  # True or False
 
 GENERATE_GENOME:
   # The full path where the genome generation data should be saved
-  GENOME_SAVE_DIR: "genome/star"
+  # This step will most likely not need to be performed
+  # The genome is currently generated, do not change this unless necessary
+  GENOME_SAVE_DIR: "/work/helikarlab/joshl/genome/star"
 
   # The full input path of the genome fasta file and the GTF file
-  GENOME_FASTA_FILE: "genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
-  GTF_FILE: "genome/Homo_sapiens.GRCh38.104.gtf"
+  # These files are currently present, and any user can read from these files
+  # These values should not need to be changed unless necessary
+  GENOME_FASTA_FILE: "/work/helikarlab/joshl/genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
+  GTF_FILE: "/work/helikarlab/joshl/genome/Homo_sapiens.GRCh38.104.gtf"
