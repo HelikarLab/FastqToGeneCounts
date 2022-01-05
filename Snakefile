@@ -583,7 +583,6 @@ rule star_align:
 		--outSAMunmapped Within \
 		--outSAMattributes Standard \
 		--quantMode GeneCounts
-
 		mv {params.star_output} {output}
         """
 
