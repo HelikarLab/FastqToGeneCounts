@@ -1,3 +1,5 @@
 **/.snakemake/
 /venv
 /.idea
+/envs
+snakemake_config.yaml
