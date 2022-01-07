@@ -726,7 +726,7 @@ rule multiqc:
     conda: "envs/multiqc.yaml"
     resources:
         mem_mb=1024,  # 1 GB
-        runtime=lambda wildcards, int( attempt: 30 * (attempt * 0.75) )  # 30 minutes, don't need much more time than this if it fails
+        runtime=lambda wildcards, attempt: int( 30 * (attempt * 0.75) )  # 30 minutes, don't need much more time than this if it fails
     shell:
         """
         mkdir -p "{output}"
