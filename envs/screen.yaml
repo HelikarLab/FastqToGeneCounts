@@ -1,0 +1,5 @@
+channels:
+  - bioconda
+dependencies:
+  - fastq-screen=0.14.0b
+  - bowtie2=2.4.4
