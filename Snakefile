@@ -13,6 +13,13 @@ def perform_trim():
         return True
     else:
         return False
+
+def perform_screen():
+    if str(config["PERFORM_SCREEN"]).lower() == "true":
+        return True
+    else:
+        return False
+
 def perform_prefetch():
     if str(config["PERFORM_PREFETCH"]).lower() == "true":
         return True
@@ -121,6 +128,15 @@ def get_dump_fastq_output(wildcards):
 
             return working_file_path
 
+def perform_screen_rule(wildcards):
+    """
+    If screning for contamination, return fastq_screen output
+    """
+    if perform_screen():
+        return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+    else:
+        return []
+
 def perform_trim_rule(wildcards):
     """
     If we are performing trimming, return trim's output
@@ -153,6 +169,9 @@ rule all:
 
         # dump_fastq
         perform_dump_fastq,
+
+        # fastq_screen
+        perform_screen_rule,
 
         # trim reads
         perform_trim_rule,
@@ -193,6 +212,28 @@ rule generate_genome:
         --sjdbGTFfile {input.gtf_file} \
         --sjdbOverhang 99
         """
+
+if perform_screen():
+    rule get_screen_genomes:
+        """
+        Download genomes to screen against
+        """
+        output: directory("FastQ_Screen_Genomes")
+        threads: 1
+        resources:
+            mem_mb=500,
+            runtime=120
+        conda: "envs/screen.yaml"
+        shell:
+            """
+            if [[ ! -d "./FastQ_Screen_Genomes" ]]; then
+                echo "orange juice"
+                fastq_screen --get_genomes
+            else
+                touch -c ./FastQ_Screen_Genomes/*
+            fi
+            """
+
 
 def get_dump_fastq_runtime(wildcards, input, attempt):
     """
@@ -378,6 +419,48 @@ rule fastqc_dump_fastq:
             mv "{params.file_one_html}" "{params.file_one_html_rename}"
         fi
         """
+
+if perform_screen():
+    def get_screen_input(wildcards):
+        '''
+        aggregate filesnames of all fastqs
+        '''
+        if perform_prefetch():
+            return checkpoints.dump_fastq.get(**wildcards).output
+        else:
+            fastq_gz_files = []
+            for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
+                for file in files:
+                    if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (
+                            f"_{wildcards.PE_SE}" in file):
+                        return os.path.join(path,file)
+
+    def get_screen_runtime(wildcards, attempt):
+        """
+        runtime should be relatively short since only a fraction of reads are used
+        """
+        runtime = 10 * attempt    # minutes
+        return runtime
+
+    rule contaminant_screen:
+        input:
+            files=get_screen_input,
+            genomes=rules.get_screen_genomes.output
+        output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
+        params:
+            tissue_name="{tissue_name}",
+            tag="{tag}",
+            direction="{PE_SE}"
+        conda: "envs/screen.yaml"
+        resources:
+            mem_mb = 5120, # 5 GB
+            runtime=get_screen_runtime
+        shell:
+            """
+            fastq_screen --aligner Bowtie2 --conf FastQ_Screen_Genomes/fastq_screen.conf {input} 
+            
+            mv {params.tissue_name}_{params.tag}_{params.direction}_screen.txt results/data/{params.tissue_name}/fq_screen/
+            """
 
 if perform_trim():
     def get_trim_input(wildcards):
@@ -617,11 +700,23 @@ def multiqc_get_star_data(wildcards):
         if wildcards.tissue_name in file:
             return_files.append(file)
     return return_files
+def multiqc_get_screen_data(wildcards):
+    if perform_screen():
+        output_files = expand(rules.contaminant_screen.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE())
+    else:
+        output_files = []
+    return_files = []
+    for file in output_files:
+        if wildcards.tissue_name in file:
+            return_files.append(file)
+    return return_files
+
 rule multiqc:
     input:
         fastqc_data = multiqc_get_fastqc_data,
         star_data = multiqc_get_star_data,
-        dump_fastq_data = multiqc_get_dump_fastq_data
+        dump_fastq_data = multiqc_get_dump_fastq_data,
+        screen_data = multiqc_get_screen_data
     output:
         output_file = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
         output_directory = directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc"))
@@ -631,7 +726,7 @@ rule multiqc:
     conda: "envs/multiqc.yaml"
     resources:
         mem_mb=1024,  # 1 GB
-        runtime=lambda wildcards, attempt: 30 * (attempt * 0.75)  # 30 minutes, don't need much more time than this if it fails
+        runtime=lambda wildcards, int( attempt: 30 * (attempt * 0.75) )  # 30 minutes, don't need much more time than this if it fails
     shell:
         """
         mkdir -p "{output}"
