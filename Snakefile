@@ -458,8 +458,19 @@ if perform_screen():
         shell:
             """
             fastq_screen --aligner Bowtie2 --conf FastQ_Screen_Genomes/fastq_screen.conf {input} 
-            
+            if ls ./*.html 1> /dev/null 2>&1; then
+                rm *.html
+            fi
+            if ls ./*.png 1> /dev/null 2>&1; then
+                rm *.png
+            fi
+            if ls ./*.fastq 1> /dev/null 2>&1; then
+                rm *.fastq
+            fi
             mv {params.tissue_name}_{params.tag}_{params.direction}_screen.txt results/data/{params.tissue_name}/fq_screen/
+            if ls ./*.txt 1> /dev/null 2>&1; then
+                rm *.txt
+            fi
             """
 
 if perform_trim():
