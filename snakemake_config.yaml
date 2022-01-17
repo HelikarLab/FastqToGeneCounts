@@ -19,4 +19,4 @@ GENERATE_GENOME:
   # These files are currently present, and any user can read from these files
   # These values should not need to be changed unless necessary
   GENOME_FASTA_FILE: "genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
-  GTF_FILE: "genome/Homo_sapiens.GRCh38.104.gtf"
+  GTF_FILE: "genome/Homo_sapiens.GRCh38.105.gtf"
