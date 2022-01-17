@@ -229,6 +229,7 @@ if perform_screen():
             if [[ ! -d "./FastQ_Screen_Genomes" ]]; then
                 echo "orange juice"
                 fastq_screen --get_genomes
+                sed -i 's/\/data1\///' FastQ_Screen_Genomes/fastq_screen.conf # remove data1/ from screen genome paths
             else
                 touch -c ./FastQ_Screen_Genomes/*
             fi
