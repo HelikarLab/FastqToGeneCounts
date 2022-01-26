@@ -26,6 +26,12 @@ def perform_prefetch():
     else:
         return False
 
+def perform_get_insert_size(): # for zFPKM
+    if str(config["PERFORM_GET_INSERT_SIZE"]).lower() == "true"
+        return True
+    else:
+        return False
+
 def get_from_master_config(attribute: str) -> list[str]:
     valid_inputs = ["SRR", "tissue", "tag", "PE_SE"]
     sub_list = ["tissue", "tag"]
@@ -227,7 +233,6 @@ if perform_screen():
         shell:
             """
             if [[ ! -d "./FastQ_Screen_Genomes" ]]; then
-                echo "orange juice"
                 fastq_screen --get_genomes
                 sed -i 's/\/data1\///' FastQ_Screen_Genomes/fastq_screen.conf # remove data1/ from screen genome paths
             else
@@ -249,7 +254,7 @@ def get_dump_fastq_runtime(wildcards, input, attempt):
     We are dividing the input by 2 because duplicates are input, one for the forward read and one for the reverse read
     """
     # Max time is 10,080 minutes (7 days), do not let this function return more than that amount of time
-    return 30 * attempt
+    return 45 * attempt
 if perform_prefetch():
     rule distribute_init_files:
         input: config["MASTER_CONTROL"]
@@ -342,9 +347,9 @@ def get_fastqc_threads(wildcards, input):
     threads = 1
     tag = get_tag(str(input))
     if tag in ["1", "S"]:
-        threads = 15
+        threads = 4
     elif tag == "2":
-        threads = 1
+        threads = 2
     return threads
 def get_fastqc_runtime(wildcards, input, attempt):
     tag = get_tag(str(input[0]))
@@ -352,7 +357,7 @@ def get_fastqc_runtime(wildcards, input, attempt):
     if tag in ["1", "S"]:
         runtime = 150 * attempt  # 2.5 hours
     elif tag == "2":
-        runtime = 5
+        runtime = 150 * attempt
     return runtime
 def fastqc_dump_fastq_input(wildcards):
     """
@@ -440,7 +445,7 @@ if perform_screen():
         """
         runtime should be relatively short since only a fraction of reads are used
         """
-        runtime = 10 * attempt    # minutes
+        runtime = 30 * attempt    # minutes
         return runtime
 
     rule contaminant_screen:
@@ -458,12 +463,12 @@ if perform_screen():
             runtime=get_screen_runtime
         shell:
             """
-            fastq_screen --aligner Bowtie2 --conf FastQ_Screen_Genomes/fastq_screen.conf {input} 
+            fastq_screen --aligner Bowtie2 --conf FastQ_Screen_Genomes/fastq_screen.conf {input} || touch {params.tissue_name}_{params.tag}_{params.direction}_screen.txt
             mv {params.tissue_name}_{params.tag}_{params.direction}_screen.txt results/data/{params.tissue_name}/fq_screen/
             #if ls ./*.txt 1> /dev/null 2>&1; then
             #    rm *.txt
             #fi
-            #            if ls ./*.html 1> /dev/null 2>&1; then
+            #if ls ./*.html 1> /dev/null 2>&1; then
             #    rm *.html
             #fi
             #if ls ./*.png 1> /dev/null 2>&1; then
@@ -503,7 +508,7 @@ if perform_trim():
         """
         runtime = 5  # minutes
         if str(wildcards.PE_SE) == "1": runtime = 120 * attempt
-        elif str(wildcards.PE_SE) == "2": runtime = 5
+        elif str(wildcards.PE_SE) == "2": runtime = 120 * attempt
         elif str(wildcards.PE_SE) == "S": runtime = 120 * attempt
         return runtime
     rule trim:
@@ -526,15 +531,16 @@ if perform_trim():
             
             
             if [ "{params.direction}" == "1" ]; then
-                file_in_1="{input}"                                                                 # Input file 1
+                file_in_1="{input}"                                                               # Input file 1
                 file_in_2="$input_directory/{params.tissue_name}_{params.tag}_2.fastq.gz"         # Input file 2
-                trim_galore --paired --cores 4 -o "$(dirname {output})" "$file_in_1" "$file_in_2"
-                       
+                
                 file_out_1="$output_directory/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"    # final output paired end, forward read
                 file_out_2="$output_directory/{params.tissue_name}_{params.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
                 file_rename_1="$output_directory/trimmed_{params.tissue_name}_{params.tag}_1.fastq.gz"    # final renamed output paired end, forward read
                 file_rename_2="$output_directory/trimmed_{params.tissue_name}_{params.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
                 
+                trim_galore --paired --cores 4 -o "$(dirname {output})" "$file_in_1" "$file_in_2" || (touch $file_out_1 & touch $file_out_2)
+                       
                 mv "$file_out_1" "$file_rename_1"
                 mv "$file_out_2" "$file_rename_2"
             
@@ -544,11 +550,14 @@ if perform_trim():
             
             # Work on single-end reads
             elif [ "{params.direction}" == "S" ]; then
-                trim_galore --cores 4 -o "$(dirname {output})" "{input}"
+                file_out="$output_directory/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"   # final output single end
+                #file_rename="$output_directory/trimmed_{params.tissue_name}_{params.tag}_S.fastq.gz"
                 
-                file_name="$output_directory/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"   # final output single end
+                #TODO: file rename is not consistant w/ paired-end
                 
-                mv "$file_name" "{output}"
+                trim_galore --cores 4 -o "$(dirname {output})" "{input}" || touch $file_out
+                
+                mv "$file_out" "{output}"
             fi
             """
 
@@ -570,17 +579,17 @@ if perform_trim():
             mkdir -p "$output_directory"
             
             if [ "{wildcards.PE_SE}" == "1" ]; then
-                fastqc {input} --threads {threads} -o "$output_directory"
+                fastqc {input} --threads {threads} -o "$output_directory" || touch {output}
                 printf "FastQC finished $(basename {input}) (1/2)\n\n"
                 
-                fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
+                fastqc {params.file_two_input} --threads {threads} -o "$output_directory" || touch {params.file_two_out}
                 printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
             
             elif [ "{wildcards.PE_SE}" == "2" ]; then
                 touch {output}
             
             elif [ "{wildcards.PE_SE}" == "S" ]; then
-                fastqc {input} --threads {threads} -o "$output_directory"
+                fastqc {input} --threads {threads} -o "$output_directory" || touch {output}
                 printf "FastQC finished $(basename {input}) (1/1)\n\n"
             fi
             """
@@ -649,17 +658,20 @@ def get_star_align_runtime(wildcards, input, attempt):
     Return an integer of: len(input) * 20 minutes = total runtime
     """
     # Max time is 7 days (10,080 minutes). Do not let this function return more than this time
-    return min(len(input.reads) * 60 * attempt, 10079)
+    return min(len(input.reads) * 60*4 * attempt, 10079)
 rule star_align:
     input:
         reads=collect_star_align_input,
         genome_dir=rules.generate_genome.output.genome_dir,
         generate_genome_complete=rules.generate_genome.output.rule_complete
-    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab")
+    output:
+        gene_table=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
+        bam_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab")
     params:
         tissue_name="{tissue_name}",
         tag="{tag}",
-        star_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_ReadsPerGene.out.tab")
+        gene_table_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_ReadsPerGene.out.tab"),
+        bam_output=os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam")
     threads: 40
     conda: "envs/star.yaml"
     resources:
@@ -677,9 +689,18 @@ rule star_align:
 		--outSAMtype BAM SortedByCoordinate \
 		--outSAMunmapped Within \
 		--outSAMattributes Standard \
-		--quantMode GeneCounts
-		mv {params.star_output} {output}
+		--quantMode GeneCounts || touch {params.star_output}
+		mv {params.gene_table_output} {output.gene_table}
+		mv {params.bam_output} {output.bam_file}
         """
+if perform_get_insert_size():
+    def multiqc_get_star_data(wildcards):
+        return_files = []
+        for file in expand(rules.star_align.output,zip,tissue_name=get_tissue_name(),tag=get_tags()):
+            if wildcards.tissue_name in file:
+                return_files.append(file)
+        return return_files
+    def get_insert_size(wildcards):
 
 
 def multiqc_get_dump_fastq_data(wildcards):

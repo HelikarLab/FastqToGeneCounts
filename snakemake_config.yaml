@@ -7,6 +7,7 @@ ROOTDIR: "results"
 PERFORM_TRIM: True  # True or False
 PERFORM_PREFETCH: True  # True or False
 PERFORM_SCREEN: True # True or False
+PERFORM_GET_INSERT_SIZE: True # True or False, necessary for zFPKM calulation
 
 
 GENERATE_GENOME:
