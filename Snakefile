@@ -694,14 +694,30 @@ rule star_align:
 		mv {params.bam_output} {output.bam_file}
         """
 if perform_get_insert_size():
-    def multiqc_get_star_data(wildcards):
+    def insert_size_get_star_data(wildcards):
         return_files = []
-        for file in expand(rules.star_align.output,zip,tissue_name=get_tissue_name(),tag=get_tags()):
+        for file in expand(rules.star_align.output.bam_file,zip,tissue_name=get_tissue_name(),tag=get_tags()):
             if wildcards.tissue_name in file:
                 return_files.append(file)
         return return_files
-    def get_insert_size(wildcards):
-
+    rule get_insert_size:
+        input: insert_size_get_star_data
+        output:
+            out_text=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "out", "{tissue_name}_{tag}_insert_size.txt"),
+            out_hist=os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","hist","{tissue_name}_{tag}_insert_size_histo.pdf")
+        params:
+            tissue_name="{tissue_name}",
+            tag="{tag}"
+        threads: 1
+        conda: "envs/picard.yaml"
+        resources:
+            mem_mb=1024*10,# 10 GB
+            runtime=lambda wildcards, attempt: int(10 * (
+                        attempt * 0.75))  # +10 minutes per attempt
+        shell:
+            """
+            picard CollectInsertSizeMetrics I={input} O={output.out_text} H={output.out_hist} M=0.5
+            """
 
 def multiqc_get_dump_fastq_data(wildcards):
     if perform_prefetch():
@@ -729,7 +745,7 @@ def multiqc_get_fastqc_data(wildcards):
     return return_files
 def multiqc_get_star_data(wildcards):
     return_files = []
-    for file in expand(rules.star_align.output, zip, tissue_name=get_tissue_name(), tag=get_tags()):
+    for file in expand(rules.star_align.output.gene_table, zip, tissue_name=get_tissue_name(), tag=get_tags()):
         if wildcards.tissue_name in file:
             return_files.append(file)
     return return_files
