@@ -237,13 +237,11 @@ rule preroundup:
         runtime=lambda wildcards, attempt: 1 * attempt
     shell:
         """
-        IFS=", "
+        IFS=","
         while read srr name endtype; do
-            tissue=$($name | cut -d '_' -f1)
-            mkdir MADRID_input || touch MADRID_input
-            mkdir MADRID_input/${{tissue}} || touch MADRID_input/${{tissue}}
-            mkdir MADRID_input/${{tissue}}/geneCounts || touch MADRID_input/${{tissue}}/geneCounts
-            MADRID_input/${{tissue}}/insertSizeMetrics || touch MADRID_input/${{tissue}}/insertSizeMetrics
+            tissue=$(echo $name | cut -d '_' -f1)
+            mkdir -p MADRID_input/${{tissue}}/geneCounts
+            mkdir -p MADRID_input/${{tissue}}/insertSizeMetrics
         done < {input}  
         touch "preroundup.txt"
         """
@@ -341,7 +339,7 @@ if perform_prefetch():
             runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
-            IFS=", "
+            IFS=","
             while read srr name endtype; do
                 # prefetch has a default max size of 20G. Effectively remove this size by allowing files up to 1TB to be downloaded
                 prefetch $srr --max-size 1024000000000 --output-file {output}
@@ -809,7 +807,7 @@ if perform_get_insert_size():
             picard CollectInsertSizeMetrics I={input} O={output.out_text} H={output.out_hist} M=0.5
             """
 
-    rule copy_insert_sizes:
+    rule copy_insert_size:
         input: rules.get_insert_size.output.out_text
         output: os.path.join("MADRID_input", "{tissue_name}", "InsertSizeMetrics", "{tag}", "{tissue_name}_{tag}_insert_size.txt"),
 
@@ -871,12 +869,20 @@ def multiqc_get_screen_data(wildcards):
             return_files.append(file)
     return return_files
 
+def multiqc_get_picard_data(wildcards):
+    return_files = []
+    for file in expand(rules.get_insert_size.output.out_text, zip, tissue_name=get_tissue_name(), tag=get_tags()):
+        if wildcards.tissue_name in file:
+            return_files.append(file)
+    return return_files
+
 rule multiqc:
     input:
         fastqc_data = multiqc_get_fastqc_data,
         star_data = multiqc_get_star_data,
         dump_fastq_data = multiqc_get_dump_fastq_data,
-        screen_data = multiqc_get_screen_data
+        screen_data = multiqc_get_screen_data,
+        picard_data = multiqc_get_picard_data
     output:
         output_file = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
         output_directory = directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc"))
