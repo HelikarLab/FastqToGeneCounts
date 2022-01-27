@@ -8,6 +8,7 @@ import warnings
 import math
 configfile: "snakemake_config.yaml"
 
+
 def perform_trim():
     if str(config["PERFORM_TRIM"]).lower() == "true":
         return True
@@ -193,8 +194,8 @@ def perform_dump_fastq(wildcards):
 
 rule all:
     input:
-        # preroundup
-        expand(os.path.join(config["ROOTDIR"], "STAR_output", {tissue_name}))
+        # pre-roundup
+        expand(os.path.join(config["ROOTDIR"], "MADRID_input", {tissue_name}), tissue_name=get_tissue_name()),
 
         # Generate Genome
         config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],
@@ -227,6 +228,22 @@ rule all:
 #TODO: convert this input to snakemake's HTTP download
 # https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
 # Not 100% sure if this is needed
+rule preroundup:
+    output: directory(os.path.join(config["ROOTDIR"], "MADRID_input"))
+    params:
+        tissue_name="{tissue_name}"
+    threads: 1
+    resources:
+        mem_mb=50,
+        runtime=1
+    shell:
+        """
+        mkdir MADRID_input
+        mkdir MADRID_input/{params.tissue_name} || touch MADRID_input/{params.tissue_name}
+        mkdir MADRID_input/{params.tissue_name}/geneCounts || touch MADRID_input/{params.tissue_name}/geneCounts
+        MADRID_input/{params.tissue_name}/insertSizeMetrics || touch MADRID_input/{params.tissue_name}/insertSizeMetrics
+        """
+
 rule generate_genome:
     input:
         genome_fasta_file=config["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
@@ -247,6 +264,8 @@ rule generate_genome:
         --genomeFastaFiles {input.genome_fasta_file} \
         --sjdbGTFfile {input.gtf_file} \
         --sjdbOverhang 99
+        
+        
         """
 
 
@@ -288,7 +307,7 @@ def get_dump_fastq_runtime(wildcards, input, attempt):
     return 45 * attempt
 if perform_prefetch():
     rule distribute_init_files:
-        input: config["MASTER_CONTROL"]
+        input: ancient(config["MASTER_CONTROL"])
         output: os.path.join(config["ROOTDIR"], "controls", "init_files", "{tissue_name}_{tag}.csv")
         params: id="{tissue_name}_{tag}"
         threads: 1
@@ -713,7 +732,7 @@ rule star_align:
         generate_genome_complete=rules.generate_genome.output.rule_complete
     output:
         gene_table=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
-        bam_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab")
+        bam_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
     params:
         tissue_name="{tissue_name}",
         tag="{tag}",
@@ -739,6 +758,23 @@ rule star_align:
 		--quantMode GeneCounts || touch {params.star_output}
 		mv {params.gene_table_output} {output.gene_table}
 		mv {params.bam_output} {output.bam_file}
+        """
+
+rule copy_geneCounts:
+    input: star_align.output.gene_table
+    output: os.path.join(config["ROOTDIR"], "MADRID_input", "{tissue_name}", "geneCounts", "{tag}", "{tissue_name}_{tag}.tab")
+    params:
+        tissue_name="{tissue_name}",
+        tag="{tag}"
+    threads: 1
+    resources:
+        mem_mb=512,# 0.5 GB
+        runtime=1
+    shell:
+        """
+        mkdir MADRID_input/{params.tissue_name}/geneCounts/{params.tag} || touch MADRID_input/{params.tissue_name}/geneCounts/{params.tag}
+        copy_name=$(basename {input})
+        cp {input} {output}
         """
 
 
@@ -767,6 +803,24 @@ if perform_get_insert_size():
         shell:
             """
             picard CollectInsertSizeMetrics I={input} O={output.out_text} H={output.out_hist} M=0.5
+            """
+
+    rule copy_insert_sizes:
+        input: get_insert_size.output.out_text
+        output: os.path.join(config["ROOTDIR"], "MADRID_input", "{tissue_name}", "InsertSizeMetrics", "{tag}", "{tissue_name}_{tag}_insert_size.txt"),
+
+        params:
+            tissue_name="{tissue_name}",
+            tag="{tag}"
+        threads: 1
+        resources:
+            mem_mb=512,# 0.5 GB
+            runtime=1
+        shell:
+            """
+            mkdir MADRID_input/{params.tissue_name}/insertSizeMetrics/{params.tag} || touch MADRID_input/{params.tissue_name}/insertSizeMetrics/{params.tag}
+            copy_name=$(basename {input})
+            cp {input} {output}
             """
 
 
@@ -839,7 +893,4 @@ rule multiqc:
             rm *.fastq
         fi
         """
-
-
-rule MADRID_roundup:
-    input: multiqc.output.outputfile
+        
