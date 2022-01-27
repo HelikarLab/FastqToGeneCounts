@@ -143,6 +143,15 @@ def perform_screen_rule(wildcards):
     else:
         return []
 
+def perform_get_insert_size_rule(wildcards):
+    """
+    If getting insert sizes with picard, return GetInsertSizeMetrics output
+    """
+    if perform_get_insert_size():
+        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","out","{tissue_name}_{tag}_insert_size.txt"), zip, tissue_name=get_tissue_name(), tag=get_tags())
+    else:
+        return []
+
 def perform_trim_rule(wildcards):
     """
     If we are performing trimming, return trim's output
@@ -191,8 +200,11 @@ rule all:
         # STAR aligner
         expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"), zip, tissue_name=get_tissue_name(), tag=get_tags()),
 
+        # Get Insert sizes
+        perform_get_insert_size_rule,
+
         # MultiQC
-        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"), tissue_name=get_tissue_name()),
+        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"), tissue_name=get_tissue_name())
 
 #TODO: convert this input to snakemake's HTTP download
 # https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
@@ -786,3 +798,6 @@ rule multiqc:
             rm *.fastq
         fi
         """
+
+rule MADRID_roundup:
+    input: multiqc.output
