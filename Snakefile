@@ -282,7 +282,7 @@ if perform_screen():
         threads: 1
         resources:
             mem_mb=lambda wildcards, attempt: 500 * attempt,
-            runtime=lambda wildcards, attempt: 12 * attempt
+            runtime=lambda wildcards, attempt: 240 * attempt
         conda: "envs/screen.yaml"
         shell:
             """
