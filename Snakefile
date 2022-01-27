@@ -31,7 +31,7 @@ def perform_prefetch():
 
 
 def perform_get_insert_size(): # for zFPKM
-    if str(config["PERFORM_GET_INSERT_SIZE"]).lower() == "true"
+    if str(config["PERFORM_GET_INSERT_SIZE"]).lower() == "true":
         return True
     else:
         return False
@@ -195,7 +195,7 @@ def perform_dump_fastq(wildcards):
 rule all:
     input:
         # pre-roundup
-        expand(os.path.join(config["ROOTDIR"], "MADRID_input", {tissue_name}), tissue_name=get_tissue_name()),
+        "preroundup.txt",
 
         # Generate Genome
         config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],
@@ -229,19 +229,23 @@ rule all:
 # https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
 # Not 100% sure if this is needed
 rule preroundup:
-    output: directory(os.path.join(config["ROOTDIR"], "MADRID_input"))
-    params:
-        tissue_name="{tissue_name}"
+    input: ancient(config["MASTER_CONTROL"])
+    output: "preroundup.txt"
     threads: 1
     resources:
-        mem_mb=50,
-        runtime=1
+        mem_mb=lambda wildcards, attempt: 50 * attempt,
+        runtime=lambda wildcards, attempt: 1 * attempt
     shell:
         """
-        mkdir MADRID_input
-        mkdir MADRID_input/{params.tissue_name} || touch MADRID_input/{params.tissue_name}
-        mkdir MADRID_input/{params.tissue_name}/geneCounts || touch MADRID_input/{params.tissue_name}/geneCounts
-        MADRID_input/{params.tissue_name}/insertSizeMetrics || touch MADRID_input/{params.tissue_name}/insertSizeMetrics
+        IFS=", "
+        while read srr name endtype; do
+            tissue=$($name | cut -d '_' -f1)
+            mkdir MADRID_input || touch MADRID_input
+            mkdir MADRID_input/${{tissue}} || touch MADRID_input/${{tissue}}
+            mkdir MADRID_input/${{tissue}}/geneCounts || touch MADRID_input/${{tissue}}/geneCounts
+            MADRID_input/${{tissue}}/insertSizeMetrics || touch MADRID_input/${{tissue}}/insertSizeMetrics
+        done < {input}  
+        touch "preroundup.txt"
         """
 
 rule generate_genome:
@@ -277,8 +281,8 @@ if perform_screen():
         output: directory("FastQ_Screen_Genomes")
         threads: 1
         resources:
-            mem_mb=500,
-            runtime=120
+            mem_mb=lambda wildcards, attempt: 500 * attempt,
+            runtime=lambda wildcards, attempt: 12 * attempt
         conda: "envs/screen.yaml"
         shell:
             """
@@ -312,8 +316,8 @@ if perform_prefetch():
         params: id="{tissue_name}_{tag}"
         threads: 1
         resources:
-            mem_mb=1536,
-            runtime=5
+            mem_mb=lambda wildcards, attempt: 1500 * attempt,
+            runtime=lambda wildcards, attempt: 5 * attempt
         run:
             # Get lines in master control file
             # Open output for writing
@@ -333,7 +337,7 @@ if perform_prefetch():
         conda: "envs/SRAtools.yaml"
         threads: 1
         resources:
-            mem_mb=10240,
+            mem_mb=lambda wildcards, attempt: 10000 * attempt,
             runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
@@ -372,7 +376,7 @@ if perform_prefetch():
         threads: get_dump_fastq_threads
         conda: "envs/SRAtools.yaml"
         resources:
-            mem_mb=20480,  # 20 GB
+            mem_mb=lambda wildcards, attempt: 20000 * attempt,  # 20 GB
             runtime=get_dump_fastq_runtime
         shell:
             """
@@ -459,7 +463,7 @@ rule fastqc_dump_fastq:
     threads: get_fastqc_threads
     conda: "envs/fastqc.yaml"
     resources:
-        mem_mb=15360,  # 15 GB
+        mem_mb=lambda wildcards, attempt: 15000 * attempt,  # 15 GB
         runtime=get_fastqc_runtime    # 150 minutes * attempt number
     shell:
         """
@@ -519,7 +523,7 @@ if perform_screen():
             direction="{PE_SE}"
         conda: "envs/screen.yaml"
         resources:
-            mem_mb = 5120, # 5 GB
+            mem_mb = lambda wildcards, attempt: 5000 * attempt0, # 5 GB
             runtime=get_screen_runtime
         shell:
             """
@@ -584,7 +588,7 @@ if perform_trim():
         threads: get_trim_threads
         conda: "envs/trim.yaml"
         resources:
-            mem_mb = 10240,  # 10 GB
+            mem_mb = lambda wildcards, attempt: 10000 * attempt,  # 10 GB
             runtime=get_trim_runtime
         shell:
             """
@@ -634,7 +638,7 @@ if perform_trim():
         conda: "envs/fastqc.yaml"
         resources:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
-            mem_mb=15360, # 15 GB
+            mem_mb=lambda wildcards, attempt, threads: attempt * threads*2, # 15 GB
             runtime=get_fastqc_runtime
         shell:
             """
@@ -732,7 +736,7 @@ rule star_align:
         generate_genome_complete=rules.generate_genome.output.rule_complete
     output:
         gene_table=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
-        bam_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
+        bam_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
     params:
         tissue_name="{tissue_name}",
         tag="{tag}",
@@ -741,7 +745,7 @@ rule star_align:
     threads: 40
     conda: "envs/star.yaml"
     resources:
-        mem_mb=51200,# 50 GB
+        mem_mb=50000,# 50 GB
         runtime=get_star_align_runtime
     shell:
         """
@@ -755,20 +759,20 @@ rule star_align:
 		--outSAMtype BAM SortedByCoordinate \
 		--outSAMunmapped Within \
 		--outSAMattributes Standard \
-		--quantMode GeneCounts || touch {params.star_output}
+		--quantMode GeneCounts || touch {params.gene_table_output}
 		mv {params.gene_table_output} {output.gene_table}
 		mv {params.bam_output} {output.bam_file}
         """
 
 rule copy_geneCounts:
-    input: star_align.output.gene_table
-    output: os.path.join(config["ROOTDIR"], "MADRID_input", "{tissue_name}", "geneCounts", "{tag}", "{tissue_name}_{tag}.tab")
+    input: rules.star_align.output.gene_table
+    output: os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{tag}", "{tissue_name}_{tag}.tab")
     params:
         tissue_name="{tissue_name}",
         tag="{tag}"
     threads: 1
     resources:
-        mem_mb=512,# 0.5 GB
+        mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
         runtime=1
     shell:
         """
@@ -797,7 +801,7 @@ if perform_get_insert_size():
         threads: 1
         conda: "envs/picard.yaml"
         resources:
-            mem_mb=1024*10,# 10 GB
+            mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
             runtime=lambda wildcards, attempt: int(10 * (
                         attempt * 0.75))  # +10 minutes per attempt
         shell:
@@ -806,15 +810,15 @@ if perform_get_insert_size():
             """
 
     rule copy_insert_sizes:
-        input: get_insert_size.output.out_text
-        output: os.path.join(config["ROOTDIR"], "MADRID_input", "{tissue_name}", "InsertSizeMetrics", "{tag}", "{tissue_name}_{tag}_insert_size.txt"),
+        input: rules.get_insert_size.output.out_text
+        output: os.path.join("MADRID_input", "{tissue_name}", "InsertSizeMetrics", "{tag}", "{tissue_name}_{tag}_insert_size.txt"),
 
         params:
             tissue_name="{tissue_name}",
             tag="{tag}"
         threads: 1
         resources:
-            mem_mb=512,# 0.5 GB
+            mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
             runtime=1
         shell:
             """
@@ -881,7 +885,7 @@ rule multiqc:
     threads: 1
     conda: "envs/multiqc.yaml"
     resources:
-        mem_mb=1024,  # 1 GB
+        mem_mb=lambda wildcards, attempt: 1000 * attempt,  # 1 GB / attempt
         runtime=lambda wildcards, attempt: int( 30 * (attempt * 0.75) )  # 30 minutes, don't need much more time than this if it fails
     shell:
         """
