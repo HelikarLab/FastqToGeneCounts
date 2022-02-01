@@ -177,6 +177,15 @@ def perform_get_insert_size_rule(wildcards):
     else:
         return []
 
+def perform_get_fragment_size_rule(wildcards):
+    """
+    If getting fragment sizes with deeptools, return bamPEFragmentSize output
+    """
+    if perform_get_insert_size():
+        return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "deeptools", "frag_length_text", "{tissue_name}_{tag}_fragment_length.txt"), zip, tissue_name=get_tissue_name(), tag=get_tags())
+    else:
+        return []
+
 
 def perform_trim_rule(wildcards):
     """
@@ -238,11 +247,15 @@ rule_all = [
 
 if perform_get_insert_size():
     rule_all.extend([
-                    perform_get_insert_size_rule,# Get Insert sizes
+                    perform_get_insert_size_rule, # Get Insert sizes
 
-                     expand(os.path.join("MADRID_input","{tissue_name}","InsertSizeMetrics",
+                    perform_get_fragment_size_rule, # get fragment lengths
+
+                    expand(os.path.join("MADRID_input","{tissue_name}","InsertSizeMetrics",
                             "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
                             zip,tissue_name=get_tissue_name(),tag=get_tags(),sample=get_sample())
+
+
                     ])# copy insert
 
 rule all:
@@ -255,6 +268,8 @@ rule all:
 rule preroundup:
     input: ancient(config["MASTER_CONTROL"])
     output: "preroundup.txt"
+    params:
+        rootdir = config["ROOTDIR"]
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 50 * attempt,
@@ -266,6 +281,16 @@ rule preroundup:
             tissue=$(echo $name | cut -d '_' -f1)
             mkdir -p MADRID_input/${{tissue}}/geneCounts/
             mkdir -p MADRID_input/${{tissue}}/insertSizeMetrics/
+            mkdir -p {params.rootdir}/data/${{tissue}}/layouts/
+            if [[ $endtype == "SE" ]]; then
+                echo "single-end" > {params.rootdir}/data/${{tissue}}/layouts/${{name}}_layout.txt 
+            elif [[ $endtype == "PE" ]]; then
+                echo "paired-end" > {params.rootdir}/data/${{tissue}}/layouts/${{name}}_layout.txt
+            else
+                echo "invalid layout" 
+                
+            fi
+                
         done < {input}  
         touch "preroundup.txt"
         """
@@ -418,7 +443,6 @@ if perform_prefetch():
             fi
             """
 
-
 def get_tag(file_path: str) -> str:
     file_name = os.path.basename(file_path)
     purge_extension = file_name.split(".")[0]
@@ -467,7 +491,6 @@ def fastqc_dump_fastq_input(wildcards):
                         return [file_one, file_two]
                     else:
                         return file_one
-
 
 rule fastqc_dump_fastq:
     input: fastqc_dump_fastq_input
@@ -744,7 +767,7 @@ rule star_align:
         generate_genome_complete=rules.generate_genome.output.rule_complete
     output:
         gene_table=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
-        bam_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
+        bam_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam")
     params:
         tissue_name="{tissue_name}",
         tag="{tag}",
@@ -787,6 +810,19 @@ rule copy_geneCounts:
         """
             mkdir -p {params.sample}
             cp {input} {output} || touch {output}
+        """
+
+rule index_bam_file:
+    input: rules.star_align.output.bam_file
+    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bai")
+    threads: 1
+    resources:
+        mem_mb=lambda wildcards, attempt: 1000 * attempt,# 1 GB
+        runtime=1
+    conda: "envs/samtools.yaml"
+    shell:
+        """
+        samtools index {input} {output}
         """
 
 rule get_rnaseq_metrics:
@@ -841,10 +877,12 @@ if perform_get_insert_size():
         return return_files
 
     rule get_insert_size:
-        input: rules.star_align.output.bam_file
+        input: rules.star_align.output.bam_file,
         output:
             txt=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "insert", "{tissue_name}_{tag}_insert_size.txt"),
             pdf=os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","hist","{tissue_name}_{tag}_insert_size_histo.pdf")
+        params:
+            layout = os.path.join(config["ROOTDIR"],"data","{tissue_name}","layouts", "{tissue_name}_{tag}_layout.txt")
         threads: 4
         resources:
             mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
@@ -854,7 +892,16 @@ if perform_get_insert_size():
         #    "v1.0.0/bio/picard/collectinsertsizemetrics"
         shell:
             """
-            picard CollectInsertSizeMetrics I={input} O={output.txt} H={output.pdf} M=0.05 || picard CollectInsertSizeMetrics I={input} O={output.txt} H={output.pdf} M=0.5 || touch {output.txt}
+            if [{params.layout} == "paired-end"]; then
+                picard CollectInsertSizeMetrics \
+                I={input} \
+                O={output.txt} \
+                H={output.pdf} \
+                M=0.05 || picard CollectInsertSizeMetrics I={input} O={output.txt} H={output.pdf} M=0.5
+            else
+                echo "cannot collect metrics for single-end data" > {output.txt}
+                touch {output.pdf}
+            fi
             """
 
     rule copy_insert_size:
@@ -874,6 +921,39 @@ if perform_get_insert_size():
             mkdir -p {params.sample}
             cp {input} {output} || touch {output}
             """
+
+if perform_get_insert_size():
+    def insert_size_get_star_data(wildcards):
+        return_files = []
+        for file in expand(rules.star_align.output.bam_file,zip,tissue_name=get_tissue_name(),tag=get_tags()):
+            if wildcards.tissue_name in file:
+                return_files.append(file)
+        return return_files
+
+    rule get_fragment_size:
+        input:
+            bam=rules.star_align.output.bam_file,
+            bai=rules.index_bam_file.output
+        output:
+            tsv=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "deeptools", "frag_length_text", "{tissue_name}_{tag}_fragment_length.txt"),
+            png=os.path.join(config["ROOTDIR"],"data","{tissue_name}","deeptools","frag_length_hist","{tissue_name}_{tag}_fragment_length_hist.png")
+        params:
+            layout = os.path.join(config["ROOTDIR"],"data","{tissue_name}","layouts", "{tissue_name}_{tag}_layout.txt")
+        threads: 4
+        resources:
+            mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
+            runtime=lambda wildcards, attempt: 60 * attempt
+        conda: "envs/deeptools.yaml"
+
+        shell:
+            """
+            bamPEFragmentSize \
+            -hist {output.png} \
+            -T "Fragment Size" \
+            --table {output.tsv} \
+            -b {input.bam} 
+            """
+
 
 
 def multiqc_get_dump_fastq_data(wildcards):
