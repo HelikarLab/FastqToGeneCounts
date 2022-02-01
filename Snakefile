@@ -6,6 +6,9 @@ import csv
 import numpy as np
 import warnings
 import math
+#from snakemake_wrapper_utils.java import get_java_opts
+# =concat("lungControl",right(B2,LEN(B2)-len(left(B2,12))))
+
 configfile: "snakemake_config.yaml"
 
 
@@ -116,6 +119,17 @@ def get_PE_SE() -> list[str]:
         fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
         return fastq_input.PE_SE
 
+def get_sample() -> list[str]:
+    if perform_prefetch():
+        tag = get_from_master_config("tag")
+    else:
+        fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
+        tag = fastq_input.tag
+    sample = []
+    for t in tag:
+        sample.append(t.split("R")[0])
+    return sample
+
 
 def get_dump_fastq_output(wildcards):
     """
@@ -159,7 +173,7 @@ def perform_get_insert_size_rule(wildcards):
     If getting insert sizes with picard, return GetInsertSizeMetrics output
     """
     if perform_get_insert_size():
-        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","out","{tissue_name}_{tag}_insert_size.txt"), zip, tissue_name=get_tissue_name(), tag=get_tags())
+        return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","insert","{tissue_name}_{tag}_insert_size.txt"), zip, tissue_name=get_tissue_name(), tag=get_tags())
     else:
         return []
 
@@ -191,38 +205,48 @@ def perform_dump_fastq(wildcards):
     else:
         return []
 
+rule_all = [
+            "preroundup.txt", # pre-roundup
+
+            config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], # Generate Genome
+
+            perform_dump_fastq, # dump_fastq
+
+            perform_screen_rule, # fastq_screen
+
+            perform_trim_rule, # trim reads
+
+            expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads",  # FastQC
+                                "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
+                                zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()),
+
+            fastqc_trimmed_reads,
+
+            expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}",
+                                 "{tissue_name}_{tag}.tab"),
+                                 zip, tissue_name=get_tissue_name(), tag=get_tags()), # STAR aligner
+
+            expand(os.path.join("MADRID_input","{tissue_name}","geneCounts","{sample}", "{tissue_name}_{tag}.tab"),
+                                zip, tissue_name=get_tissue_name(), tag=get_tags(), sample=get_sample()), # copy .tab
+
+            expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
+                                zip, tissue_name=get_tissue_name(), tag=get_tags()),  # get rnaseq metrics
+
+            expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc",
+                                "{tissue_name}_multiqc_report.html"), tissue_name=get_tissue_name())
+            ] # MultiQC
+
+if perform_get_insert_size():
+    rule_all.extend([
+                    perform_get_insert_size_rule,# Get Insert sizes
+
+                     expand(os.path.join("MADRID_input","{tissue_name}","InsertSizeMetrics",
+                            "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
+                            zip,tissue_name=get_tissue_name(),tag=get_tags(),sample=get_sample())
+                    ])# copy insert
 
 rule all:
-    input:
-        # pre-roundup
-        "preroundup.txt",
-
-        # Generate Genome
-        config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],
-
-        # dump_fastq
-        perform_dump_fastq,
-
-        # fastq_screen
-        perform_screen_rule,
-
-        # trim reads
-        perform_trim_rule,
-
-        # FastQC
-        # Untrimed reads (from checkpoint dump_fastq)
-        # Trimmed reads (from rule trim)
-        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=get_tissue_name(), tag=get_tags(), PE_SE=get_PE_SE()),
-        fastqc_trimmed_reads,
-
-        # STAR aligner
-        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"), zip, tissue_name=get_tissue_name(), tag=get_tags()),
-
-        # Get Insert sizes
-        perform_get_insert_size_rule,
-
-        # MultiQC
-        expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"), tissue_name=get_tissue_name())
+    input: rule_all
 
 
 #TODO: convert this input to snakemake's HTTP download
@@ -240,8 +264,8 @@ rule preroundup:
         IFS=","
         while read srr name endtype; do
             tissue=$(echo $name | cut -d '_' -f1)
-            mkdir -p MADRID_input/${{tissue}}/geneCounts
-            mkdir -p MADRID_input/${{tissue}}/insertSizeMetrics
+            mkdir -p MADRID_input/${{tissue}}/geneCounts/
+            mkdir -p MADRID_input/${{tissue}}/insertSizeMetrics/
         done < {input}  
         touch "preroundup.txt"
         """
@@ -342,7 +366,7 @@ if perform_prefetch():
             IFS=","
             while read srr name endtype; do
                 # prefetch has a default max size of 20G. Effectively remove this size by allowing files up to 1TB to be downloaded
-                prefetch $srr --max-size 1024000000000 --output-file {output}
+                prefetch $srr --max-size 1024000000000 --output-file {output} || touch {output}
             done < {input}
             """
 
@@ -521,24 +545,12 @@ if perform_screen():
             direction="{PE_SE}"
         conda: "envs/screen.yaml"
         resources:
-            mem_mb = lambda wildcards, attempt: 5000 * attempt0, # 5 GB
+            mem_mb = lambda wildcards, attempt: 5000 * attempt, # 5 GB
             runtime=get_screen_runtime
         shell:
             """
             fastq_screen --aligner Bowtie2 --conf FastQ_Screen_Genomes/fastq_screen.conf {input} || touch {params.tissue_name}_{params.tag}_{params.direction}_screen.txt
             mv {params.tissue_name}_{params.tag}_{params.direction}_screen.txt results/data/{params.tissue_name}/fq_screen/
-            #if ls ./*.txt 1> /dev/null 2>&1; then
-            #    rm *.txt
-            #fi
-            #if ls ./*.html 1> /dev/null 2>&1; then
-            #    rm *.html
-            #fi
-            #if ls ./*.png 1> /dev/null 2>&1; then
-            #    rm *.png
-            #fi
-            #if ls ./*.fastq 1> /dev/null 2>&1; then
-            #    rm *.fastq
-            #fi
             """
 
 
@@ -616,8 +628,6 @@ if perform_trim():
             elif [ "{params.direction}" == "S" ]; then
                 file_out="$output_directory/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"   # final output single end
                 #file_rename="$output_directory/trimmed_{params.tissue_name}_{params.tag}_S.fastq.gz"
-                
-                #TODO: file rename is not consistant w/ paired-end
                 
                 trim_galore --cores 4 -o "$(dirname {output})" "{input}" || touch $file_out
                 
@@ -764,20 +774,62 @@ rule star_align:
 
 rule copy_geneCounts:
     input: rules.star_align.output.gene_table
-    output: os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{tag}", "{tissue_name}_{tag}.tab")
+    output: os.path.join("MADRID_input","{tissue_name}","geneCounts","{sample}", "{tissue_name}_{tag}.tab")
     params:
         tissue_name="{tissue_name}",
-        tag="{tag}"
+        tag="{tag}",
+        sample=os.path.join("MADRID_input","{tissue_name}","geneCounts","{sample}")
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
         runtime=1
     shell:
         """
-        mkdir MADRID_input/{params.tissue_name}/geneCounts/{params.tag} || touch MADRID_input/{params.tissue_name}/geneCounts/{params.tag}
-        copy_name=$(basename {input})
-        cp {input} {output}
+            mkdir -p {params.sample}
+            cp {input} {output} || touch {output}
         """
+
+rule get_rnaseq_metrics:
+    input:
+        bam=rules.star_align.output.bam_file,
+        tab=rules.star_align.output.gene_table
+    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt")
+    params:
+        ref_flat = config["REF_FLAT_FILE"]
+    threads: 4
+    resources:
+        mem_mb= lambda wildcards,attempt: 1000 * 5 * attempt,# 5 GB / attempt
+        runtime=lambda wildcards, attempt: 60 * attempt
+    conda: "envs/picard.yaml"
+    shell:
+        """
+        colsums=$(grep -v "N_" {input.tab} | awk '{{unst+=$2;forw+=$3;rev+=$4}}END{{print unst,forw,rev}}') || colsums="0 1 2"
+        IFS=" "
+        read -ra arr <<< "$colsums"
+    
+        cnt=0
+        max=${{arr[0]}}
+        mcnt=1
+        for val in "${{arr[@]}}"; do
+        cnt=$((cnt+=1))
+        if [ $val -gt $max ]; then
+            echo $val $max
+            max=$val
+            mcnt=$cnt
+        fi
+        done
+        
+        if [ $mcnt == 1 ]; then
+            str_spec="NONE"
+        elif [ $mcnt == 2 ]; then
+            str_spec="FIRST_READ_TRANSCRIPTION_STRAND"
+        else
+            str_spec="SECOND_READ_TRANSCRIPTION_STRAND"
+        fi
+        
+        picard CollectRnaSeqMetrics I={input.bam} O={output} REF_FLAT={params.ref_flat} STRAND_SPECIFICITY=$str_spec || touch {output}
+        """
+
 
 
 if perform_get_insert_size():
@@ -789,40 +841,38 @@ if perform_get_insert_size():
         return return_files
 
     rule get_insert_size:
-        input: insert_size_get_star_data
+        input: rules.star_align.output.bam_file
         output:
-            out_text=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "out", "{tissue_name}_{tag}_insert_size.txt"),
-            out_hist=os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","hist","{tissue_name}_{tag}_insert_size_histo.pdf")
-        params:
-            tissue_name="{tissue_name}",
-            tag="{tag}"
-        threads: 1
-        conda: "envs/picard.yaml"
+            txt=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "insert", "{tissue_name}_{tag}_insert_size.txt"),
+            pdf=os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","hist","{tissue_name}_{tag}_insert_size_histo.pdf")
+        threads: 4
         resources:
             mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
-            runtime=lambda wildcards, attempt: int(10 * (
-                        attempt * 0.75))  # +10 minutes per attempt
+            runtime=lambda wildcards, attempt: 60 * attempt
+        conda: "envs/picard.yaml"
+        #wrapper:
+        #    "v1.0.0/bio/picard/collectinsertsizemetrics"
         shell:
             """
-            picard CollectInsertSizeMetrics I={input} O={output.out_text} H={output.out_hist} M=0.5
+            picard CollectInsertSizeMetrics I={input} O={output.txt} H={output.pdf} M=0.05 || picard CollectInsertSizeMetrics I={input} O={output.txt} H={output.pdf} M=0.5 || touch {output.txt}
             """
 
     rule copy_insert_size:
-        input: rules.get_insert_size.output.out_text
-        output: os.path.join("MADRID_input", "{tissue_name}", "InsertSizeMetrics", "{tag}", "{tissue_name}_{tag}_insert_size.txt"),
+        input: rules.get_insert_size.output.txt
+        output: os.path.join("MADRID_input", "{tissue_name}", "InsertSizeMetrics","{sample}", "{tissue_name}_{tag}_insert_size.txt")
 
         params:
             tissue_name="{tissue_name}",
-            tag="{tag}"
+            tag="{tag}",
+            sample=os.path.join("MADRID_input", "{tissue_name}", "InsertSizeMetrics", "{sample}")
         threads: 1
         resources:
             mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
             runtime=1
         shell:
             """
-            mkdir MADRID_input/{params.tissue_name}/insertSizeMetrics/{params.tag} || touch MADRID_input/{params.tissue_name}/insertSizeMetrics/{params.tag}
-            copy_name=$(basename {input})
-            cp {input} {output}
+            mkdir -p {params.sample}
+            cp {input} {output} || touch {output}
             """
 
 
@@ -869,9 +919,17 @@ def multiqc_get_screen_data(wildcards):
             return_files.append(file)
     return return_files
 
-def multiqc_get_picard_data(wildcards):
+def multiqc_get_insertsize_data(wildcards):
     return_files = []
-    for file in expand(rules.get_insert_size.output.out_text, zip, tissue_name=get_tissue_name(), tag=get_tags()):
+    if perform_get_insert_size():
+        for file in expand(rules.get_insert_size.output.txt, zip, tissue_name=get_tissue_name(), tag=get_tags()):
+            if wildcards.tissue_name in file:
+                return_files.append(file)
+    return return_files
+
+def multiqc_get_rnaseq_data(wildcards):
+    return_files = []
+    for file in expand(rules.get_rnaseq_metrics.output, zip, tissue_name=get_tissue_name(), tag=get_tags()):
         if wildcards.tissue_name in file:
             return_files.append(file)
     return return_files
@@ -882,7 +940,8 @@ rule multiqc:
         star_data = multiqc_get_star_data,
         dump_fastq_data = multiqc_get_dump_fastq_data,
         screen_data = multiqc_get_screen_data,
-        picard_data = multiqc_get_picard_data
+        insertsize_data = multiqc_get_insertsize_data,
+        rnaseq_data = multiqc_get_rnaseq_data
     output:
         output_file = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
         output_directory = directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc"))
@@ -897,8 +956,15 @@ rule multiqc:
         """
         mkdir -p "{output}"
         multiqc "{params.input_directory}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}
-        rm *.txt
-        rm *.png
+        if ls ./*.txt 1> /dev/null 2>&1; then
+            rm *.txt
+        fi
+        if ls ./*.html 1> /dev/null 2>&1; then
+            rm *.html
+        fi
+        if ls ./*.png 1> /dev/null 2>&1; then
+            rm *.png
+        fi
         if ls ./*.fastq 1> /dev/null 2>&1; then
             rm *.fastq
         fi

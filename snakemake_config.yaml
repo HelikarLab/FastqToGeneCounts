@@ -9,6 +9,7 @@ PERFORM_PREFETCH: True  # True or False
 PERFORM_SCREEN: True # True or False
 PERFORM_GET_INSERT_SIZE: True # True or False, necessary for zFPKM calulation
 
+REF_FLAT_FILE: "genome/refFlat.txt"
 
 GENERATE_GENOME:
   # The full path where the genome generation data should be saved
