@@ -12,14 +12,14 @@ import math
 configfile: "snakemake_config.yaml"
 
 
-def perform_trim():
+def perform_trim(): # QC
     if str(config["PERFORM_TRIM"]).lower() == "true":
         return True
     else:
         return False
 
 
-def perform_screen():
+def perform_screen(): # QC
     if str(config["PERFORM_SCREEN"]).lower() == "true":
         return True
     else:
@@ -33,12 +33,25 @@ def perform_prefetch():
         return False
 
 
-def perform_get_insert_size(): # for zFPKM
+def perform_get_insert_size():
     if str(config["PERFORM_GET_INSERT_SIZE"]).lower() == "true":
         return True
     else:
         return False
 
+def perform_get_fragment_size(): # for zFPKM QC
+    print(str(config["PERFORM_GET_FRAGMENT_SIZE"]).lower())
+    if str(config["PERFORM_GET_FRAGMENT_SIZE"]).lower() == "true":
+        return True
+    else:
+        return False
+
+
+def perform_get_rnaseq_metrics(): # QC
+    if str(config["PERFORM_GET_RNASEQ_METRICS"]).lower() == "true":
+        return True
+    else:
+        return False
 
 def get_from_master_config(attribute: str) -> list[str]:
     valid_inputs = ["SRR", "tissue", "tag", "PE_SE"]
@@ -65,7 +78,7 @@ def get_from_master_config(attribute: str) -> list[str]:
                 split_list = str(line[index_value]).split("_")
 
                 # We must append the target attribute twice if it is paired end, once if it is single end
-                if PE_SE_value == "PE":
+                if PE_SE_valuFPKM e == "PE":
                     target_attribute = [split_list[sub_index], split_list[sub_index]]
                 else:  # Single end
                     target_attribute = [split_list[sub_index]]
@@ -170,19 +183,28 @@ def perform_screen_rule(wildcards):
 
 def perform_get_insert_size_rule(wildcards):
     """
-    If getting insert sizes with picard, return GetInsertSizeMetrics output
+    If getting insert sizes with picard, return GetinsertSizeMetrics output
     """
     if perform_get_insert_size():
         return expand(os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","insert","{tissue_name}_{tag}_insert_size.txt"), zip, tissue_name=get_tissue_name(), tag=get_tags())
     else:
         return []
 
+# def perform_get_fragment_size_rule(wildcards):
+#     """
+#     If getting fragment sizes with deeptools, return bamPEFragmentSize output
+#     """
+#     if perform_get_insert_size():
+#         return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "deeptools", "frag_length_text", "{tissue_name}_{tag}_fragment_length.txt"), zip, tissue_name=get_tissue_name(), tag=get_tags())
+#     else:
+#         return []
+
 def perform_get_fragment_size_rule(wildcards):
     """
-    If getting fragment sizes with deeptools, return bamPEFragmentSize output
+    If getting fragment sizes with deeptools, return RNA_fragment_size.py output
     """
-    if perform_get_insert_size():
-        return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "deeptools", "frag_length_text", "{tissue_name}_{tag}_fragment_length.txt"), zip, tissue_name=get_tissue_name(), tag=get_tags())
+    if perform_get_fragment_size():
+        return expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt"), zip, tissue_name=get_tissue_name(), tag=get_tags())
     else:
         return []
 
@@ -235,11 +257,17 @@ rule_all = [
                                  "{tissue_name}_{tag}.tab"),
                                  zip, tissue_name=get_tissue_name(), tag=get_tags()), # STAR aligner
 
+            expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}",
+                                "{tissue_name}_{tag}.bam.bai"), zip, tissue_name=get_tissue_name(), tag=get_tags()),
+
             expand(os.path.join("MADRID_input","{tissue_name}","geneCounts","{sample}", "{tissue_name}_{tag}.tab"),
                                 zip, tissue_name=get_tissue_name(), tag=get_tags(), sample=get_sample()), # copy .tab
 
             expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
                                 zip, tissue_name=get_tissue_name(), tag=get_tags()),  # get rnaseq metrics
+
+            expand(os.path.join("MADRID_input","{tissue_name}","strandedness","{sample}","{tissue_name}_{tag}_strandedness.txt"),
+                                zip, tissue_name=get_tissue_name(), tag=get_tags(), sample=get_sample()),  # copy strandedness
 
             expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc",
                                 "{tissue_name}_multiqc_report.html"), tissue_name=get_tissue_name())
@@ -249,14 +277,25 @@ if perform_get_insert_size():
     rule_all.extend([
                     perform_get_insert_size_rule, # Get Insert sizes
 
-                    perform_get_fragment_size_rule, # get fragment lengths
 
-                    expand(os.path.join("MADRID_input","{tissue_name}","InsertSizeMetrics",
-                            "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
+                    expand(os.path.join("MADRID_input","{tissue_name}","insertSizeMetrics",
+                                        "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
                             zip,tissue_name=get_tissue_name(),tag=get_tags(),sample=get_sample())
 
 
                     ])# copy insert
+
+if perform_get_fragment_size():
+    print("TEST")
+    rule_all.extend([
+                    perform_get_fragment_size_rule, # get fragment lengths
+
+                    expand(os.path.join("MADRID_input","{tissue_name}", "fragmentSizes",
+                                        "{sample}", "{tissue_name}_{tag}_fragment_size.txt"),
+                            zip,tissue_name=get_tissue_name(),tag=get_tags(),sample=get_sample()) # copy
+
+
+                    ])# copy fragment
 
 rule all:
     input: rule_all
@@ -266,7 +305,7 @@ rule all:
 # https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
 # Not 100% sure if this is needed
 rule preroundup:
-    input: ancient(config["MASTER_CONTROL"])
+    input: config["MASTER_CONTROL"]
     output: "preroundup.txt"
     params:
         rootdir = config["ROOTDIR"]
@@ -282,13 +321,21 @@ rule preroundup:
             mkdir -p MADRID_input/${{tissue}}/geneCounts/
             mkdir -p MADRID_input/${{tissue}}/insertSizeMetrics/
             mkdir -p {params.rootdir}/data/${{tissue}}/layouts/
+            mkdir -p MADRID_input/${{tissue}}/layouts/
+            mkdir -p MADRID_input/${{tissue}}/fragmentSizes/
+            
+            study=$( echo $name | grep -oP "_\KS\d+(?=R\d+[r]?[\d+]?)" )
+            
+            mkdir -p MADRID_input/${{tissue}}/layouts/${{study}}/
+            
             if [[ $endtype == "SE" ]]; then
                 echo "single-end" > {params.rootdir}/data/${{tissue}}/layouts/${{name}}_layout.txt 
+                echo "single-end" > MADRID_input/${{tissue}}/layouts/${{study}}/${{name}}_layout.txt 
             elif [[ $endtype == "PE" ]]; then
                 echo "paired-end" > {params.rootdir}/data/${{tissue}}/layouts/${{name}}_layout.txt
+                echo "paired-end" > MADRID_input/${{tissue}}/layouts/${{study}}/${{name}}_layout.txt 
             else
-                echo "invalid layout" 
-                
+                echo "invalid layout"        
             fi
                 
         done < {input}  
@@ -318,7 +365,6 @@ rule generate_genome:
         
         
         """
-
 
 if perform_screen():
     rule get_screen_genomes:
@@ -812,9 +858,10 @@ rule copy_geneCounts:
             cp {input} {output} || touch {output}
         """
 
+
 rule index_bam_file:
     input: rules.star_align.output.bam_file
-    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bai")
+    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai")
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 1000 * attempt,# 1 GB
@@ -822,16 +869,20 @@ rule index_bam_file:
     conda: "envs/samtools.yaml"
     shell:
         """
-        samtools index {input} {output}
+        samtools index {input} {output} || touch {output}
         """
+
 
 rule get_rnaseq_metrics:
     input:
         bam=rules.star_align.output.bam_file,
         tab=rules.star_align.output.gene_table
-    output: os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt")
+    output:
+        metrics=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
+        strand=os.path.join(config["ROOTDIR"],"data","{tissue_name}","strand","{tissue_name}_{tag}_strand.txt")
     params:
-        ref_flat = config["REF_FLAT_FILE"]
+        ref_flat = config["REF_FLAT_FILE"],
+        ribo_int_list = config["RRNA_INTERVAL_LIST"]
     threads: 4
     resources:
         mem_mb= lambda wildcards,attempt: 1000 * 5 * attempt,# 5 GB / attempt
@@ -844,28 +895,46 @@ rule get_rnaseq_metrics:
         read -ra arr <<< "$colsums"
     
         cnt=0
-        max=${{arr[0]}}
-        mcnt=1
         for val in "${{arr[@]}}"; do
         cnt=$((cnt+=1))
-        if [ $val -gt $max ]; then
-            echo $val $max
-            max=$val
-            mcnt=$cnt
+        if [[ $cnt == 1 ]]; then
+            unst=$val
+        elif [[ $cnt == 2 ]]; then
+            fwd=$val
+        elif [[ $cnt == 3 ]]; then
+            rev=$val
         fi
         done
         
-        if [ $mcnt == 1 ]; then
-            str_spec="NONE"
-        elif [ $mcnt == 2 ]; then
+        if [[ $(( rev / fwd )) -gt 2 ]]; then
+            str_spec="SECOND_READ_TRANSCRIPTION_STRAND"
+        elif [[ $(( fwd / rev )) -gt 2 ]]; then
             str_spec="FIRST_READ_TRANSCRIPTION_STRAND"
         else
-            str_spec="SECOND_READ_TRANSCRIPTION_STRAND"
+            str_spec="NONE"
         fi
-        
-        picard CollectRnaSeqMetrics I={input.bam} O={output} REF_FLAT={params.ref_flat} STRAND_SPECIFICITY=$str_spec || touch {output}
+        echo $str_spec > {output.strand}
+    
+        picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={params.ref_flat} STRAND_SPECIFICITY=$str_spec RIBOSOMAL_INTERVALS={params.ribo_int_list} || touch {output}
         """
 
+rule copy_strandedness:
+    input: rules.get_rnaseq_metrics.output.strand
+    output: os.path.join("MADRID_input","{tissue_name}","strandedness","{sample}","{tissue_name}_{tag}_strandedness.txt")
+
+    params:
+        tissue_name="{tissue_name}",
+        tag="{tag}",
+        sample=os.path.join("MADRID_input","{tissue_name}","strandedness","{sample}")
+    threads: 1
+    resources:
+        mem_mb=lambda wildcards, attempt: 50 * attempt,# 0.05 GB
+        runtime=1
+    shell:
+        """
+        mkdir -p {params.sample}
+        cp {input} {output} || touch {output}
+        """
 
 
 if perform_get_insert_size():
@@ -892,12 +961,13 @@ if perform_get_insert_size():
         #    "v1.0.0/bio/picard/collectinsertsizemetrics"
         shell:
             """
-            if [{params.layout} == "paired-end"]; then
-                picard CollectInsertSizeMetrics \
+            lay=$(cat {params.layout})
+            if [ $lay == "paired-end"]; then
+                picard CollectinsertSizeMetrics \
                 I={input} \
                 O={output.txt} \
                 H={output.pdf} \
-                M=0.05 || picard CollectInsertSizeMetrics I={input} O={output.txt} H={output.pdf} M=0.5
+                M=0.05 || picard CollectinsertSizeMetrics I={input} O={output.txt} H={output.pdf} M=0.5
             else
                 echo "cannot collect metrics for single-end data" > {output.txt}
                 touch {output.pdf}
@@ -906,12 +976,12 @@ if perform_get_insert_size():
 
     rule copy_insert_size:
         input: rules.get_insert_size.output.txt
-        output: os.path.join("MADRID_input", "{tissue_name}", "InsertSizeMetrics","{sample}", "{tissue_name}_{tag}_insert_size.txt")
+        output: os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics","{sample}", "{tissue_name}_{tag}_insert_size.txt")
 
         params:
             tissue_name="{tissue_name}",
             tag="{tag}",
-            sample=os.path.join("MADRID_input", "{tissue_name}", "InsertSizeMetrics", "{sample}")
+            sample=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}")
         threads: 1
         resources:
             mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
@@ -922,39 +992,68 @@ if perform_get_insert_size():
             cp {input} {output} || touch {output}
             """
 
-if perform_get_insert_size():
-    def insert_size_get_star_data(wildcards):
-        return_files = []
-        for file in expand(rules.star_align.output.bam_file,zip,tissue_name=get_tissue_name(),tag=get_tags()):
-            if wildcards.tissue_name in file:
-                return_files.append(file)
-        return return_files
+if perform_get_fragment_size():
+    # rule get_fragment_size:
+    #     input:
+    #         bam=rules.star_align.output.bam_file,
+    #         bai=rules.index_bam_file.output
+    #     output:
+    #         tsv=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "deeptools", "frag_length_text", "{tissue_name}_{tag}_fragment_length.txt"),
+    #         png=os.path.join(config["ROOTDIR"],"data","{tissue_name}","deeptools","frag_length_hist","{tissue_name}_{tag}_fragment_length_hist.png")
+    #     params:
+    #         layout = os.path.join(config["ROOTDIR"],"data","{tissue_name}","layouts", "{tissue_name}_{tag}_layout.txt")
+    #     threads: 4
+    #     resources:
+    #         mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
+    #         runtime=lambda wildcards, attempt: 60 * attempt
+    #     conda: "envs/deeptools.yaml"
+    #
+    #     shell:
+    #         """
+    #         bamPEFragmentSize \
+    #         -hist {output.png} \
+    #         -T "Fragment Size" \
+    #         --table {output.tsv} \
+    #         -b {input.bam}
+    #         """
 
     rule get_fragment_size:
         input:
-            bam=rules.star_align.output.bam_file,
-            bai=rules.index_bam_file.output
+            bam = rules.star_align.output.bam_file,
+            bai = rules.index_bam_file.output
         output:
-            tsv=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "deeptools", "frag_length_text", "{tissue_name}_{tag}_fragment_length.txt"),
-            png=os.path.join(config["ROOTDIR"],"data","{tissue_name}","deeptools","frag_length_hist","{tissue_name}_{tag}_fragment_length_hist.png")
+            os.path.join(config["ROOTDIR"],"data","{tissue_name}","fragmentSizes","{tissue_name}_{tag}_fragment_length.txt")
         params:
-            layout = os.path.join(config["ROOTDIR"],"data","{tissue_name}","layouts", "{tissue_name}_{tag}_layout.txt")
+            layout = os.path.join(config["ROOTDIR"],"data","{tissue_name}","layouts","{tissue_name}_{tag}_layout.txt"),
+            bed = config["BED_FILE"]
         threads: 4
         resources:
-            mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
-            runtime=lambda wildcards, attempt: 60 * attempt
-        conda: "envs/deeptools.yaml"
-
+            mem_mb = lambda wildcards, attempt: 1000 * 5 * attempt,  # 5 GB / attempt
+            runtime = lambda wildcards, attempt: 60 * attempt
+        conda: "envs/rseqc.yaml"
         shell:
             """
-            bamPEFragmentSize \
-            -hist {output.png} \
-            -T "Fragment Size" \
-            --table {output.tsv} \
-            -b {input.bam} 
+            files=(.snakemake/conda/*/bin/RNA_fragment_size.py) # get matches of script file ( should only be one but )      
+            python3 ${{files[0]}} -r {params.bed} -i {input.bam} > {output} || touch {output}  # run first match
             """
 
+    rule copy_fragment_size:
+        input: rules.get_fragment_size.output
+        output: os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
 
+        params:
+            tissue_name="{tissue_name}",
+            tag="{tag}",
+            sample=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}")
+        threads: 1
+        resources:
+            mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
+            runtime=1
+        shell:
+            """
+            mkdir -p {params.sample}
+            cp {input} {output} || touch {output}
+            """
 
 def multiqc_get_dump_fastq_data(wildcards):
     if perform_prefetch():

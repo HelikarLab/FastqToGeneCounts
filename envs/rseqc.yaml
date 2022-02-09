@@ -1,0 +1,4 @@
+channels:
+  - bioconda
+dependencies:
+  - rseqc=4.0.0
