@@ -78,7 +78,7 @@ def get_from_master_config(attribute: str) -> list[str]:
                 split_list = str(line[index_value]).split("_")
 
                 # We must append the target attribute twice if it is paired end, once if it is single end
-                if PE_SE_valuFPKM e == "PE":
+                if PE_SE_value == "PE":
                     target_attribute = [split_list[sub_index], split_list[sub_index]]
                 else:  # Single end
                     target_attribute = [split_list[sub_index]]
@@ -946,7 +946,9 @@ if perform_get_insert_size():
         return return_files
 
     rule get_insert_size:
-        input: rules.star_align.output.bam_file,
+        input:
+            bam=rules.star_align.output.bam_file,
+            preround=rules.preroundup.output
         output:
             txt=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "insert", "{tissue_name}_{tag}_insert_size.txt"),
             pdf=os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","hist","{tissue_name}_{tag}_insert_size_histo.pdf")
@@ -964,7 +966,7 @@ if perform_get_insert_size():
             lay=$(cat {params.layout})
             if [ $lay == "paired-end"]; then
                 picard CollectinsertSizeMetrics \
-                I={input} \
+                I={input.bam} \
                 O={output.txt} \
                 H={output.pdf} \
                 M=0.05 || picard CollectinsertSizeMetrics I={input} O={output.txt} H={output.pdf} M=0.5
@@ -1120,7 +1122,7 @@ rule multiqc:
         dump_fastq_data = multiqc_get_dump_fastq_data,
         screen_data = multiqc_get_screen_data,
         insertsize_data = multiqc_get_insertsize_data,
-        rnaseq_data = multiqc_get_rnaseq_data
+        rnaseq_data = multiqc_get_rnaseq_data,
     output:
         output_file = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
         output_directory = directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc"))
