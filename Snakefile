@@ -777,7 +777,7 @@ def collect_star_align_input(wildcards):
             else:
                 warnings.warn(f"{in_file} and {next_file} are incorrectly called together, either the file order is getting scrambled or one end of {in_file} and one end of {next_file} failed to download")
 
-        elif direction == "1" and not next_dir == "2":
+        elif direction == "1" and not next_direction == "2":
             warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
         elif direction == "2":
             continue
