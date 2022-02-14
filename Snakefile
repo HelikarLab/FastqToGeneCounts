@@ -895,14 +895,23 @@ rule get_rnaseq_metrics:
         read -ra arr <<< "$colsums"
     
         cnt=0
+        # all values are at least one to prevent divide by zero
+        unst=1
+        fwd=1
+        rev=1
+        declare -i unst
+        declare -i fwd
+        declare -i rev
+        
         for val in "${{arr[@]}}"; do
         cnt=$((cnt+=1))
+        declare -i val
         if [[ $cnt == 1 ]]; then
-            unst=$val
+            unst+=$val
         elif [[ $cnt == 2 ]]; then
-            fwd=$val
+            fwd+=$val
         elif [[ $cnt == 3 ]]; then
-            rev=$val
+            rev+=$val
         fi
         done
         
@@ -1108,6 +1117,14 @@ def multiqc_get_insertsize_data(wildcards):
                 return_files.append(file)
     return return_files
 
+def multiqc_get_fragmentsize_data(wildcards):
+    return_files = []
+    if perform_get_fragment_size():
+        for file in expand(rules.get_fragment_size.output, zip, tissue_name=get_tissue_name(), tag=get_tags()):
+            if wildcards.tissue_name in file:
+                return_files.append(file)
+    return return_files
+
 def multiqc_get_rnaseq_data(wildcards):
     return_files = []
     for file in expand(rules.get_rnaseq_metrics.output, zip, tissue_name=get_tissue_name(), tag=get_tags()):
@@ -1123,6 +1140,7 @@ rule multiqc:
         screen_data = multiqc_get_screen_data,
         insertsize_data = multiqc_get_insertsize_data,
         rnaseq_data = multiqc_get_rnaseq_data,
+        fragment_size_data = multiqc_get_fragmentsize_data
     output:
         output_file = os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
         output_directory = directory(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc"))
