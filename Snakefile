@@ -6,12 +6,20 @@ import csv
 import numpy as np
 import warnings
 import math
+import sys
 
 #from snakemake_wrapper_utils.java import get_java_opts
 # =concat("lungControl",right(B2,LEN(B2)-len(left(B2,12))))
 
 configfile: "snakemake_config.yaml"
 
+# Validate users are using conda. This is important for temporary conda environments defined in the workflow
+if not workflow.use_conda:
+    sys.stderr.write("\nYou are not using conda. Pass the '--use-conda' flag to snakemake.\nExample: snakemake --cores 10 --use-conda\n\n")
+    sys.exit(1)
+else:
+    print("Using conda, exiting for now")
+    exit(1)
 
 def perform_trim():  # QC
     if str(config["PERFORM_TRIM"]).lower() == "true":
