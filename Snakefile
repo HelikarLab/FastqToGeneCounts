@@ -17,9 +17,6 @@ configfile: "snakemake_config.yaml"
 if not workflow.use_conda:
     sys.stderr.write("\nYou are not using conda. Pass the '--use-conda' flag to snakemake.\nExample: snakemake --cores 10 --use-conda\n\n")
     sys.exit(1)
-else:
-    print("Using conda, exiting for now")
-    exit(1)
 
 def perform_trim():  # QC
     if str(config["PERFORM_TRIM"]).lower() == "true":
