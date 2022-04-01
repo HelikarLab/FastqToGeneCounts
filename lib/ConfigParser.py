@@ -6,9 +6,7 @@ As a result, we must parse the config file from snakemake, and
 """
 
 import yaml
-import snakemake.workflow
 
-print(snakemake.workflow.Workflow.config)
 
 class ConfigParser:
     # Use __new__ here so we can return the _yaml_config immediately after instantiating the class

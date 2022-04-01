@@ -12,11 +12,7 @@ from .ConfigParser import ConfigParser
 import csv
 import os
 from snakemake.io import glob_wildcards, expand
-from snakemake import checkpoints
-from snakemake import rules
 import warnings
-
-# from snakemake.io import Wildcards
 import sys
 
 config = ConfigParser("snakemake_config.yaml")
