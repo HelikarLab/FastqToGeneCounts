@@ -8,7 +8,7 @@ This is required after splitting the master Snakefile into multiple sub-workflow
 As a result of this, we must implement these functions into a file that can be accessible by any Snakefile
 
 """
-from ConfigParser import ConfigParser
+from .ConfigParser import ConfigParser
 import csv
 import os
 from snakemake.io import glob_wildcards, expand
