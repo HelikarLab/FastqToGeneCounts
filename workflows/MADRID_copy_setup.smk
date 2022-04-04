@@ -5,8 +5,6 @@ This file contains rules that are related to copying data to new folders for MAD
 from lib.PerformFunctions import *
 import os
 
-include: "../Snakefile"
-
 rule copy_geneCounts:
     input: rules.star_align.output.gene_table
     output: os.path.join("MADRID_input","{tissue_name}","geneCounts","{sample}","{tissue_name}_{tag}.tab")
