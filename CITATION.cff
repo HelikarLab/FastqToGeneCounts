@@ -1,0 +1,29 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: FastqToGeneCounts
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Josh
+    email: jloecker3@huskers.unl.edu
+    affiliation: University of Nebraska-Lincoln
+    orcid: 'https://orcid.org/0000-0002-6388-2958'
+    family-names: Loecker
+  - given-names: Brandt
+    family-names: Bessel
+    orcid: 'https://orcid.org/0000-0003-2334-8790'
+    email: babessell@gmail.com
+    affiliation: University of Nebraska-Lincoln
+repository-code: 'https://github.com/HelikarLab/FastqToGeneCounts'
+keywords:
+  - snakemake
+  - NCBI
+  - Gene Expression Omnibus
+  - GEO
+license: GPL-3.0
+version: 1.0.0
+date-released: '2021-09-30'
