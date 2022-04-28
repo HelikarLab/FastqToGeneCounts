@@ -1,6 +1,7 @@
-from lib.PerformFunctions import *
+# from lib.PerformFunctions import *
 import os
 
+include: "../lib/PerformFunctions.smk"
 
 def get_dump_fastq_runtime(wildcards, input, attempt):
     """

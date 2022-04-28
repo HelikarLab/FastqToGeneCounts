@@ -2,14 +2,19 @@
 This branch is an attempt to move portions of the workflow into "sub-workflows"
 for easier understanding of what is happening throuhgout this pipeline
 """
-from lib.PerformFunctions import *
+# from lib.PerformFunctions import *
 import sys
 
 configfile: "snakemake_config.yaml"
 
 # ---- Include sub-workflows we need ----
+# This uses snakemake's "module" directive
+# https://snakemake.readthedocs.io/en/stable/snakefiles/modularization.html#modules
 include: "workflows/preliminary_setup.smk"
-include: "workflows/MADRID_copy_setup.smk"
+# include: "workflows/MADRID_copy_setup.smk"
+include: "lib/PerformFunctions.smk"
+
+
 
 # Validate users are using conda. This is important for temporary conda environments defined in the workflow
 # From: https://stackoverflow.com/a/71678773/13885200
@@ -192,7 +197,6 @@ if perform_get_fragment_size():
 
 rule all:
     input: rule_all
-
 
 def fastqc_dump_fastq_input(wildcards):
     """
@@ -409,7 +413,7 @@ if perform_trim():
         conda: "envs/fastqc.yaml"
         resources:
             # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
-            mem_mb=lambda wildcards, attempt, threads: attempt * threads * 2,# 15 GB
+            mem_mb=lambda wildcards, attempt, threads: attempt * threads * 320,  # 15 GB
             runtime=get_fastqc_runtime
         shell:
             """
