@@ -47,7 +47,6 @@ def perform_get_insert_size():
 
 
 def perform_get_fragment_size():  # for zFPKM QC
-    print(str(config["PERFORM_GET_FRAGMENT_SIZE"]).lower())
     if str(config["PERFORM_GET_FRAGMENT_SIZE"]).lower() == "true":
         return True
     else:
@@ -303,7 +302,6 @@ if perform_get_insert_size():
     ])  # copy insert
 
 if perform_get_fragment_size():
-    print("TEST")
     rule_all.extend([
         perform_get_fragment_size_rule,  # get fragment lengths
 
