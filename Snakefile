@@ -625,17 +625,15 @@ rule fastqc_dump_fastq:
 
 if perform_screen():
     def get_screen_input(wildcards):
-        '''
+        """
         aggregate filesnames of all fastqs
-        '''
+        """
         if perform_prefetch():
             return checkpoints.dump_fastq.get(**wildcards).output
         else:
-            fastq_gz_files = []
             for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
                 for file in files:
-                    if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (
-                            f"_{wildcards.PE_SE}" in file):
+                    if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
                         return os.path.join(path,file)
 
 
@@ -671,11 +669,9 @@ if perform_trim():
         if perform_prefetch():
             return checkpoints.dump_fastq.get(**wildcards).output
         else:
-            fastq_gz_files = []
             for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
                 for file in files:
-                    if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (
-                            f"_{wildcards.PE_SE}" in file):
+                    if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
                         return os.path.join(path,file)
 
 
