@@ -765,8 +765,9 @@ if perform_trim():
         threads: get_fastqc_threads
         conda: "envs/fastqc.yaml"
         resources:
-            # fastqc allocates 250MB per thread. 250*5 = 1250MB ~= 2GB for overhead
-            mem_mb=lambda wildcards, attempt, threads: attempt * threads * 2,# 15 GB
+            # Allocate 250MB per thread, plus extra to be safe
+            # threads * 250 * 2 ~= 500 to 1000 GB
+            mem_mb=lambda wildcards, attempt, threads: attempt * threads * 250,
             runtime=get_fastqc_runtime
         shell:
             """
