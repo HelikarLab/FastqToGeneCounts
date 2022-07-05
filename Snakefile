@@ -317,42 +317,47 @@ rule all:
 rule preroundup:
     input: config["MASTER_CONTROL"]
     output: touch("preroundup.txt")
-    params:
-        rootdir=config["ROOTDIR"]
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 50 * attempt,
         runtime=lambda wildcards, attempt: 1 * attempt
+    log: "logs/preroundup_temp.log"
     shell:
         """
         IFS=","
         while read srr name endtype prep; do
             tissue=$(echo $name | cut -d '_' -f1)
-            mkdir -p MADRID_input/${{tissue}}/geneCounts/
-            mkdir -p MADRID_input/${{tissue}}/insertSizeMetrics/
-            mkdir -p {params.rootdir}/data/${{tissue}}/layouts/
-            mkdir -p {params.rootdir}/data/${{tissue}}/prepMethods/
-            mkdir -p MADRID_input/${{tissue}}/layouts/
-            mkdir -p MADRID_input/${{tissue}}/fragmentSizes/
-            mkdir -p MADRID_input/${{tissue}}/prepMethods/
             prepl=$( echo "$prep" | tr '[:upper:]' '[:lower:]' )
             study=$( echo $name | grep -oP "_\KS\d+(?=R\d+[r]?[\d+]?)" )
+            
+            mkdir -p MADRID_input/${{tissue}}/geneCounts/
+            mkdir -p MADRID_input/${{tissue}}/insertSizeMetrics/
+            mkdir -p MADRID_input/${{tissue}}/layouts/
             mkdir -p MADRID_input/${{tissue}}/layouts/${{study}}/
+            mkdir -p MADRID_input/${{tissue}}/fragmentSizes/
+            mkdir -p MADRID_input/${{tissue}}/prepMethods/
             mkdir -p MADRID_input/${{tissue}}/prepMethods/${{study}}/
+            mkdir -p {config[ROOTDIR]}/data/${{tissue}}/layouts/
+            mkdir -p {config[ROOTDIR]}/data/${{tissue}}/prepMethods/
+            
+            echo ${{tissue}} >> {log}
+            echo ${{prepl}} >> {log}
+            echo ${{study}} >> {log}
+            
             if [[ $endtype == "SE" ]]; then
-                echo "single-end" > {params.rootdir}/data/${{tissue}}/layouts/${{name}}_layout.txt
+                echo "single-end" > {config[ROOTDIR]}/data/${{tissue}}/layouts/${{name}}_layout.txt
                 echo "single-end" > MADRID_input/${{tissue}}/layouts/${{study}}/${{name}}_layout.txt
             elif [[ $endtype == "PE" ]]; then
-                echo "paired-end" > {params.rootdir}/data/${{tissue}}/layouts/${{name}}_layout.txt
+                echo "paired-end" > {config[ROOTDIR]}/data/${{tissue}}/layouts/${{name}}_layout.txt
                 echo "paired-end" > MADRID_input/${{tissue}}/layouts/${{study}}/${{name}}_layout.txt
             else
                 echo "invalid layout"
             fi
             if [[ $prepl == "mrna" ]]; then
-                echo "mrna" > {params.rootdir}/data/${{tissue}}/prepMethods/${{name}}_prep_method.txt
+                echo "mrna" > {config[ROOTDIR]}/data/${{tissue}}/prepMethods/${{name}}_prep_method.txt
                 echo "mrna" > MADRID_input/${{tissue}}/prepMethods/${{study}}/${{name}}_prep_method.txt
             elif [[ $prep == "total" ]]; then
-                echo "total" > {params.rootdir}/data/${{tissue}}/prepMethods/${{name}}_prep_method.txt
+                echo "total" > {config[ROOTDIR]}/data/${{tissue}}/prepMethods/${{name}}_prep_method.txt
                 echo "total" > MADRID_input/${{tissue}}/prepMethods/${{study}}/${{name}}_prep_method.txt
             else
                 echo "invalid library preparation method. Must be total or mrna"
