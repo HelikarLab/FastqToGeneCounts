@@ -319,7 +319,7 @@ rule preroundup:
     output: touch("preroundup.txt")
     threads: 1
     resources:
-        mem_mb=lambda wildcards, attempt: 50 * attempt,
+        mem_mb=lambda wildcards, attempt: 200 * attempt,
         runtime=lambda wildcards, attempt: 5 * attempt
     log: "logs/preroundup_debug.log"
     shell:
