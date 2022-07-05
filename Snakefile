@@ -954,41 +954,35 @@ rule get_rnaseq_metrics:
     conda: "envs/picard.yaml"
     shell:
         """
-        colsums=$(grep -v "N_" {input.tab} | awk '{{unst+=$2;forw+=$3;rev+=$4}}END{{print unst,forw,rev}}') || colsums="0 1 2"
+        # Get the column sums and store them in unst, forw, and rev, respectively
+        # We are interested in columns 2, 3, and 4, which correspond to the number of reads in the unstranded, forward, and reverse strand, respectively
+        # Column 1: Gene ID 
+        # Column 2: Counts for unstranded RNA-seq
+        # Column 3: Counts for  1st read strand aligned with RNA
+        # Column 4:Counts for 2nd read strand aligned with RNA
+        colsums=$(grep -v "N_" {input.tab} | awk '{{unstranded+=$2;forward+=$3;reverse+=$4}}END{{print unstranded,forward,reverse}}') || colsums="0 1 2"
+        
+        # Split colsums based on space (create array of three items)
         IFS=" "
         read -ra arr <<< "$colsums"
-
-        cnt=0
-        # all values are at least one to prevent divide by zero
-        unst=1
-        fwd=1
-        rev=1
-        declare -i unst
-        declare -i fwd
-        declare -i rev
-
-        for val in "${{arr[@]}}"; do
-        cnt=$((cnt+=1))
-        declare -i val
-        if [[ $cnt == 1 ]]; then
-            unst+=$val
-        elif [[ $cnt == 2 ]]; then
-            fwd+=$val
-        elif [[ $cnt == 3 ]]; then
-            rev+=$val
-        fi
-        done
-
-        if [[ $(( rev / (fwd+1) )) -gt 2 ]]; then
-            str_spec="SECOND_READ_TRANSCRIPTION_STRAND"
-        elif [[ $(( fwd / (rev+1) )) -gt 2 ]]; then
-            str_spec="FIRST_READ_TRANSCRIPTION_STRAND"
+        
+        # Declare these variables as integers
+        declare -i unstranded=${{arr[0]}}
+        declare -i forward=${{arr[1]}}
+        declare -i reverse=${{arr[2]}}
+        
+        # Increment the denominator by 1 to prevent "divide by 0"
+        if [[ $(( reverse / (forward+1) )) -gt 2 ]]; then
+            strand_spec="SECOND_READ_TRANSCRIPTION_STRAND"
+        elif [[ $(( forward / (reverse+1) )) -gt 2 ]]; then
+            strand_spec="FIRST_READ_TRANSCRIPTION_STRAND"
         else
-            str_spec="NONE"
+            strand_spec="NONE"
         fi
-        echo $str_spec > {output.strand}
-
-        picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={params.ref_flat} STRAND_SPECIFICITY=$str_spec RIBOSOMAL_INTERVALS={params.ribo_int_list}
+        
+        echo $strand_spec > {output.strand}
+        
+        picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={params.ref_flat} STRAND_SPECIFICITY=$strand_spec RIBOSOMAL_INTERVALS={params.ribo_int_list}
         """
 
 rule copy_strandedness:
