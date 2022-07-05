@@ -455,8 +455,15 @@ if perform_prefetch():
             runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
+            # If the SRA file lock exists, remove it
+            lock_file={output}.lock
+            if [ -f "$lock_file" ]; then
+                rm $lock_file
+            fi
+                
+                
             IFS=","
-            while read srr name endtype; do
+            while read srr name endtype prep; do
                 # prefetch has a default max size of 20G. Effectively remove this size by allowing files up to 1TB to be downloaded
                 prefetch $srr --max-size 1024000000000 --output-file {output}
             done < {input}
