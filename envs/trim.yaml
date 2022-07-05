@@ -1,5 +1,7 @@
 channels:
   - bioconda
+  - default
 dependencies:
-  - trim-galore
-  - cutadapt
+  - trim-galore=0.6.7
+  - cutadapt=3.5
+  - xopen>=1.0
