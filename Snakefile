@@ -321,7 +321,6 @@ rule preroundup:
     resources:
         mem_mb=lambda wildcards, attempt: 50 * attempt,
         runtime=lambda wildcards, attempt: 1 * attempt
-    log: "logs/preroundup_temp.log"
     shell:
         """
         IFS=","
@@ -339,10 +338,6 @@ rule preroundup:
             mkdir -p MADRID_input/${{tissue}}/prepMethods/${{study}}/
             mkdir -p {config[ROOTDIR]}/data/${{tissue}}/layouts/
             mkdir -p {config[ROOTDIR]}/data/${{tissue}}/prepMethods/
-            
-            echo ${{tissue}} >> {log}
-            echo ${{prepl}} >> {log}
-            echo ${{study}} >> {log}
             
             if [[ $endtype == "SE" ]]; then
                 echo "single-end" > {config[ROOTDIR]}/data/${{tissue}}/layouts/${{name}}_layout.txt
