@@ -542,16 +542,6 @@ def get_fastqc_threads(wildcards, input):
     return threads
 
 
-def get_fastqc_runtime(wildcards, input, attempt):
-    tag = get_tag(str(input[0]))
-    runtime = 1
-    if tag in ["1", "S"]:
-        runtime = 150 * attempt  # 2.5 hours
-    elif tag == "2":
-        runtime = 150 * attempt
-    return runtime
-
-
 def fastqc_dump_fastq_input(wildcards):
     """
     This function will return the input for fastqc_dump_fastq
@@ -582,28 +572,20 @@ rule fastqc_dump_fastq:
     input: fastqc_dump_fastq_input
     output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params:
-        file_one_zip=os.path.join(config[
-            "ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
-        file_one_html=os.path.join(config[
-            "ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
-        file_two_zip=os.path.join(
-            config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_2_fastqc.zip"),
-        file_two_html=os.path.join(
-            config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_2_fastqc.html"),
+        file_one_zip=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
+        file_one_html=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
+        file_two_zip=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_2_fastqc.zip"),
+        file_two_html=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_2_fastqc.html"),
 
-        file_one_zip_rename=os.path.join(config[
-            "ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
-        file_one_html_rename=os.path.join(config[
-            "ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
-        file_two_zip_rename=os.path.join(config[
-            "ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_2_fastqc.zip"),
-        file_two_html_rename=os.path.join(config[
-            "ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_2_fastqc.html")
+        file_one_zip_rename=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
+        file_one_html_rename=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
+        file_two_zip_rename=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_2_fastqc.zip"),
+        file_two_html_rename=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_2_fastqc.html")
     threads: get_fastqc_threads
     conda: "envs/fastqc.yaml"
     resources:
-        mem_mb=lambda wildcards, attempt: 15000 * attempt,# 15 GB
-        runtime=get_fastqc_runtime  # 150 minutes * attempt number
+        mem_mb=lambda wildcards, attempt: 15000 * attempt, # 15 GB * attempt number
+        runtime=lambda wildcards, attempt: 150 * attempt  # 150 minutes * attempt number
     shell:
         """
         output_directory="$(dirname {output})"
