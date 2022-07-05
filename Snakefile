@@ -407,22 +407,6 @@ if perform_screen():
             """
 
 
-def get_dump_fastq_runtime(wildcards, input, attempt):
-    """
-    This function will dynamicall return the length of time requested by checkpoint dump_fastq
-    Using 40 threads, it takes approximately 5 minutes per input file
-    We are going to round this up to 10 minutes to be safe
-    The 'attempt' input is a snakemake global variable.
-    If this workflow fails when using the profile option "restart-times" or the command line option "--restart-times"
-        the workflow will be restarted X many times. When doing so, we will increase the amount of time requested
-        on each subsequent attempt.
-        i.e. attempt 2 will double the amount of time requested for this rule, attempt 3 will triple the amount of time requested
-    We are dividing the input by 2 because duplicates are input, one for the forward read and one for the reverse read
-    """
-    # Max time is 10,080 minutes (7 days), do not let this function return more than that amount of time
-    return 45 * attempt
-
-
 if perform_prefetch():
     rule distribute_init_files:
         input: ancient(config["MASTER_CONTROL"])
@@ -471,7 +455,7 @@ if perform_prefetch():
 
 
     def dump_fastq_input(wildcards):
-        output_files = expand(rules.prefetch.output,zip,tissue_name=get_tissue_name(),tag=get_tags(),srr_code=get_srr_code())
+        output_files = expand(rules.prefetch.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
         for file in output_files:
             if (wildcards.tissue_name in file) and (wildcards.tag in file):
                 return file
@@ -502,8 +486,8 @@ if perform_prefetch():
         threads: get_dump_fastq_threads
         conda: "envs/SRAtools.yaml"
         resources:
-            mem_mb=lambda wildcards, attempt: 20000 * attempt,# 20 GB
-            runtime=get_dump_fastq_runtime
+            mem_mb=lambda wildcards, attempt: 20000 * attempt, # 20 GB
+            runtime=lambda wildcards, attempt: 45 * attempt  # 45 minutse * attempt
         shell:
             """
             output_dir="$(dirname {output})"
