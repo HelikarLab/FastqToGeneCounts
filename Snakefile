@@ -758,7 +758,7 @@ if perform_trim():
             # Allocate 250MB per thread, plus extra to be safe
             # threads * 250 * 2 ~= 500 to 1000 GB
             mem_mb=lambda wildcards, attempt, threads: attempt * threads * 250,
-            runtime=get_fastqc_runtime
+            runtime=lambda wildcards, attempt: 150 * attempt  # 2.5 hours * attempt
         shell:
             """
             output_directory="$(dirname {output})"
