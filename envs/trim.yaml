@@ -1,5 +1,5 @@
 channels:
   - bioconda
 dependencies:
-  - trim-galore=0.6.7
+  - trim-galore
   - cutadapt
