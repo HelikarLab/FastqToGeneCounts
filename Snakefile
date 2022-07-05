@@ -984,8 +984,8 @@ rule copy_strandedness:
         sample=os.path.join("MADRID_input","{tissue_name}","strandedness","{sample}")
     threads: 1
     resources:
-        mem_mb=lambda wildcards, attempt: 50 * attempt,# 0.05 GB
-        runtime=1
+        mem_mb=lambda wildcards, attempt: 200 * attempt,  # 200 MB * attempt
+        runtime=5
     shell:
         """
         mkdir -p {params.sample}
