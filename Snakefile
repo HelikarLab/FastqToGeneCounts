@@ -316,7 +316,7 @@ rule all:
 # Not 100% sure if this is needed
 rule preroundup:
     input: config["MASTER_CONTROL"]
-    output: "preroundup.txt"
+    output: touch("preroundup.txt")
     params:
         rootdir=config["ROOTDIR"]
     threads: 1
@@ -358,7 +358,6 @@ rule preroundup:
                 echo "invalid library preparation method. Must be total or mrna"
             fi 
         done < {input}
-        touch "preroundup.txt"
         """
 
 rule generate_genome:
@@ -505,7 +504,9 @@ if perform_prefetch():
 
                 mv "$output_dir/{params.srr_code}_1.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"
                 mv "$output_dir/{params.srr_code}_2.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"
-
+            
+            # If PE_SE is 2, we are only touching the output file because Snakemake will complain about missing files
+            # This file will be created when PE_SE == "1"
             elif [ "{wildcards.PE_SE}" == "2" ]; then
                 touch {output}
             elif [ "{wildcards.PE_SE}" == "S" ]; then
@@ -601,21 +602,20 @@ rule fastqc_dump_fastq:
         mkdir -p "$output_directory"
 
         if [ "{wildcards.PE_SE}" == "1" ]; then
-            fastqc {input} --threads {threads} -o "$output_directory" || \
-            ( touch {params.file_one_zip} && touch {params.file_one_html} \
-              touch {params.file_two_zip} && touch {params.file_two_html} )
+            fastqc {input} --threads {threads} -o "$output_directory"
 
             mv "{params.file_one_zip}" "{params.file_one_zip_rename}"
             mv "{params.file_one_html}" "{params.file_one_html_rename}"
             mv "{params.file_two_zip}" "{params.file_two_zip_rename}"
             mv "{params.file_two_html}" "{params.file_two_html_rename}"
 
+        # Touch the output file because Snakemake will complain about missing files otherwise
+        # This file will be created when PE_SE == "1"
         elif [ "{wildcards.PE_SE}" == "2" ]; then
             touch {output}
 
         elif [ "{wildcards.PE_SE}" == "S" ]; then
-            fastqc {input} --threads {threads} -o "$output_directory" || \
-            ( touch {params.file_one_zip} && touch {params.file_one_html} )
+            fastqc {input} --threads {threads} -o "$output_directory"
 
             mv "{params.file_one_zip}" "{params.file_one_zip_rename}"
             mv "{params.file_one_html}" "{params.file_one_html_rename}"
@@ -733,7 +733,7 @@ if perform_trim():
                 file_rename_1="$output_directory/trimmed_{params.tissue_name}_{params.tag}_1.fastq.gz"    # final renamed output paired end, forward read
                 file_rename_2="$output_directory/trimmed_{params.tissue_name}_{params.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
 
-                trim_galore --paired --cores 4 -o "$(dirname {output})" "$file_in_1" "$file_in_2" || (touch $file_out_1 & touch $file_out_2)
+                trim_galore --paired --cores 4 -o "$(dirname {output})" "$file_in_1" "$file_in_2"
 
                 mv "$file_out_1" "$file_rename_1"
                 mv "$file_out_2" "$file_rename_2"
@@ -781,6 +781,8 @@ if perform_trim():
                 fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
 
+            # Skip reverse reads, but create the output file so Snakemake does not complain about missing files
+            # This file will be created when wildcards.PE_SE == "1"
             elif [ "{wildcards.PE_SE}" == "2" ]; then
                 touch {output}
 
