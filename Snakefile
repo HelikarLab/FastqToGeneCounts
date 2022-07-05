@@ -320,7 +320,7 @@ rule preroundup:
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 50 * attempt,
-        runtime=lambda wildcards, attempt: 1 * attempt
+        runtime=lambda wildcards, attempt: 5 * attempt
     shell:
         """
         IFS=","
