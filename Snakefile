@@ -458,7 +458,7 @@ if perform_prefetch():
             IFS=","
             while read srr name endtype; do
                 # prefetch has a default max size of 20G. Effectively remove this size by allowing files up to 1TB to be downloaded
-                prefetch $srr --max-size 1024000000000 --output-file {output} || touch {output}
+                prefetch $srr --max-size 1024000000000 --output-file {output}
             done < {input}
             """
 
@@ -660,7 +660,7 @@ if perform_screen():
             runtime=get_screen_runtime
         shell:
             """
-            fastq_screen --aligner Bowtie2 --conf FastQ_Screen_Genomes/fastq_screen.conf {input} || touch {params.tissue_name}_{params.tag}_{params.direction}_screen.txt
+            fastq_screen --aligner Bowtie2 --conf FastQ_Screen_Genomes/fastq_screen.conf {input}
             mv {params.tissue_name}_{params.tag}_{params.direction}_screen.txt results/data/{params.tissue_name}/fq_screen/
             """
 
@@ -747,7 +747,7 @@ if perform_trim():
                 file_out="$output_directory/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"   # final output single end
                 #file_rename="$output_directory/trimmed_{params.tissue_name}_{params.tag}_S.fastq.gz"
 
-                trim_galore --cores 4 -o "$(dirname {output})" "{input}" || touch $file_out
+                trim_galore --cores 4 -o "$(dirname {output})" "{input}"
 
                 mv "$file_out" "{output}"
             fi
@@ -775,17 +775,17 @@ if perform_trim():
             mkdir -p "$output_directory"
 
             if [ "{wildcards.PE_SE}" == "1" ]; then
-                fastqc {input} --threads {threads} -o "$output_directory" || touch {output}
+                fastqc {input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {input}) (1/2)\n\n"
 
-                fastqc {params.file_two_input} --threads {threads} -o "$output_directory" || touch {params.file_two_out}
+                fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
 
             elif [ "{wildcards.PE_SE}" == "2" ]; then
                 touch {output}
 
             elif [ "{wildcards.PE_SE}" == "S" ]; then
-                fastqc {input} --threads {threads} -o "$output_directory" || touch {output}
+                fastqc {input} --threads {threads} -o "$output_directory"
                 printf "FastQC finished $(basename {input}) (1/1)\n\n"
             fi
             """
@@ -897,7 +897,7 @@ rule star_align:
 		--outSAMtype BAM SortedByCoordinate \
 		--outSAMunmapped Within \
 		--outSAMattributes Standard \
-		--quantMode GeneCounts || touch {params.gene_table_output}
+		--quantMode GeneCounts
 		mv {params.gene_table_output} {output.gene_table}
 		mv {params.bam_output} {output.bam_file}
         """
@@ -916,7 +916,7 @@ rule copy_geneCounts:
     shell:
         """
             mkdir -p {params.sample}
-            cp {input} {output} || touch {output}
+            cp {input} {output}
         """
 
 
@@ -930,7 +930,7 @@ rule index_bam_file:
     conda: "envs/samtools.yaml"
     shell:
         """
-        samtools index {input} {output} || touch {output}
+        samtools index {input} {output}
         """
 
 
@@ -985,7 +985,7 @@ rule get_rnaseq_metrics:
         fi
         echo $str_spec > {output.strand}
 
-        picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={params.ref_flat} STRAND_SPECIFICITY=$str_spec RIBOSOMAL_INTERVALS={params.ribo_int_list} || touch {output}
+        picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={params.ref_flat} STRAND_SPECIFICITY=$str_spec RIBOSOMAL_INTERVALS={params.ribo_int_list}
         """
 
 rule copy_strandedness:
@@ -1003,7 +1003,7 @@ rule copy_strandedness:
     shell:
         """
         mkdir -p {params.sample}
-        cp {input} {output} || touch {output}
+        cp {input} {output}
         """
 
 
@@ -1064,7 +1064,7 @@ if perform_get_insert_size():
         shell:
             """
             mkdir -p {params.sample}
-            cp {input} {output} || touch {output}
+            cp {input} {output}
             """
 
 if perform_get_fragment_size():
@@ -1110,7 +1110,7 @@ if perform_get_fragment_size():
         shell:
             """
             files=(.snakemake/conda/*/bin/RNA_fragment_size.py) # get matches of script file ( should only be one but )      
-            python3 ${{files[0]}} -r {params.bed} -i {input.bam} > {output} || touch {output}  # run first match
+            python3 ${{files[0]}} -r {params.bed} -i {input.bam} > {output} # run first match
             """
 
     rule copy_fragment_size:
@@ -1128,7 +1128,7 @@ if perform_get_fragment_size():
         shell:
             """
             mkdir -p {params.sample}
-            cp {input} {output} || touch {output}
+            cp {input} {output}
             """
 
 
