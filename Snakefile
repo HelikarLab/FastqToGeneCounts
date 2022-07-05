@@ -321,6 +321,7 @@ rule preroundup:
     resources:
         mem_mb=lambda wildcards, attempt: 50 * attempt,
         runtime=lambda wildcards, attempt: 5 * attempt
+    log: "logs/preroundup_debug.log"
     shell:
         """
         IFS=","
@@ -328,6 +329,10 @@ rule preroundup:
             tissue=$(echo $name | cut -d '_' -f1)
             prepl=$( echo "$prep" | tr '[:upper:]' '[:lower:]' )
             study=$( echo $name | grep -oP "_\KS\d+(?=R\d+[r]?[\d+]?)" )
+            
+            echo ${{tissue}} >> {log}
+            echo ${{prepl}} >> {log}
+            echo ${{study}} >> {log}
             
             mkdir -p MADRID_input/${{tissue}}/geneCounts/
             mkdir -p MADRID_input/${{tissue}}/insertSizeMetrics/
