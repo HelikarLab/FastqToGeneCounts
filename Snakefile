@@ -327,8 +327,8 @@ rule preroundup:
         IFS=","
         while read srr name endtype prep; do
             tissue=$(echo $name | cut -d '_' -f1)
-            prepl=$( echo "$prep" | tr '[:upper:]' '[:lower:]' )
-            study=$( echo $name | grep -oP "_\KS\d+(?=R\d+[r]?[\d+]?)" )
+            prepl=$(echo "$prep" | tr '[:upper:]' '[:lower:]')
+            study=$(echo $name | grep -oP "_\KS\d+(?=R\d+[r]?[\d+]?)")
             
             echo ${{tissue}} >> {log}
             echo ${{prepl}} >> {log}
@@ -353,10 +353,11 @@ rule preroundup:
             else
                 echo "invalid layout"
             fi
+            
             if [[ $prepl == "mrna" ]]; then
                 echo "mrna" > {config[ROOTDIR]}/data/${{tissue}}/prepMethods/${{name}}_prep_method.txt
                 echo "mrna" > MADRID_input/${{tissue}}/prepMethods/${{study}}/${{name}}_prep_method.txt
-            elif [[ $prep == "total" ]]; then
+            elif [[ $prepl == "total" ]]; then
                 echo "total" > {config[ROOTDIR]}/data/${{tissue}}/prepMethods/${{name}}_prep_method.txt
                 echo "total" > MADRID_input/${{tissue}}/prepMethods/${{study}}/${{name}}_prep_method.txt
             else
