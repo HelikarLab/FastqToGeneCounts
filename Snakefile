@@ -250,7 +250,7 @@ def perform_dump_fastq(wildcards):
 
 
 rule_all = [
-    os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "preroundup.txt"),  # pre-roundup
+    os.path.join(config["ROOTDIR"], "temp", "preroundup.txt"),  # pre-roundup
     config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],  # Generate Genome
     perform_dump_fastq,  # dump_fastq
     perform_screen_rule,  # fastq_screen
@@ -351,7 +351,7 @@ rule all:
 rule preroundup:
     input: config["MASTER_CONTROL"]
     #output: touch("preroundup.txt")
-    output: touch(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "preroundup.txt"))
+    output: touch(os.path.join(config["ROOTDIR"], "temp", "preroundup.txt"))
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 200 * attempt,
