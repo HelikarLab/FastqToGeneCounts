@@ -422,7 +422,8 @@ if perform_screen():
         """
         Download genomes to screen against
         """
-        output: directory("FastQ_Screen_Genomes")
+        output: directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes"))
+        # output: directory("FastQ_Screen_Genomes")
         threads: 1
         resources:
             mem_mb=lambda wildcards, attempt: 1500 * attempt, # 1.5 GB * attempt
@@ -430,7 +431,7 @@ if perform_screen():
         conda: "envs/screen.yaml"
         shell:
             """
-            if [[ ! -d "./FastQ_Screen_Genomes" ]]; then
+            if [[ ! -d {output} ]]; then
                 fastq_screen --get_genomes
                 
                 # remove data1/ from screen genome paths
