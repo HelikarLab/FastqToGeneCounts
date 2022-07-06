@@ -423,7 +423,7 @@ if perform_screen():
         """
         Download genomes to screen against
         """
-        output: directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes"))
+        output: dir=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes"))
         # output: directory("FastQ_Screen_Genomes")
         threads: 1
         resources:
@@ -649,13 +649,13 @@ if perform_screen():
     rule contaminant_screen:
         input:
             files=get_screen_input,
-            genomes=rules.get_screen_genomes.output
+            genomes=rules.get_screen_genomes.output.dir
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
             tissue_name="{tissue_name}",
             tag="{tag}",
             direction="{PE_SE}",
-            genomes_config=os.path.join(rules.get_screen_genomes.output, "fastq_screen.conf")
+            genomes_config=os.path.join(rules.get_screen_genomes.output.dir, "fastq_screen.conf")
         conda: "envs/screen.yaml"
         resources:
             mem_mb=lambda wildcards, attempt: 5000 * attempt,# 5 GB
