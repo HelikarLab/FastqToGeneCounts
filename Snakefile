@@ -274,6 +274,7 @@ rule_all = [
         tag=get_tags()
     ),
 
+    # FastQ aligned reads
     expand(
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai"),
         zip,
