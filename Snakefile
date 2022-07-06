@@ -250,7 +250,7 @@ def perform_dump_fastq(wildcards):
 
 
 rule_all = [
-    "preroundup.txt",  # pre-roundup
+    os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "preroundup.txt"),  # pre-roundup
     config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],  # Generate Genome
     perform_dump_fastq,  # dump_fastq
     perform_screen_rule,  # fastq_screen
