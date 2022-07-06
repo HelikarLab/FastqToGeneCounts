@@ -899,14 +899,14 @@ rule copy_geneCounts:
 rule index_bam_file:
     input: rules.star_align.output.bam_file
     output: os.path.join(config["ROOTDIR"],"data","{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.bam.bai")
-    threads: 1
+    threads: 10
     resources:
-        mem_mb=lambda wildcards, attempt: 1000 * attempt,# 1 GB
-        runtime=1
+        mem_mb=lambda wildcards, attempt: 2000 * attempt, # 2 GB per attempt
+        runtime=lambda wildcards, attempt: 5 * attempt  # 5 minutes per attempt
     conda: "envs/samtools.yaml"
     shell:
         """
-        samtools index {input} {output}
+        samtools index -@ {threads} {input} {output}
         """
 
 
