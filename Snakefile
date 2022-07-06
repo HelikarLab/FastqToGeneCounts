@@ -350,7 +350,6 @@ rule all:
 # Not 100% sure if this is needed
 rule preroundup:
     input: config["MASTER_CONTROL"]
-    #output: touch("preroundup.txt")
     output: touch(os.path.join(config["ROOTDIR"], "temp", "preroundup.txt"))
     threads: 1
     resources:
