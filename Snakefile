@@ -653,14 +653,15 @@ if perform_screen():
         params:
             tissue_name="{tissue_name}",
             tag="{tag}",
-            direction="{PE_SE}"
+            direction="{PE_SE}",
+            genomes_config=os.path.join(rules.get_screen_genomes.output, "fastq_screen.conf")
         conda: "envs/screen.yaml"
         resources:
             mem_mb=lambda wildcards, attempt: 5000 * attempt,# 5 GB
             runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
-            fastq_screen --aligner Bowtie2 --conf FastQ_Screen_Genomes/fastq_screen.conf {input}
+            fastq_screen --aligner Bowtie2 --conf {params.genomes_config} {input}
             mv {params.tissue_name}_{params.tag}_{params.direction}_screen.txt results/data/{params.tissue_name}/fq_screen/
             """
 
