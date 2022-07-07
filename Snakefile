@@ -274,6 +274,7 @@ rule_all = [
         tag=get_tags()
     ),
 
+    # FastQ aligned reads
     expand(
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai"),
         zip,
@@ -422,7 +423,8 @@ if perform_screen():
         """
         Download genomes to screen against
         """
-        output: directory("FastQ_Screen_Genomes")
+        output: dir=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes"))
+        # output: directory("FastQ_Screen_Genomes")
         threads: 1
         resources:
             mem_mb=lambda wildcards, attempt: 1500 * attempt, # 1.5 GB * attempt
@@ -430,7 +432,7 @@ if perform_screen():
         conda: "envs/screen.yaml"
         shell:
             """
-            if [[ ! -d "./FastQ_Screen_Genomes" ]]; then
+            if [[ ! -d {output} ]]; then
                 fastq_screen --get_genomes
                 
                 # remove data1/ from screen genome paths
@@ -647,19 +649,20 @@ if perform_screen():
     rule contaminant_screen:
         input:
             files=get_screen_input,
-            genomes=rules.get_screen_genomes.output
+            genomes=rules.get_screen_genomes.output.dir
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
             tissue_name="{tissue_name}",
             tag="{tag}",
-            direction="{PE_SE}"
+            direction="{PE_SE}",
+            genomes_config=os.path.join(rules.get_screen_genomes.output.dir, "fastq_screen.conf")
         conda: "envs/screen.yaml"
         resources:
             mem_mb=lambda wildcards, attempt: 5000 * attempt,# 5 GB
             runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
-            fastq_screen --aligner Bowtie2 --conf FastQ_Screen_Genomes/fastq_screen.conf {input}
+            fastq_screen --aligner Bowtie2 --conf {params.genomes_config} {input}
             mv {params.tissue_name}_{params.tag}_{params.direction}_screen.txt results/data/{params.tissue_name}/fq_screen/
             """
 
