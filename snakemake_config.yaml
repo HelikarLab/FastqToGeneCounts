@@ -1,6 +1,7 @@
 # Navigate the following link to download the most recent version of the human assembly
 # Replace VERSION with the version you are interested in
-# wget http://ftp.ensembl.org/pub/release-VERSION/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+# GTF_FILE: http://ftp.ensembl.org/pub/release-106/gtf/homo_sapiens/
+# GENOME_FASTA_FILE: http://ftp.ensembl.org/pub/release-VERSION/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 
 # Modify these settings to reflect your paths
 # Only change values after the colon (':')
