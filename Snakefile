@@ -950,6 +950,10 @@ rule get_rnaseq_metrics:
     conda: "envs/picard.yaml"
     shell:
         """
+        # Create the parent output directories
+        mkdir -p $(dirname -- {output.metrics})
+        mkdir -p $(dirname -- {output.strand})
+        
         # Get the column sums and store them in unst, forw, and rev, respectively
         # We are interested in columns 2, 3, and 4, which correspond to the number of reads in the unstranded, forward, and reverse strand, respectively
         # Column 1: Gene ID 
