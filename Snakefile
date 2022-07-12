@@ -945,7 +945,7 @@ rule get_rnaseq_metrics:
         ribo_int_list=config["RRNA_INTERVAL_LIST"]
     threads: 4
     resources:
-        mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
+        mem_mb=lambda wildcards, attempt: 2500 * 5 * attempt,# 5 GB / attempt
         runtime=lambda wildcards, attempt: 60 * attempt
     conda: "envs/picard.yaml"
     shell:
