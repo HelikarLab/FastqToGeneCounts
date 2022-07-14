@@ -423,10 +423,11 @@ if perform_screen():
         """
         Download genomes to screen against
         """
-        output: dir=directory(os.path.join(config["ROOTDIR"]))
+        output: job_done=touch(os.path.join(config["ROOTDIR"], "temp", "get_screen_genomes.complete"))
         # output: directory("FastQ_Screen_Genomes")
         params:
-            fastq_dir = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
+            output_dir = config["FASTQ_DIR"],
+            sed_dir = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
         threads: 1
         resources:
             mem_mb=lambda wildcards, attempt: 1500 * attempt, # 1.5 GB * attempt
@@ -435,10 +436,10 @@ if perform_screen():
         shell:
             """
             if [[ ! -d {output} ]]; then
-                fastq_screen --get_genomes --outdir {output}
+                fastq_screen --get_genomes --outdir {params.output_dir}
                 
                 # remove data1/ from screen genome paths
-                sed -i 's/\/data1\///' {params.fastq_dir}/fastq_screen.conf
+                sed -i 's/\/data1\///' {params.sed_dir}/fastq_screen.conf
             else
                 touch -c {output}/*
             fi
@@ -651,13 +652,13 @@ if perform_screen():
     rule contaminant_screen:
         input:
             files=get_screen_input,
-            genomes=rules.get_screen_genomes.output.dir
+            genomes = rules.get_screen_genomes.params.output_dir
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
             tissue_name="{tissue_name}",
             tag="{tag}",
             direction="{PE_SE}",
-            genomes_config=os.path.join(rules.get_screen_genomes.output.dir, "fastq_screen.conf")
+            genomes_config=os.path.join(rules.get_screen_genomes.params.output_dir, "fastq_screen.conf")
         conda: "envs/screen.yaml"
         resources:
             mem_mb=lambda wildcards, attempt: 5000 * attempt,# 5 GB
