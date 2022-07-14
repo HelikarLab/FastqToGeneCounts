@@ -426,7 +426,7 @@ if perform_screen():
         output: job_done=touch(os.path.join(config["ROOTDIR"], "temp", "get_screen_genomes.complete"))
         # output: directory("FastQ_Screen_Genomes")
         params:
-            output_dir = config["FASTQ_DIR"],
+            output_dir = config["ROOTDIR"],
             sed_dir = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
         threads: 1
         resources:
