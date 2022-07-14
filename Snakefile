@@ -423,8 +423,10 @@ if perform_screen():
         """
         Download genomes to screen against
         """
-        output: dir=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes"))
+        output: dir=directory(os.path.join(config["ROOTDIR"]))
         # output: directory("FastQ_Screen_Genomes")
+        params:
+            fastq_dir = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
         threads: 1
         resources:
             mem_mb=lambda wildcards, attempt: 1500 * attempt, # 1.5 GB * attempt
@@ -436,7 +438,7 @@ if perform_screen():
                 fastq_screen --get_genomes --outdir {output}
                 
                 # remove data1/ from screen genome paths
-                sed -i 's/\/data1\///' {output}/fastq_screen.conf
+                sed -i 's/\/data1\///' {params.fastq_dir}/fastq_screen.conf
             else
                 touch -c {output}/*
             fi
