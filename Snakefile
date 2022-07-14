@@ -436,7 +436,7 @@ if perform_screen():
                 fastq_screen --get_genomes --outdir {output}
                 
                 # remove data1/ from screen genome paths
-                sed -i 's/\/data1\///' FastQ_Screen_Genomes/fastq_screen.conf
+                sed -i 's/\/data1\///' {output}/fastq_screen.conf
             else
                 touch -c {output}/*
             fi
