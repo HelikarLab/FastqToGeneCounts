@@ -658,7 +658,7 @@ if perform_screen():
             tissue_name="{tissue_name}",
             tag="{tag}",
             direction="{PE_SE}",
-            genomes_config=os.path.join(rules.get_screen_genomes.params.output_dir, "fastq_screen.conf")
+            genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf")
         conda: "envs/screen.yaml"
         threads: 10
         resources:
