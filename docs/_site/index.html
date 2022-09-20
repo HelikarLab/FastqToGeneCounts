@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="This is an overview of how to get started with the MADRID container">
+<meta name="keywords" content="getting_started,  ">
+<title>Getting Started | MADRID Documentation</title>
+<link rel="stylesheet" href="css/syntax.css">
+
+
+<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+<!--<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">-->
+<link rel="stylesheet" href="css/modern-business.css">
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link rel="stylesheet" href="css/customstyles.css">
+<link rel="stylesheet" href="css/boxshadowproperties.css">
+<!-- most color styles are extracted out to here -->
+<link rel="stylesheet" href="css/theme-blue.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+<script src="js/jquery.navgoco.min.js"></script>
+
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<!-- Anchor.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.2.0/anchor.min.js"></script>
+<script src="js/toc.js"></script>
+<script src="js/customscripts.js"></script>
+
+<link rel="shortcut icon" href="images/favicon.ico">
+
+<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+<!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+<![endif]-->
+
+<link rel="alternate" type="application/rss+xml" title="MADRID" href="http://localhost:4000/feed.xml">
+
+<link rel="stylesheet" href="css/my_changes.css">
+
+
+
+    <script>
+        $(document).ready(function() {
+            // Initialize navgoco with default options
+            $("#mysidebar").navgoco({
+                caretHtml: '',
+                accordion: true,
+                openClass: 'active', // open
+                save: false, // leave false or nav highlighting doesn't work right
+                cookie: {
+                    name: 'navgoco',
+                    expires: false,
+                    path: '/'
+                },
+                slide: {
+                    duration: 400,
+                    easing: 'swing'
+                }
+            });
+
+            $("#collapseAll").click(function(e) {
+                e.preventDefault();
+                $("#mysidebar").navgoco('toggle', false);
+            });
+
+            $("#expandAll").click(function(e) {
+                e.preventDefault();
+                $("#mysidebar").navgoco('toggle', true);
+            });
+
+        });
+
+    </script>
+    <script>
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip()
+        })
+    </script>
+    <script>
+        $(document).ready(function() {
+            $("#tg-sb-link").click(function() {
+                $("#tg-sb-sidebar").toggle();
+                $("#tg-sb-content").toggleClass('col-md-9');
+                $("#tg-sb-content").toggleClass('col-md-12');
+                $("#tg-sb-icon").toggleClass('fa-toggle-on');
+                $("#tg-sb-icon").toggleClass('fa-toggle-off');
+            });
+        });
+    </script>
+    
+
+</head>
+<body>
+<!-- Navigation -->
+<nav class="navbar navbar-inverse navbar-static-top">
+    <div class="container topnavlinks">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="fa fa-home fa-lg navbar-brand" href="index.html">&nbsp;<span class="projectTitle"> MADRID Documentation</span></a>
+        </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <!-- toggle sidebar button -->
+                <li><a id="tg-sb-link" href="#"><i id="tg-sb-icon" class="fa fa-toggle-on"></i> Nav</a></li>
+                <!-- entries without drop-downs appear here -->
+
+
+
+
+                
+                
+                
+                <li><a href="news">News</a></li>
+                
+                
+                
+                <li><a href="https://github.com/HelikarLab/MADRID" target="_blank" rel="noopener">GitHub</a></li>
+                
+                
+                
+                <!-- entries with drop-downs appear here -->
+                <!-- conditional logic to control which topnav appears for the audience defined in the configuration file.-->
+                
+                
+			<li>
+
+
+
+  <a class="email" title="Submit feedback" href="https://github.com/HelikarLab/MADRID/issues">Feedback</a>
+
+</li>
+
+
+
+		
+                
+                </li>
+            </ul>
+        </div>
+        </div>
+        <!-- /.container -->
+</nav>
+
+
+
+<!-- Page Content -->
+<div class="container">
+  <div id="main">
+    <!-- Content Row -->
+    <div class="row">
+        
+        
+            <!-- Sidebar Column -->
+            <div class="col-md-3" id="tg-sb-sidebar">
+                
+
+<ul id="mysidebar" class="nav">
+  <li class="sidebarTitle"> </li>
+  
+  
+  
+      
+  
+  <li>
+      <a title="Overview" href="#">Overview</a>
+      <ul>
+          
+          
+          
+          <li class="active"><a title="Getting Started" href="index.html">Getting Started</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Example Workflow" href="madrid_example_workflow.html">Example Workflow</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Flow Charts" href="madrid_flowcharts.html">Flow Charts</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Resources" href="madrid_resources.html">Resources</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Repository Structure" href="madrid_repository_structure.html">Repository Structure</a></li>
+          
+          
+          
+          
+      </ul>
+   </li>
+     
+      
+  
+  <li>
+      <a title="Arguments" href="#">Arguments</a>
+      <ul>
+          
+          
+          
+          <li><a title="Arguments Overview" href="madrid_arguments_overview.html">Arguments Overview</a></li>
+          
+          
+          
+          <li class="subfolders">
+              <a title="Python Arguments" href="#">Python Arguments</a>
+              <ul>
+                  
+                  
+                  
+                  <li><a title="RNA Seq Preprocess" href="madrid_args_rnaseq_preprocess.html">RNA Seq Preprocess</a></li>
+                  
+                  
+                  
+                  
+                  
+                  <li><a title="RNA Seq Gen" href="madrid_args_rnaseq_gen.html">RNA Seq Gen</a></li>
+                  
+                  
+                  
+                  
+                  
+                  <li><a title="Proteomics Gen" href="madrid_args_proteomics_gen.html">Proteomics Gen</a></li>
+                  
+                  
+                  
+                  
+                  
+                  <li><a title="Merge Omics" href="madrid_args_merge_xomics.html">Merge Omics</a></li>
+                  
+                  
+                  
+              </ul>
+          </li>
+          
+          
+          
+          <li class="subfolders">
+              <a title="R Arguments" href="#">R Arguments</a>
+              <ul>
+                  
+                  
+                  
+                  <li><a title="Cluster Samples" href="madrid_args_cluster_samples.html">Cluster Samples</a></li>
+                  
+                  
+                  
+              </ul>
+          </li>
+          
+          
+          
+          
+      </ul>
+   </li>
+     
+      
+      
+      <!-- if you aren't using the accordion, uncomment this block:
+         <p class="external">
+             <a href="#" id="collapseAll">Collapse All</a> | <a href="#" id="expandAll">Expand All</a>
+         </p>
+         -->
+</ul>
+
+<!-- this highlights the active parent class in the navgoco sidebar. this is critical so that the parent expands when you're viewing a page. This must appear below the sidebar code above. Otherwise, if placed inside customscripts.js, the script runs before the sidebar code runs and the class never gets inserted.-->
+<script>$("li.active").parents('li').toggleClass("active");</script>
+
+
+
+            </div>
+            
+        
+
+        <!-- Content Column -->
+        <div class="col-md-9" id="tg-sb-content">
+            <div class="post-header">
+   <h1 class="post-title-main">Getting Started</h1>
+</div>
+
+
+
+<div class="post-content">
+
+   
+    <div class="summary">This is an overview of how to get started with the MADRID container</div>
+   
+
+    
+    
+<!-- this handles the automatic toc. use ## for subheads to auto-generate the on-page minitoc. if you use html tags, you must supply an ID for the heading element in order for it to appear in the minitoc. -->
+<script>
+$( document ).ready(function() {
+  // Handler for .ready() called.
+
+$('#toc').toc({ minimumHeaders: 0, listType: 'ul', showSpeed: 0, headers: 'h2,h3,h4' });
+
+/* this offset helps account for the space taken up by the floating toolbar. */
+$('#toc').on('click', 'a', function() {
+  var target = $(this.getAttribute('href'))
+    , scroll_target = target.offset().top
+
+  $(window).scrollTop(scroll_target - 10);
+  return false
+})
+
+});
+</script>
+
+<div id="toc"></div>
+
+
+
+    
+
+
+    
+
+    <a target="_blank" rel="noopener" href="https://github.com/HelikarLab/MADRID/blob/master/index.md" class="btn btn-default githubEditButton" role="button"><i class="fa fa-github fa-lg"></i> Edit me</a>
+
+    
+
+   <h2 id="what-is-madrid">What is MADRID?</h2>
+<p>MADRID stands for “<strong>M</strong>et<strong>A</strong>bolic <strong>D</strong>rug <strong>R</strong>epurposing <strong>ID</strong>entification”.</p>
+
+<p>This is a <a href="https://jupyter.org/">Jupyter Notebook</a>-based pipeline to build context-specific, <a href="https://en.wikipedia.org/wiki/Metabolic_network_modelling">constraing-based metabolic models (CBMM)</a> from a single source, or a combination of sources, from the following “-omics” data:</p>
+<ul>
+  <li><a href="https://en.wikipedia.org/wiki/RNA-Seq">Bulk RNA-sequencing</a></li>
+  <li><a href="https://en.wikipedia.org/wiki/Single_cell_sequencing">Single-Cell</a> RNA-sequencing</li>
+  <li><a href="https://en.wikipedia.org/wiki/Mass_spectrometry">Mass Spectrometry</a> <a href="https://en.wikipedia.org/wiki/Proteomics">Proteomics</a></li>
+  <li><a href="https://en.wikipedia.org/wiki/Microarray">Microarray</a></li>
+</ul>
+
+<p>Ultimately, this serves as a platform to use these models to identify drug targets and potentially repurposable drugs for metabolism-impacting diseases.</p>
+
+<p>MADRID does not require any amount of programming experience to create models. However, every step of the pipeline is packaged in its own .py file to promote accessible modification, addition, or replacement of analysis steps. The Jupyterlab container comes pre-loaded with the most popular <a href="https://www.r-project.org/">R</a> and <a href="https://www.python.org/">Python</a> libraries, but if you would like to use a library and cannot install it, please <a href="https://github.com/HelikarLab/MADRID/issues">open a new issue</a> on <a href="https://github.com/HelikarLab/MADRID">our Github page</a>!</p>
+
+<p>In this pipeline, the term “context” refers to a specific state that can be subset from a genome-scale metabolic model using experimental data. This context can be a specific cell or tissue type in a specific experimental state, such as a control or a disease.</p>
+
+<p>For drug perturbation scoring of a specific cell-type or tissue, it is only necessary to build a CBMM (Steps 1 to 5) for the healthy control state. Differential gene expression (Step 6) will be used to for disease analysis so that multiple diseaes can be analyzed using the same CBMM.</p>
+
+<h2 id="before-you-start">Before You Start</h2>
+
+<p>The proper data must be provided, dependent on what analysis you would like to run</p>
+
+<h3 id="rna-sequencing">RNA-Sequencing</h3>
+<ul>
+  <li>A folder named “MADRID_input” in the <code class="language-plaintext highlighter-rouge">/main/data</code> directory is available. Proper inputs can be generated using our <a href="https://github.com/HelikarLab/FastqToGeneCounts">SnakeMake Pipeline</a>, designed specifically for MADRID.</li>
+</ul>
+
+<div class="alert alert-info" role="alert"><i class="fa fa-info-circle"></i> <b>Note:</b> RNA-sequencing data can be <a href="https://en.wikipedia.org/wiki/RNA-Seq">bulk</a> or <a href="https://en.wikipedia.org/wiki/Single_cell_sequencing">single-cell</a> sequencing, but our SnakeMake pipeline is currently only available for bulk RNA-sequencing.</div>
+
+<ul>
+  <li>If processing RNA-sequencing data with an alternate procedure, or importing a pre-made gene count matrix, follow the instructions found in <strong>Step 1</strong> of the MADRID container.</li>
+</ul>
+
+<h3 id="proteomics">Proteomics</h3>
+<ul>
+  <li>A matrix of measurement where rows are proteins in Entrez format, and columns are arbitrary sample names</li>
+</ul>
+
+<div class="alert alert-warning" role="alert"><i class="fa fa-warning"></i> <b>Important:</b> A proteomics workflow is included in the MADRID container.</div>
+
+<h3 id="microarray">Microarray</h3>
+<div class="alert alert-danger" role="alert"><i class="fa fa-exclamation-circle"></i> <b>Warning:</b> Microarray has become mostly obsolete. Another data source should be used if possible, but is included in MADRID in case it is required.</div>
+
+<ul>
+  <li>Results must be uploaded to <a href="https://www.ncbi.nlm.nih.gov/geo/">NCBI Gene Expression Omnibus</a></li>
+  <li>The only thing required by MADRID is a configuration file with: GSE, GSM, and GPL codes</li>
+  <li>A template can be found at: <a href="https://github.com/HelikarLab/MADRID/blob/master/main/data/config_sheets/microarray_data_inputs_template.xlsx"><code class="language-plaintext highlighter-rouge">/main/data/config_sheets/microarray_data_inputs_template.xlsx</code></a></li>
+</ul>
+
+<h2 id="identifying-drug-targets">Identifying Drug Targets</h2>
+<p>The following is a list of steps to identify drug targets. Stop after <strong>Step 3</strong> if you are building a context-specific model for other purposes</p>
+
+<ol>
+  <li>Preprocess Bulk RNA-sequencing data by converting gene counts from <a href="https://github.com/alexdobin/STAR">STAR aligner</a> into a unified matrix, fetch necessary info about each gene required for normalization, and generate a configuration sheet.</li>
+  <li>Analyze any combination of Microarray, RNA-sequencing (total, polyA, or single-cell), or proteomics data, and output a list of active genes for each strategy/method.</li>
+  <li>Check for consensus amongst strategies according to desired rigor and merge into a singular set of active genes.</li>
+  <li>Create tissue specific models based on the list of active genes. If required, the user can manually refine these models and supply them in <strong>Step 4</strong> of the MADRID container.</li>
+  <li>Identify differential gene expressions from disease datasets using either microarray or bulk RNA-sequencing transcriptomics information.</li>
+  <li>Identify drug targets and repurposable drugs. This step consists of four substeps:
+    <ul>
+      <li>Mapping drugs on automatically-created or user-supplied models</li>
+      <li>Knock-out simulation</li>
+      <li>Compare simulation results of perturbed and unperturbed models</li>
+      <li>Integrate with disease genes and score drug targets</li>
+    </ul>
+  </li>
+</ol>
+
+<h2 id="configuration-information">Configuration Information</h2>
+<p>Configuration Excel files should be uploaded to <a href="https://github.com/HelikarLab/MADRID/tree/master/main/data/config_sheets"><code class="language-plaintext highlighter-rouge">/main/data/config_sheets/</code></a>. The sheet names in these configuration files should correspond to the context (tissue name, cell name, control, etc.) where each sheet contains the sample names to include in that context-specific model. These sample names should correspond to the sample (column names in the source data matrix, which should be uploaded (or output) in <a href="https://github.com/HelikarLab/MADRID/tree/master/main/data/data_matrices"><code class="language-plaintext highlighter-rouge">/main/data/data_matrices/&lt;model name&gt;</code></a> of the MADRID container.</p>
+
+<div class="alert alert-info" role="alert"><i class="fa fa-info-circle"></i> <b>Note:</b> As stated in <a href="https://github.com/HelikarLab/MADRID/issues/46">this issue</a>, we will be moving to use pure CSV files for ease of use in MADRID. There is no timeline for this, as of now.</div>
+
+<p>In the Docker image, some exemplary input files are included to build metabolic models of naïve, Th1, Th2, and Th17 subtypes, and identify drug targets for Rheumatoid arthritis. You can follow the documentation in the container, the format of these files, and the template files to create your own input files.</p>
+
+<h2 id="starting-the-container">Starting the Container</h2>
+
+<div class="alert alert-danger" role="alert"><i class="fa fa-exclamation-circle"></i> <b>Warning:</b> If you terminate your session after running the Docker, any changes you make WILL NOT BE SAVED! Please mount a local directory to the Docker image as instructed on <a href="https://docs.docker.com/storage/volumes/">Docker’s website</a> to prevent data loss.</div>
+
+<h3 id="choosing-a-tag">Choosing a Tag</h3>
+<p>Several tags are available for use. <a href="https://docs.docker.com/engine/reference/commandline/tag/">Tags</a> are Docker’s method of versioning. For this package, several tags are available (as described below), but the most useful one is most likely <code class="language-plaintext highlighter-rouge">latest</code>.</p>
+
+<p>A list of available tags can be found <a href="https://github.com/HelikarLab/MADRID/pkgs/container/madrid/versions">here</a></p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">Tag</th>
+      <th style="text-align: center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">latest</code></td>
+      <td style="text-align: center">Latest stable release</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">master-1.0</code></td>
+      <td style="text-align: center">Any stable changes under the 1.0 release</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>To start the container, <a href="https://docs.docker.com/">docker</a> must be installed.</p>
+
+<p>Execute the following tasks in a terminal to download the container, where <code class="language-plaintext highlighter-rouge">CHOSEN-TAG</code> is the tag chosen from the table above</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>docker login
+<span class="nb">sudo </span>docker pull ghcr.io/helikarlab/madrid:CHOSEN-TAG
+</code></pre></div></div>
+
+<p>For example, if I chose the <code class="language-plaintext highlighter-rouge">latest</code> tag, I would execute the following:</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>docker login
+<span class="nb">sudo </span>docker pull ghcr.io/helikarlab/madrid:latest
+</code></pre></div></div>
+
+<p>Now we can run the container.</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="se">\</span>
+  <span class="nt">--cpus</span><span class="o">=</span>4 <span class="se">\</span>
+  <span class="nt">-p</span> 8888:8888 <span class="se">\</span>
+  <span class="nt">--volume</span><span class="o">=</span><span class="nv">$HOME</span>/gurobi.lic:/opt/gurobi/gurobi.lic:ro <span class="se">\</span>
+  <span class="nt">--volume</span><span class="o">=</span><span class="nv">$HOME</span>/madrid_local:/home/jovyan/work/data/local_files <span class="se">\</span>
+  <span class="nt">--name</span> madrid <span class="se">\</span>
+  <span class="nt">--rm</span> <span class="se">\</span>
+  <span class="nt">-it</span> <span class="se">\</span>
+  <span class="s2">"ghcr.io/helikarlab/madrid:CHOSEN-TAG"</span>
+</code></pre></div></div>
+<div class="alert alert-warning" role="alert"><i class="fa fa-warning"></i> <b>Important:</b> Make sure to use the tag you chose from the table in the <code class="language-plaintext highlighter-rouge">docker run...</code> command, replacing <code class="language-plaintext highlighter-rouge">CHOSEN-TAG</code> with your tag.</div>
+
+<p>Below is a list of options included in the above <code class="language-plaintext highlighter-rouge">docker run</code> command. These can be removed or changed as-needed, as long as you are aware of their implications
+If you have questions, don’t be afraid to ask on our <a href="https://github.com/HelikarLab/MADRID/issues">Issues Page</a>!</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">Option</th>
+      <th style="text-align: center">Required?</th>
+      <th style="text-align: center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">–cpus=4</td>
+      <td style="text-align: center">No</td>
+      <td style="text-align: center">The number of CPUs to allocate to the container. This is optional, but recommended.</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">-p 8888:8888</td>
+      <td style="text-align: center">Yes</td>
+      <td style="text-align: center">The port to use for the Jupyter Notebook.</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">–volume=$HOME/gurobi.lic</td>
+      <td style="text-align: center">Yes</td>
+      <td style="text-align: center">The path to your Gurobi license file. This is required to run the <a href="https://www.gurobi.com/">Gurobi Optimizer</a> in MADRID.</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">–volume=$HOME/madrid_local</td>
+      <td style="text-align: center">Recommended</td>
+      <td style="text-align: center">The path to store local MADRID files at. This is not required, but recommended to negate data loss</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">–name</td>
+      <td style="text-align: center">No</td>
+      <td style="text-align: center">What the container should be named for easy identification</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">–rm</td>
+      <td style="text-align: center">No</td>
+      <td style="text-align: center">Remove the container after you are finished with it</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">-it</td>
+      <td style="text-align: center">No</td>
+      <td style="text-align: center">Run the container interactively</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">ghcr.io/helikarlab/madrid:CHOSEN-TAG</td>
+      <td style="text-align: center">Yes</td>
+      <td style="text-align: center">The container image and tag to start</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="accessing-madrid">Accessing MADRID</h2>
+<p>Navigate to <a href="http://localhost:8888">http://localhost:8888</a> in your browser</p>
+
+<h2 id="working-in-the-notebook">Working in the Notebook</h2>
+<p>Open the Jupyter Notebook file, found at <code class="language-plaintext highlighter-rouge">/main/py/pipeline_paper_demo.ipynb</code> in the web interface.</p>
+
+<p>Configuration files should be uploaded to <code class="language-plaintext highlighter-rouge">/main/data/config_files</code> and data files to <code class="language-plaintext highlighter-rouge">/main/data/data_matrices</code>, according to instructions in the notebook and provided templates</p>
+
+<p>Update the file names in the Jupyter Notebook accordingly</p>
+
+
+    <div class="tags">
+        
+        <b>Tags: </b>
+        
+        
+        
+        <a href="tag_getting_started.html" class="btn btn-default navbar-btn cursorNorm" role="button">getting_started</a>
+        
+        
+        
+    </div>
+
+
+
+
+
+
+
+</div>
+
+<hr class="shaded"/>
+
+<footer>
+            <div class="row">
+                <div class="col-lg-12 footer">
+                <a href="https://github.com/HelikarLab/MADRID">MADRID</a> is maintained by <a href="https://github.com/JoshLoecker">Josh Loecker</a> and <a href="https://github.com/babessell1">Brandt Bessell</a><br>
+               &copy;2022 Helikar Lab. All rights reserved. <br />
+<span>Page last updated:</span> Sept 15, 2022<br/> Site last generated: Sep 20, 2022 <br />
+<p><img src="images/helikarlab_nobackground.png" alt="Company logo"/></p>
+                </div>
+            </div>
+</footer>
+
+
+
+
+
+
+        </div>
+    <!-- /.row -->
+</div>
+<!-- /.container -->
+</div>
+<!-- /#main -->
+    </div>
+
+</body>
+
+</html>
+
+

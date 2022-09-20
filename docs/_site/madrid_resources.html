@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="">
+<meta name="keywords" content=" ">
+<title>Resources | MADRID Documentation</title>
+<link rel="stylesheet" href="css/syntax.css">
+
+
+<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+<!--<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">-->
+<link rel="stylesheet" href="css/modern-business.css">
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link rel="stylesheet" href="css/customstyles.css">
+<link rel="stylesheet" href="css/boxshadowproperties.css">
+<!-- most color styles are extracted out to here -->
+<link rel="stylesheet" href="css/theme-blue.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+<script src="js/jquery.navgoco.min.js"></script>
+
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<!-- Anchor.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.2.0/anchor.min.js"></script>
+<script src="js/toc.js"></script>
+<script src="js/customscripts.js"></script>
+
+<link rel="shortcut icon" href="images/favicon.ico">
+
+<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+<!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+<![endif]-->
+
+<link rel="alternate" type="application/rss+xml" title="MADRID" href="http://localhost:4000/feed.xml">
+
+<link rel="stylesheet" href="css/my_changes.css">
+
+
+
+    <script>
+        $(document).ready(function() {
+            // Initialize navgoco with default options
+            $("#mysidebar").navgoco({
+                caretHtml: '',
+                accordion: true,
+                openClass: 'active', // open
+                save: false, // leave false or nav highlighting doesn't work right
+                cookie: {
+                    name: 'navgoco',
+                    expires: false,
+                    path: '/'
+                },
+                slide: {
+                    duration: 400,
+                    easing: 'swing'
+                }
+            });
+
+            $("#collapseAll").click(function(e) {
+                e.preventDefault();
+                $("#mysidebar").navgoco('toggle', false);
+            });
+
+            $("#expandAll").click(function(e) {
+                e.preventDefault();
+                $("#mysidebar").navgoco('toggle', true);
+            });
+
+        });
+
+    </script>
+    <script>
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip()
+        })
+    </script>
+    <script>
+        $(document).ready(function() {
+            $("#tg-sb-link").click(function() {
+                $("#tg-sb-sidebar").toggle();
+                $("#tg-sb-content").toggleClass('col-md-9');
+                $("#tg-sb-content").toggleClass('col-md-12');
+                $("#tg-sb-icon").toggleClass('fa-toggle-on');
+                $("#tg-sb-icon").toggleClass('fa-toggle-off');
+            });
+        });
+    </script>
+    
+
+</head>
+<body>
+<!-- Navigation -->
+<nav class="navbar navbar-inverse navbar-static-top">
+    <div class="container topnavlinks">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="fa fa-home fa-lg navbar-brand" href="index.html">&nbsp;<span class="projectTitle"> MADRID Documentation</span></a>
+        </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <!-- toggle sidebar button -->
+                <li><a id="tg-sb-link" href="#"><i id="tg-sb-icon" class="fa fa-toggle-on"></i> Nav</a></li>
+                <!-- entries without drop-downs appear here -->
+
+
+
+
+                
+                
+                
+                <li><a href="news">News</a></li>
+                
+                
+                
+                <li><a href="https://github.com/HelikarLab/MADRID" target="_blank" rel="noopener">GitHub</a></li>
+                
+                
+                
+                <!-- entries with drop-downs appear here -->
+                <!-- conditional logic to control which topnav appears for the audience defined in the configuration file.-->
+                
+                
+			<li>
+
+
+
+  <a class="email" title="Submit feedback" href="https://github.com/HelikarLab/MADRID/issues">Feedback</a>
+
+</li>
+
+
+
+		
+                
+                </li>
+            </ul>
+        </div>
+        </div>
+        <!-- /.container -->
+</nav>
+
+
+
+<!-- Page Content -->
+<div class="container">
+  <div id="main">
+    <!-- Content Row -->
+    <div class="row">
+        
+        
+            <!-- Sidebar Column -->
+            <div class="col-md-3" id="tg-sb-sidebar">
+                
+
+<ul id="mysidebar" class="nav">
+  <li class="sidebarTitle"> </li>
+  
+  
+  
+      
+  
+  <li>
+      <a title="Overview" href="#">Overview</a>
+      <ul>
+          
+          
+          
+          <li><a title="Getting Started" href="index.html">Getting Started</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Example Workflow" href="madrid_example_workflow.html">Example Workflow</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Flow Charts" href="madrid_flowcharts.html">Flow Charts</a></li>
+          
+          
+          
+          
+          
+          
+          <li class="active"><a title="Resources" href="madrid_resources.html">Resources</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Repository Structure" href="madrid_repository_structure.html">Repository Structure</a></li>
+          
+          
+          
+          
+      </ul>
+   </li>
+     
+      
+  
+  <li>
+      <a title="Arguments" href="#">Arguments</a>
+      <ul>
+          
+          
+          
+          <li><a title="Arguments Overview" href="madrid_arguments_overview.html">Arguments Overview</a></li>
+          
+          
+          
+          <li class="subfolders">
+              <a title="Python Arguments" href="#">Python Arguments</a>
+              <ul>
+                  
+                  
+                  
+                  <li><a title="RNA Seq Preprocess" href="madrid_args_rnaseq_preprocess.html">RNA Seq Preprocess</a></li>
+                  
+                  
+                  
+                  
+                  
+                  <li><a title="RNA Seq Gen" href="madrid_args_rnaseq_gen.html">RNA Seq Gen</a></li>
+                  
+                  
+                  
+                  
+                  
+                  <li><a title="Proteomics Gen" href="madrid_args_proteomics_gen.html">Proteomics Gen</a></li>
+                  
+                  
+                  
+                  
+                  
+                  <li><a title="Merge Omics" href="madrid_args_merge_xomics.html">Merge Omics</a></li>
+                  
+                  
+                  
+              </ul>
+          </li>
+          
+          
+          
+          <li class="subfolders">
+              <a title="R Arguments" href="#">R Arguments</a>
+              <ul>
+                  
+                  
+                  
+                  <li><a title="Cluster Samples" href="madrid_args_cluster_samples.html">Cluster Samples</a></li>
+                  
+                  
+                  
+              </ul>
+          </li>
+          
+          
+          
+          
+      </ul>
+   </li>
+     
+      
+      
+      <!-- if you aren't using the accordion, uncomment this block:
+         <p class="external">
+             <a href="#" id="collapseAll">Collapse All</a> | <a href="#" id="expandAll">Expand All</a>
+         </p>
+         -->
+</ul>
+
+<!-- this highlights the active parent class in the navgoco sidebar. this is critical so that the parent expands when you're viewing a page. This must appear below the sidebar code above. Otherwise, if placed inside customscripts.js, the script runs before the sidebar code runs and the class never gets inserted.-->
+<script>$("li.active").parents('li').toggleClass("active");</script>
+
+
+
+            </div>
+            
+        
+
+        <!-- Content Column -->
+        <div class="col-md-9" id="tg-sb-content">
+            <div class="post-header">
+   <h1 class="post-title-main">Resources</h1>
+</div>
+
+
+
+<div class="post-content">
+
+   
+
+    
+    
+<!-- this handles the automatic toc. use ## for subheads to auto-generate the on-page minitoc. if you use html tags, you must supply an ID for the heading element in order for it to appear in the minitoc. -->
+<script>
+$( document ).ready(function() {
+  // Handler for .ready() called.
+
+$('#toc').toc({ minimumHeaders: 0, listType: 'ul', showSpeed: 0, headers: 'h2,h3,h4' });
+
+/* this offset helps account for the space taken up by the floating toolbar. */
+$('#toc').on('click', 'a', function() {
+  var target = $(this.getAttribute('href'))
+    , scroll_target = target.offset().top
+
+  $(window).scrollTop(scroll_target - 10);
+  return false
+})
+
+});
+</script>
+
+<div id="toc"></div>
+
+
+
+    
+
+
+    
+
+    <a target="_blank" rel="noopener" href="https://github.com/HelikarLab/MADRID/blob/master/pages/madrid/madrid_resources.md" class="btn btn-default githubEditButton" role="button"><i class="fa fa-github fa-lg"></i> Edit me</a>
+
+    
+
+   <link rel="stylesheet" href="http://localhost:4000/assets/css/styles.css" />
+
+<p>
+  Below is a list of links used throughout this project:
+</p>
+
+<ul>
+  <li><a href="https://www.bioconductor.org/packages/release/bioc/html/affy.html" class="body-link" target="_blank">Affy</a></li>
+  <li><a href="https://bioconductor.org/packages/release/bioc/html/AgiMicroRna.html" class="body-link" target="_blank">AgiMicroRNA</a></li>
+    <ul>
+      <li><a href="https://support.bioconductor.org/p/96655/" class="body-link" target="_blank">Analyzing Agilent MicroArray Data in R</a></li>
+    </ul>
+  <li><a href="http://master.bioconductor.org/help/course-materials/" class="body-link" target="_blank">BioConductor Tutorials</a></li>
+  <li><a href="" class="body-link" target="_blank">BioMart</a></li>
+    <ul>
+      <li><a href="https://mygene.info/" class="body-link" target="_blank">MyGene</a></li>
+      <li><a href="https://biodbnet-abcc.ncifcrf.gov/db/db2db.php" class="body-link" target="_blank">BioDBNet</a></li>
+    </ul>
+  <li><a href="https://biopython.org/wiki/Packages" class="body-link" target="_blank">BioPython</a></li>
+  <li><a href="https://bioservices.readthedocs.io/en/master/" class="body-link" target="_blank">BioServices</a></li>
+  <li><a href="https://opencobra.github.io/cobrapy/" class="body-link" target="_blank">CobraPy</a></li>
+  <li><a href="https://www.docker.com" class="body-link" target="_blank">Docker</a></li>
+    <ul>
+      <li><a href="https://docs.docker.com/get-started/" class="body-link" target="_blank">Official Tutorials</a></li>
+      <li><a href="https://www.digitalocean.com/community/tutorials/the-docker-ecosystem-an-introduction-to-common-components" class="body-link" target="_blank">An Introduction to Common Components</a></li>
+      <li><a href="https://www.digitalocean.com/community/tutorials/the-docker-ecosystem-an-overview-of-containerization" class="body-link" target="_blank">An Overview of Containerization</a></li>
+    </ul>
+  <li><a href="https://clue.io/repurposing-app" class="body-link" target="_blank">Drug Repurposing Hub</a></li>
+  <li><a href="https://bioconductor.org/packages/release/bioc/html/limma.html" class="body-link" target="_blank">Limma</a> (R package)</li>
+  <li><a href="https://github.com/HelikarLab/MADRID#:~:text=Create%20Python%20Packages%20from%20Matlab%20code" class="body-link" target="_blank">MatLab Runtime and Creating Python Packages from MatLab code</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/geo/" class="body-link" target="_blank">NCBI GEO</a></li>
+    <ul>
+      <li><a href="https://geoparse.readthedocs.io/en/latest/" class="body-link" target="_blank">Python GEOparse</a></li>
+      <li><a href="https://bioconductor.org/packages/release/bioc/html/GEOquery.html" class="body-link" target="_blank">R GEOquery</a></li>
+    </ul>
+  <li><a href="https://opencobra.github.io/" class="body-link" target="_blank">openCOBRA</a></li>
+  <li><a href="" class="body-link" target="_blank">Python RESTful Tutorial</a></li>
+    <ul>
+      <li><a href="https://www.kite.com/blog/python/flask-sqlalchemy-tutorial/" class="body-link" target="_blank">Flask SQLAlchemy</a> </li>
+      <li><a href="https://www.kite.com/blog/python/flask-restful-api-tutorial/" class="body-link" target="_blank">Building a RESTful API with Flask</a> </li>
+    </ul>
+  <li><a href="https://www.r-project.org/" class="body-link" target="_blank">R Language</a></li>
+    <ul>
+      <li><a href="https://www.cyclismo.org/tutorial/R/index.html" class="body-link" target="_blank">R Tutorial</a></li>
+    </ul>
+  <li><a href="" class="body-link" target="_blank">rpy2</a></li>
+  <li><a href="https://sqlitebrowser.org/dl/" class="body-link" target="_blank">SQLite Database Browser</a></li>
+</ul>
+
+
+    <div class="tags">
+        
+    </div>
+
+
+
+
+
+
+
+</div>
+
+<hr class="shaded"/>
+
+<footer>
+            <div class="row">
+                <div class="col-lg-12 footer">
+                <a href="https://github.com/HelikarLab/MADRID">MADRID</a> is maintained by <a href="https://github.com/JoshLoecker">Josh Loecker</a> and <a href="https://github.com/babessell1">Brandt Bessell</a><br>
+               &copy;2022 Helikar Lab. All rights reserved. <br />
+<span>Page last updated:</span> Sept 14, 2022<br/> Site last generated: Sep 20, 2022 <br />
+<p><img src="images/helikarlab_nobackground.png" alt="Company logo"/></p>
+                </div>
+            </div>
+</footer>
+
+
+
+
+
+
+        </div>
+    <!-- /.row -->
+</div>
+<!-- /.container -->
+</div>
+<!-- /#main -->
+    </div>
+
+</body>
+
+</html>
+
+

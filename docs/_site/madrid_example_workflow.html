@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="">
+<meta name="keywords" content=" ">
+<title>Example Workflow | MADRID Documentation</title>
+<link rel="stylesheet" href="css/syntax.css">
+
+
+<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+<!--<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">-->
+<link rel="stylesheet" href="css/modern-business.css">
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link rel="stylesheet" href="css/customstyles.css">
+<link rel="stylesheet" href="css/boxshadowproperties.css">
+<!-- most color styles are extracted out to here -->
+<link rel="stylesheet" href="css/theme-blue.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+<script src="js/jquery.navgoco.min.js"></script>
+
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<!-- Anchor.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.2.0/anchor.min.js"></script>
+<script src="js/toc.js"></script>
+<script src="js/customscripts.js"></script>
+
+<link rel="shortcut icon" href="images/favicon.ico">
+
+<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+<!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+<![endif]-->
+
+<link rel="alternate" type="application/rss+xml" title="MADRID" href="http://localhost:4000/feed.xml">
+
+<link rel="stylesheet" href="css/my_changes.css">
+
+
+
+    <script>
+        $(document).ready(function() {
+            // Initialize navgoco with default options
+            $("#mysidebar").navgoco({
+                caretHtml: '',
+                accordion: true,
+                openClass: 'active', // open
+                save: false, // leave false or nav highlighting doesn't work right
+                cookie: {
+                    name: 'navgoco',
+                    expires: false,
+                    path: '/'
+                },
+                slide: {
+                    duration: 400,
+                    easing: 'swing'
+                }
+            });
+
+            $("#collapseAll").click(function(e) {
+                e.preventDefault();
+                $("#mysidebar").navgoco('toggle', false);
+            });
+
+            $("#expandAll").click(function(e) {
+                e.preventDefault();
+                $("#mysidebar").navgoco('toggle', true);
+            });
+
+        });
+
+    </script>
+    <script>
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip()
+        })
+    </script>
+    <script>
+        $(document).ready(function() {
+            $("#tg-sb-link").click(function() {
+                $("#tg-sb-sidebar").toggle();
+                $("#tg-sb-content").toggleClass('col-md-9');
+                $("#tg-sb-content").toggleClass('col-md-12');
+                $("#tg-sb-icon").toggleClass('fa-toggle-on');
+                $("#tg-sb-icon").toggleClass('fa-toggle-off');
+            });
+        });
+    </script>
+    
+
+</head>
+<body>
+<!-- Navigation -->
+<nav class="navbar navbar-inverse navbar-static-top">
+    <div class="container topnavlinks">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="fa fa-home fa-lg navbar-brand" href="index.html">&nbsp;<span class="projectTitle"> MADRID Documentation</span></a>
+        </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <!-- toggle sidebar button -->
+                <li><a id="tg-sb-link" href="#"><i id="tg-sb-icon" class="fa fa-toggle-on"></i> Nav</a></li>
+                <!-- entries without drop-downs appear here -->
+
+
+
+
+                
+                
+                
+                <li><a href="news">News</a></li>
+                
+                
+                
+                <li><a href="https://github.com/HelikarLab/MADRID" target="_blank" rel="noopener">GitHub</a></li>
+                
+                
+                
+                <!-- entries with drop-downs appear here -->
+                <!-- conditional logic to control which topnav appears for the audience defined in the configuration file.-->
+                
+                
+			<li>
+
+
+
+  <a class="email" title="Submit feedback" href="https://github.com/HelikarLab/MADRID/issues">Feedback</a>
+
+</li>
+
+
+
+		
+                
+                </li>
+            </ul>
+        </div>
+        </div>
+        <!-- /.container -->
+</nav>
+
+
+
+<!-- Page Content -->
+<div class="container">
+  <div id="main">
+    <!-- Content Row -->
+    <div class="row">
+        
+        
+            <!-- Sidebar Column -->
+            <div class="col-md-3" id="tg-sb-sidebar">
+                
+
+<ul id="mysidebar" class="nav">
+  <li class="sidebarTitle"> </li>
+  
+  
+  
+      
+  
+  <li>
+      <a title="Overview" href="#">Overview</a>
+      <ul>
+          
+          
+          
+          <li><a title="Getting Started" href="index.html">Getting Started</a></li>
+          
+          
+          
+          
+          
+          
+          <li class="active"><a title="Example Workflow" href="madrid_example_workflow.html">Example Workflow</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Flow Charts" href="madrid_flowcharts.html">Flow Charts</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Resources" href="madrid_resources.html">Resources</a></li>
+          
+          
+          
+          
+          
+          
+          <li><a title="Repository Structure" href="madrid_repository_structure.html">Repository Structure</a></li>
+          
+          
+          
+          
+      </ul>
+   </li>
+     
+      
+  
+  <li>
+      <a title="Arguments" href="#">Arguments</a>
+      <ul>
+          
+          
+          
+          <li><a title="Arguments Overview" href="madrid_arguments_overview.html">Arguments Overview</a></li>
+          
+          
+          
+          <li class="subfolders">
+              <a title="Python Arguments" href="#">Python Arguments</a>
+              <ul>
+                  
+                  
+                  
+                  <li><a title="RNA Seq Preprocess" href="madrid_args_rnaseq_preprocess.html">RNA Seq Preprocess</a></li>
+                  
+                  
+                  
+                  
+                  
+                  <li><a title="RNA Seq Gen" href="madrid_args_rnaseq_gen.html">RNA Seq Gen</a></li>
+                  
+                  
+                  
+                  
+                  
+                  <li><a title="Proteomics Gen" href="madrid_args_proteomics_gen.html">Proteomics Gen</a></li>
+                  
+                  
+                  
+                  
+                  
+                  <li><a title="Merge Omics" href="madrid_args_merge_xomics.html">Merge Omics</a></li>
+                  
+                  
+                  
+              </ul>
+          </li>
+          
+          
+          
+          <li class="subfolders">
+              <a title="R Arguments" href="#">R Arguments</a>
+              <ul>
+                  
+                  
+                  
+                  <li><a title="Cluster Samples" href="madrid_args_cluster_samples.html">Cluster Samples</a></li>
+                  
+                  
+                  
+              </ul>
+          </li>
+          
+          
+          
+          
+      </ul>
+   </li>
+     
+      
+      
+      <!-- if you aren't using the accordion, uncomment this block:
+         <p class="external">
+             <a href="#" id="collapseAll">Collapse All</a> | <a href="#" id="expandAll">Expand All</a>
+         </p>
+         -->
+</ul>
+
+<!-- this highlights the active parent class in the navgoco sidebar. this is critical so that the parent expands when you're viewing a page. This must appear below the sidebar code above. Otherwise, if placed inside customscripts.js, the script runs before the sidebar code runs and the class never gets inserted.-->
+<script>$("li.active").parents('li').toggleClass("active");</script>
+
+
+
+            </div>
+            
+        
+
+        <!-- Content Column -->
+        <div class="col-md-9" id="tg-sb-content">
+            <div class="post-header">
+   <h1 class="post-title-main">Example Workflow</h1>
+</div>
+
+
+
+<div class="post-content">
+
+   
+
+    
+    
+<!-- this handles the automatic toc. use ## for subheads to auto-generate the on-page minitoc. if you use html tags, you must supply an ID for the heading element in order for it to appear in the minitoc. -->
+<script>
+$( document ).ready(function() {
+  // Handler for .ready() called.
+
+$('#toc').toc({ minimumHeaders: 0, listType: 'ul', showSpeed: 0, headers: 'h2,h3,h4' });
+
+/* this offset helps account for the space taken up by the floating toolbar. */
+$('#toc').on('click', 'a', function() {
+  var target = $(this.getAttribute('href'))
+    , scroll_target = target.offset().top
+
+  $(window).scrollTop(scroll_target - 10);
+  return false
+})
+
+});
+</script>
+
+<div id="toc"></div>
+
+
+
+    
+
+
+    
+
+    <a target="_blank" rel="noopener" href="https://github.com/HelikarLab/MADRID/blob/master/pages/madrid/madrid_example_workflow.md" class="btn btn-default githubEditButton" role="button"><i class="fa fa-github fa-lg"></i> Edit me</a>
+
+    
+
+   <h2 id="overview">Overview</h2>
+<p>This example will identify drug targets for <a href="https://en.wikipedia.org/wiki/Rheumatoid_arthritis">Rheumatoid Arthritis</a> using GSMN of naïve <a href="https://en.wikipedia.org/wiki/T_helper_cell">CD4+ T-cell subtypes</a></p>
+
+<p>Follow the steps found at <a href="madrid_getting_started.html#starting-the-container">Starting the Container</a> to start the container.</p>
+
+<h2 id="step-1">Step 1</h2>
+
+<p>The outputs of <a href="https://github.com/alexdobin/STAR">STAR aligner</a> with the <code class="language-plaintext highlighter-rouge">--GeneCounts</code> argument can be interfaced directly with MADRID. Under the <code class="language-plaintext highlighter-rouge">/main/data/STAR_output/</code> folder, we provide a template structure with naïve B control cells from bulk RNA-sequencing experiments found in <a href="https://www.ncbi.nlm.nih.gov/geo/">NCBI’s Gene Expression Omnibus</a>. We can run the file <code class="language-plaintext highlighter-rouge">/main/py/rnaseq_preprocess.py</code> with the <code class="language-plaintext highlighter-rouge">create_count_matrix</code> argument set to <code class="language-plaintext highlighter-rouge">True</code> to merge the counts from each replicate in each study into a single matrix.<br />This follows <strong>Step 1</strong> in the MADRID container.</p>
+
+<p>Alternatively, you can provide a count matrix directly and run with <code class="language-plaintext highlighter-rouge">create_count_matrix</code> set to <code class="language-plaintext highlighter-rouge">False</code> to just fetch the necessary information required for normalization</p>
+
+<h2 id="step-2">Step 2</h2>
+
+<p>In the `` folder, we include the following files:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">microarracy_data_inputs.xlsx</code> contains GEO accession numbers of microarray data</li>
+  <li><code class="language-plaintext highlighter-rouge">proteomics_data_inputs.xlsx</code> contains sample names of proteomics data</li>
+</ul>
+
+<p>Protein abundance is located under <code class="language-plaintext highlighter-rouge">/ProteomicsDataMatrix_Naive.csv</code>. Sample names for bulk RNA-sequencing data is given in <code class="language-plaintext highlighter-rouge">/bulk_data_inputs.xlsx</code>. Running <code class="language-plaintext highlighter-rouge">/main/py/rnaseq_preprocess.py</code> will create <code class="language-plaintext highlighter-rouge">/main/data/results/Gene_Info_naiveB.csv</code> and <code class="language-plaintext highlighter-rouge">/main/data/data_matrices/BulkRNAseqMatrix_naiveB.csv</code> if <code class="language-plaintext highlighter-rouge">create_counts_matrix</code> is set to <code class="language-plaintext highlighter-rouge">True</code>.</p>
+
+<p><code class="language-plaintext highlighter-rouge">/microarray_data_inputs.xlsx</code> includes microarray samples of naice CD4+ T cells from 
+<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE22886">GSE22886</a>, 
+<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE43005">GSE43005</a>, 
+<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE22045">GSE22045</a>, and 
+<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE24634">GSE24634</a>.
+The file <code class="language-plaintext highlighter-rouge">/main/data/config_sheets/proteomics_data_inputs.xlsx</code> contains sample names of naive CD4+ T cells, with its results found in the file <code class="language-plaintext highlighter-rouge">/main/data/data_matrices/naiveB/protein_abundance_naiveB.csv</code></p>
+
+<p>Using <code class="language-plaintext highlighter-rouge">/main/py/merge_xomics.py</code>, you can specify any number of available data sources (microarray, bulk RNA-seq, and proteomics) as inputs. You can also set the <code class="language-plaintext highlighter-rouge">expression_requirement</code> parameter, which defines the minimum number of data sources that must have gene expression above the threshold limit for the said gene to be considered active</p>
+
+<div class="alert alert-info" role="alert"><i class="fa fa-info-circle"></i> <b>Note:</b> If a gene is not supported by a data source or platform, the <code class="language-plaintext highlighter-rouge">expression_requirement</code> value will decrease by one for each input data source that does not support the gene.</div>
+
+<p>Running <strong>Step 1</strong> in the MADRID container will generate “gene activity” files based on transcriptomics and proteomics data, as described by <a href="https://doi.org/10.1038/s41540-020-00165-3" target="_blank"><cite>Puniya et al., 2020</cite></a></p>
+
+<p>This will save final output in <code class="language-plaintext highlighter-rouge">GeneExpression_Naive_merged.csv</code> and its path in <code class="language-plaintext highlighter-rouge">step1_results_files.json</code></p>
+
+<h2 id="step-3">Step 3</h2>
+<p>Our pipeline includes a modified version of the <a href="https://doi.org/10.1038/nbt.4072">Recon3D</a> model to use as a reference for model contextualization. The modified version of Recon3D is available at <code class="language-plaintext highlighter-rouge">/main/data/GeneralModelUpdatedV2.mat</code>.</p>
+
+<p><strong>Step 4</strong> in MADRID will use <code class="language-plaintext highlighter-rouge">GeneExpression_Naive_merged.csv</code> (from <strong>Step 1</strong>, above) in combination with <code class="language-plaintext highlighter-rouge">/main/data/GeneralModelUpdatedV2.mat</code> to construct a cell-type specific model of Naive CD4+ cells.<br />
+We can use this model in the next steps. However, we advise users to properly investigate, manually curate, and reupload the refined version in <code class="language-plaintext highlighter-rouge">/main/data/results</code> to use in <strong>Step 4</strong>.</p>
+
+<h2 id="step-4">Step 4</h2>
+<p>We used a dataset (<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE56649">GSE56649</a>) of Rheumatoid Arthritis to identify differentially expressed genes (disease genes). We defined accession IDs of this dataset in the inputs found under <code class="language-plaintext highlighter-rouge">/naiveB/disease/gene_counts_matrix_arthritis_naiveB.csv</code>.</p>
+
+<p>This step will generate files <code class="language-plaintext highlighter-rouge">/main/data/results/naiveB/Disease_UP_GSE56649.txt</code> and <code class="language-plaintext highlighter-rouge">/main/data/results/naiveB/Disease_DOWN_GSE56649.txt</code>, and their paths, at <code class="language-plaintext highlighter-rouge">step2_results_files.json</code>. Finally, this step will create a <code class="language-plaintext highlighter-rouge">disease_files</code> variable that will include aths of files for up- and down- regulated genes.</p>
+
+<h2 id="step-5">Step 5</h2>
+<p>This step will use the model (constructed in <strong>Step 2</strong>/uploaded curated version) and perform knock-out simulations of genes overlapping with the drug-target data file obtained from the <a href="https://www.broadinstitute.org/connectivity-map-cmap">ConnectivityMap</a> database. We refined the drug target-data file and included it at <code class="language-plaintext highlighter-rouge">/main/data/RepurposingHub.txt</code>.</p>
+
+<p>This step will use the following files:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">Naive_SpecificModel.json</code> (or a pre-curated version uploaded as <code class="language-plaintext highlighter-rouge">NaiveModel.mat</code>)</li>
+  <li><code class="language-plaintext highlighter-rouge">Disease_UP_GSE56649.txt</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Disease_DOWN_GSE56649.txt</code></li>
+  <li><code class="language-plaintext highlighter-rouge">RepurposingHub.txt</code></li>
+</ul>
+
+<p>The final output files will include drug targets ranked based on Perburbation Effect Score (PES) as described by <a href="https://doi.org/10.1038/s41540-020-00165-3" target="_blank"><cite>Puniya et al., 2020</cite></a>.</p>
+
+<p>The output file <code class="language-plaintext highlighter-rouge">/main/data/output/d_score.csv</code> will contain Entrez IDs of ranked genes and their corresponding PES. The file <code class="language-plaintext highlighter-rouge">drug_score.csv</code> will contain PES ranked drug targets (Entrez IDs and Gene Symbols) with mapped repurposed drugs.</p>
+
+
+    <div class="tags">
+        
+    </div>
+
+
+
+
+
+
+
+</div>
+
+<hr class="shaded"/>
+
+<footer>
+            <div class="row">
+                <div class="col-lg-12 footer">
+                <a href="https://github.com/HelikarLab/MADRID">MADRID</a> is maintained by <a href="https://github.com/JoshLoecker">Josh Loecker</a> and <a href="https://github.com/babessell1">Brandt Bessell</a><br>
+               &copy;2022 Helikar Lab. All rights reserved. <br />
+<span>Page last updated:</span> September 14, 2022<br/> Site last generated: Sep 20, 2022 <br />
+<p><img src="images/helikarlab_nobackground.png" alt="Company logo"/></p>
+                </div>
+            </div>
+</footer>
+
+
+
+
+
+
+        </div>
+    <!-- /.row -->
+</div>
+<!-- /.container -->
+</div>
+<!-- /#main -->
+    </div>
+
+</body>
+
+</html>
+
+
