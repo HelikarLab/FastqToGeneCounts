@@ -14,7 +14,7 @@ site_title: FastqToGeneCounts Documentation
 # this appears in the footer
 company_name: Helikar Lab
 
-# if you're using Github, provide the basepath to the branch you've created for reviews, following the sample here. if not, leave this value blank.
+# if you're using GitHub, provide the basepath to the branch you've created for reviews, following the sample here. if not, leave this value blank.
 github_editme_path: HelikarLab/FastqToGeneCounts/blob/master/
 
 # if you have google-analytics ID, put it in. if not, edit this value to blank.

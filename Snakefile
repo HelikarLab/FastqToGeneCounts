@@ -459,13 +459,12 @@ if perform_prefetch():
             # Get lines in master control file
             # Open output for writing
             lines = open(str(input),"r").readlines()
-            wfile = open(str(output),"w")
             for line in lines:
 
                 # Only write line if the output file has the current tissue-name_tag (naiveB_S1R1) in the file name
                 if params.id in line:
-                    wfile.write(line)
-            wfile.close()
+                    with open(str(output), "w") as o_stream:
+                        o_stream.write(line)
 
 
     rule prefetch:

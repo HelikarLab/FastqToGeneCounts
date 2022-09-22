@@ -1,5 +1,4 @@
 **/.snakemake/
 /venv
 /.idea
-snakemake_config.yaml
 /docs/_site/

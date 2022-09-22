@@ -27,3 +27,15 @@ entries:
         url: /index.html
         output: web, pdf
         type: homepage
+
+      - title: Download
+        url: /fastq_download.html
+        output: web, pdf
+
+      - title: Setup
+        url: /fastq_setup.html
+        output: web, pdf
+
+      - title: Running
+        url: /fastq_running.html
+        output: web, pdf
