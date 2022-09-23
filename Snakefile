@@ -655,9 +655,10 @@ if perform_screen():
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
             tissue_name="{tissue_name}",
-            tag="{tag}",
-            direction="{PE_SE}",
-            genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf")
+            genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf"),
+            text_output="{tissue_name}_{tag}}_{PE_SE}_screen.txt",
+            html_output="{tissue_name}_{tag}}_{PE_SE}_screen.html",
+            png_output="{tissue_name}_{tag}}_{PE_SE}_screen.png"
         conda: "envs/screen.yaml"
         threads: 10
         resources:
@@ -666,7 +667,9 @@ if perform_screen():
         shell:
             """
             fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input}
-            mv {params.tissue_name}_{params.tag}_{params.direction}_screen.txt results/data/{params.tissue_name}/fq_screen/
+            mv {params.text_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            mv {params.html_output} {config[ROOTDIR]}/data/{params.text_output}/fq_screen/
+            mv {params.png_output} {config[ROOTDIR]}/data/{params.text_output}/fq_screen/
             """
 
 if perform_trim():
