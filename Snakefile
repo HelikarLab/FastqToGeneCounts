@@ -656,8 +656,8 @@ if perform_screen():
         params:
             tissue_name="{tissue_name}",
             genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf"),
-            text_output="{tissue_name}_{tag}}_{PE_SE}_screen.txt",
-            html_output="{tissue_name}_{tag}}_{PE_SE}_screen.html",
+            text_output="{tissue_name}_{tag}_{PE_SE}_screen.txt",
+            html_output="{tissue_name}_{tag}_{PE_SE}_screen.html",
             png_output="{tissue_name}_{tag}}_{PE_SE}_screen.png"
         conda: "envs/screen.yaml"
         threads: 10
