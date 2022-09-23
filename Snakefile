@@ -349,9 +349,6 @@ rule all:
     input: rule_all
 
 
-#TODO: convert this input to snakemake's HTTP download
-# https://snakemake.readthedocs.io/en/stable/snakefiles/remote_files.html#read-only-web-http-s
-# Not 100% sure if this is needed
 rule preroundup:
     input: config["MASTER_CONTROL"]
     output: touch(os.path.join(config["ROOTDIR"], "temp", "preroundup.txt"))
@@ -431,7 +428,7 @@ if perform_screen():
         params:
             output_dir = config["ROOTDIR"],
             sed_dir = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
-        threads: 1
+        threads: 10
         resources:
             mem_mb=lambda wildcards, attempt: 1500 * attempt, # 1.5 GB * attempt
             runtime=lambda wildcards, attempt: 240 * attempt  # 240 minutes * attempt (4 hours)
@@ -439,7 +436,7 @@ if perform_screen():
         shell:
             """
             if [[ ! -d {output} ]]; then
-                fastq_screen --get_genomes --outdir {params.output_dir}
+                fastq_screen --get_genomes --quiet --threads {threads} --outdir {params.output_dir}
                 
                 # remove data1/ from screen genome paths
                 sed -i 's/\/data1\///' {params.sed_dir}/fastq_screen.conf
