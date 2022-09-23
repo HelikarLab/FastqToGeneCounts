@@ -47,9 +47,13 @@ def get_from_master_config(attribute: str) -> list[str]:
         index_value = valid_inputs.index(attribute)
 
         # We have to subtract one because "tissue" and "tag" are in the same index, thus the index value in valid_inputs is increased by one
-        if index_value >= 2: index_value -= 1
-        i_stream = open(config["MASTER_CONTROL"],"r")
-        reader = csv.reader(i_stream)
+        if index_value >= 2:
+            index_value -= 1
+
+
+        control_lines = open(config["MASTER_CONTROL"], "r").readlines()
+        reader = csv.reader(control_lines)
+
         for line in reader:
 
             # Get the column from master_control we are interested in
@@ -82,7 +86,6 @@ def get_from_master_config(attribute: str) -> list[str]:
 
             collect_attributes += target_attribute
 
-        i_stream.close()
         return collect_attributes
 
 
@@ -448,7 +451,7 @@ if perform_screen():
 
 if perform_prefetch():
     rule distribute_init_files:
-        input: ancient(config["MASTER_CONTROL"])
+        input: ancient(config["MASTER_CONTROL"])  # Always run this rule to update its output
         output: os.path.join(config["ROOTDIR"],"controls", "init_files", "{tissue_name}_{tag}.csv")
         params: id="{tissue_name}_{tag}"
         threads: 1
