@@ -26,8 +26,3 @@ Given a CSV file containing: SRR codes, target output names, library layouts, an
 11. Organize a MADRID_inputs file that can be directly interfaced with [our MADRID package](https://github.com/HelikarLab/MADRID) to aid with metabolic drug discovery and repurposing.
 
 This pipeline is primarily designed to interface the [GEO Database](https://www.ncbi.nlm.nih.gov/geo/) with MADRID, and should be run in a high-performance computing cluster, as the memory requirement is quite high to use STAR (about 40GB for the human genome). Even if you do not plan to use MADRID, if your goal is to align fastq files from bulk RNA-seq, perform essential quality control, and output gene counts files from STAR for transcription-based model construction such as Differential Gene Expression Analysis, this pipeline could be of service.
-
-### Sections
-1. [Download](fastq_download.html)
-2. [Setup](fastq_setup.html)
-4. [Running](fastq_running.html)
