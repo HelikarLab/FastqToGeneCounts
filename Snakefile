@@ -656,9 +656,10 @@ if perform_screen():
         params:
             tissue_name="{tissue_name}",
             genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf"),
-            text_output="{tissue_name}_{tag}}_{PE_SE}_screen.txt",
-            html_output="{tissue_name}_{tag}}_{PE_SE}_screen.html",
-            png_output="{tissue_name}_{tag}}_{PE_SE}_screen.png"
+            # brightNK_S1R1_1_screen.html
+            text_output="{tissue_name}_{tag}_{PE_SE}_screen.txt",
+            html_output="{tissue_name}_{tag}_{PE_SE}_screen.html",
+            png_output="{tissue_name}_{tag}_{PE_SE}_screen.png"
         conda: "envs/screen.yaml"
         threads: 10
         resources:
@@ -666,10 +667,11 @@ if perform_screen():
             runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
-            fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input}
+            fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input.files}
+            
             mv {params.text_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            mv {params.html_output} {config[ROOTDIR]}/data/{params.text_output}/fq_screen/
-            mv {params.png_output} {config[ROOTDIR]}/data/{params.text_output}/fq_screen/
+            mv {params.html_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            mv {params.png_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
             """
 
 if perform_trim():
