@@ -48,7 +48,21 @@ conda install -n snakemake -c conda-forge mamba
 |     `mamba`      |                    The package to install                     |
 
 
-### 4. Install CookieCutter
+### 4. Install Snakemake
+After installing Mamba, we can install Snakemake. This will take a while, as Snakemake has a lot of dependencies. We have specified version `6.15.5`, as version 7 includes breaking changes not yet resolved.
+```bash
+mamba install -n snakemake -c conda-forge -c bioconda snakemake=6.15.5
+```
+
+|          Component           |                          Description                          |
+|:----------------------------:|:-------------------------------------------------------------:|
+|           `mamba`            |                   The command to run Mamba                    |
+|          `install`           |               The command to install a package                |
+|        `-n snakemake`        | The name of the conda environment to install into (snakemake) |
+| `-c conda-forge -c bioconda` |    The channels to install from (Conda Forge and Bioconda)    |
+|      `snakemake=6.15.5`      |                    The package to install                     |
+
+### 5. Install CookieCutter
 ```bash
 conda install -n snakemake -c conda-forge cookiecutter
 ```
@@ -61,16 +75,16 @@ conda install -n snakemake -c conda-forge cookiecutter
 | `-c conda-forge` |           The channel to install from (Conda Forge)           |
 |  `cookiecutter`  |                    The package to install                     |
 
-### 5. Test the SnakeMake and CookieCutter installation
+### 6. Test the SnakeMake and CookieCutter installation
+You should receive no errors at this point, and the output should follow the following example.<br>
+If you encounter errors, please [open an issue](https://github.com/HelikarLab/FastqToGeneCounts/issues)
 ```bash
 snakemake --version
 # Returns `6.15.5`
 
 cookiecutter --version
-# Returns Cookiecutter `VERSION` from `INSTALLATION_PATH` (Python `VERSION`)
+# Returns Cookiecutter VERSION from INSTALLATION_PATH (Python VERSION)
 ```
-
-No errors should occur during this installation; if you encounter errors, please [open an issue](https://github.com/HelikarLab/FastqToGeneCounts/issues)
 
 ## Creating a CookieCutter Template
 This section will assume you are setting up profiles for [Slurm](https://slurm.schedmd.com/documentation.html). If you are not, please reference the [SnakeMake Profile GitHub Page](https://github.com/Snakemake-Profiles/doc) and select your cluster's scheduler.
