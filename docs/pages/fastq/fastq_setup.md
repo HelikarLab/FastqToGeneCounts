@@ -87,15 +87,16 @@ Perhaps the most important part of Profiles is Point 4. Instead of requesting, f
 ### 1. Creating directories
 Create the snakemake directory to hold the profile(s)
 ```bash
+# You can also specify a custom location for the profile_dir variable
 profile_dir="${HOME}/.config/snakemake"
 mkdir -p "$profile_dir"
 ```
 
-|       Component       |                Description                 |
-|:---------------------:|:------------------------------------------:|
-|        `mkdir`        |     The command to create a directory      |
-|         `-p`          | Create any parent directories, if required |
-| `~/.config/snakemake` |          The directory to create           |
+|    Component     |                Description                 |
+|:----------------:|:------------------------------------------:|
+|     `mkdir`      |     The command to create a directory      |
+|       `-p`       | Create any parent directories, if required |
+| `"$profile_dir"` |          The directory to create           |
 
 ### 2. Creating the Profile
 We must first change to the directory we just created, then we can create the profile
@@ -103,6 +104,13 @@ We must first change to the directory we just created, then we can create the pr
 template="gh:Snakemake-Profiles/slurm"
 cookiecutter --output-dir "$profile_dir" "$template"
 ```
+
+|           Component           |              Description               |
+|:-----------------------------:|:--------------------------------------:|
+|        `cookiecutter`         |    The command to create a profile     |
+| `--output-dir "$profile_dir"` | The directory to create the profile in |
+|         `"$template"`         |  The template to use, specified above  |
+
 
 During this section, no details are required. Simply press `Enter` until the profile is created.
 
