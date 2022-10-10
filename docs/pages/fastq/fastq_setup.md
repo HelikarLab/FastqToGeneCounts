@@ -10,8 +10,8 @@ last_updated: Sept 22, 2022
 Following the overview is a step-by-step guide on how to set up the pipeline. A brief description is as follows:
 
 1. Create a conda environment containing:
-   1. Mamba
-   2. Snakemake ([version 6.15.5](https://snakemake.readthedocs.io/en/stable/project_info/history.html#id112))
+    1. Mamba
+    2. Snakemake ([version 6.15.5](https://snakemake.readthedocs.io/en/stable/project_info/history.html#id112))
 2. Create a CookieCutter template/profile based on the [Slurm profile](https://github.com/Snakemake-Profiles/slurm)
 3. Modification of configuration variables
 
@@ -38,7 +38,7 @@ conda activate snakemake
 ```bash
 conda install -n snakemake -c conda-forge mamba
 ```
-   
+
 |    Component     |                          Description                          |
 |:----------------:|:-------------------------------------------------------------:|
 |     `conda`      |                   The command to run Conda                    |
@@ -52,7 +52,7 @@ conda install -n snakemake -c conda-forge mamba
 ```bash
 conda install -n snakemake -c conda-forge cookiecutter
 ```
-   
+
 |    Component     |                          Description                          |
 |:----------------:|:-------------------------------------------------------------:|
 |     `conda`      |                   The command to run Conda                    |
@@ -87,21 +87,30 @@ Perhaps the most important part of Profiles is Point 4. Instead of requesting, f
 ### 1. Creating directories
 Create the snakemake directory to hold the profile(s)
 ```bash
-mkdir -p ~/.config/snakemake
+# You can also specify a custom location for the profile_dir variable
+profile_dir="${HOME}/.config/snakemake"
+mkdir -p "$profile_dir"
 ```
 
-|       Component       |                Description                 |
-|:---------------------:|:------------------------------------------:|
-|        `mkdir`        |     The command to create a directory      |
-|         `-p`          | Create any parent directories, if required |
-| `~/.config/snakemake` |          The directory to create           |
+|    Component     |                Description                 |
+|:----------------:|:------------------------------------------:|
+|     `mkdir`      |     The command to create a directory      |
+|       `-p`       | Create any parent directories, if required |
+| `"$profile_dir"` |          The directory to create           |
 
 ### 2. Creating the Profile
-We must first change to the directory we just created, the  we can create the profile
+We must first change to the directory we just created, then we can create the profile
 ```bash
-cd ~/.config/snakemake
-cookiecutter https://github.com/Snakemake-Profiles/slurm.git
+template="gh:Snakemake-Profiles/slurm"
+cookiecutter --output-dir "$profile_dir" "$template"
 ```
+
+|           Component           |              Description               |
+|:-----------------------------:|:--------------------------------------:|
+|        `cookiecutter`         |    The command to create a profile     |
+| `--output-dir "$profile_dir"` | The directory to create the profile in |
+|         `"$template"`         |  The template to use, specified above  |
+
 
 During this section, no details are required. Simply press `Enter` until the profile is created.
 
@@ -186,11 +195,11 @@ The master contol file (found under `controls/master_control.csv`) is a CSV file
 - SRR codes
 - Tissue names + study number, replicate number, and (if applicable) a run number
 - Library layouts
-  - `PE` for Paired-End
-  - `SE` for Single-End
+    - `PE` for Paired-End
+    - `SE` for Single-End
 - Library preparation column
-  - `total` for total RNA seq
-  - `mrna` for PolyA/mRNA RNA seq
+    - `total` for total RNA seq
+    - `mrna` for PolyA/mRNA RNA seq
 
 If you have `PERFORM_PREFETCH` set to `False` in the `snakemake_config.yaml` file, do not need to modify the master control file. This assumes you are providing the `sra` files yourself. An example of this file is as follows:
 
@@ -219,7 +228,7 @@ This options is only required if you have set `PERFORM_PREFETCH` to `False`. It 
 The relative file path where results should be placed. This is most likely going to be under a `/work` folder. The default value is `results`, which will place results in the `results` folder in the current directory.
 
 ### `REF_FLAT_FILE`
-The path to a `refFlat` file for your reference genome. This can be made using the following format: 
+The path to a `refFlat` file for your reference genome. This can be made using the following format:
 ```bash
 # Download the gtf to refFlat converter
 wget https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/gtfToGenePred
