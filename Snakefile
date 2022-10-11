@@ -3,10 +3,11 @@ import csv
 import warnings
 import sys
 
-#from snakemake_wrapper_utils.java import get_java_opts
-# =concat("lungControl",right(B2,LEN(B2)-len(left(B2,12))))
-
 configfile: "snakemake_config.yaml"
+
+# Ensure the results directory is made
+os.makedirs(config["ROOTDIR"], exist_ok=True)
+
 
 # Validate users are using conda. This is important for temporary conda environments defined in the workflow
 if not workflow.use_conda:
@@ -1218,4 +1219,3 @@ rule multiqc:
             rm *.fastq
         fi
         """
-
