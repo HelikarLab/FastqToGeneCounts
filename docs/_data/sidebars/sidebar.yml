@@ -32,9 +32,23 @@ entries:
         url: /fastq_download.html
         output: web, pdf
 
-      - title: Setup
-        url: /fastq_setup.html
-        output: web, pdf
+        subfolders:
+        - title: Setup
+          output: web
+          subfolderitems:
+            - title: Conda Environment Installation
+              url: /fastq_setup_conda.html
+              output: web, pdf
+            - title: CookieCutter Templates
+              url: /fastq_setup_cookiecutter.html
+              output: web, pdf
+            - title: Reference Genome
+              url: /fastq_setup_genome.html
+              output: web, pdf
+            - title: Workflow Configuration
+              url: /fastq_setup_workflow_configuration.html
+              output: web, pdf
+
 
       #- title: Setup Folder Items
         subfolders:
