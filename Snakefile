@@ -639,7 +639,6 @@ if perform_screen():
         """
         aggregate filesnames of all fastqs
         """
-        os.makedirs(config["ROOTDIR"], exist_ok=True)
         if perform_prefetch():
             return checkpoints.dump_fastq.get(**wildcards).output
         else:
@@ -1219,3 +1218,4 @@ rule multiqc:
             rm *.fastq
         fi
         """
+
