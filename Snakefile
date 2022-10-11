@@ -8,6 +8,10 @@ import sys
 
 configfile: "snakemake_config.yaml"
 
+# Ensure the results directory is made
+os.makedirs(config["ROOTDIR"], exist_ok=True)
+
+
 # Validate users are using conda. This is important for temporary conda environments defined in the workflow
 if not workflow.use_conda:
     sys.stderr.write("\nYou are not using conda. Pass the '--use-conda' flag to snakemake.\nExample: snakemake --cores 10 --use-conda\n\n")
@@ -1218,4 +1222,3 @@ rule multiqc:
             rm *.fastq
         fi
         """
-
