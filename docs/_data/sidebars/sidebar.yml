@@ -32,11 +32,6 @@ entries:
         url: /fastq_download.html
         output: web, pdf
 
-#       - title: Setup
-#         url: /fastq_setup.html
-#         output: web, pdf
-
-      #- title: Setup Folder Items
         subfolders:
         - title: Setup
           output: web
