@@ -41,7 +41,6 @@ Once you have created the Snakemake environment, you should activate it with the
 mamba activate snakemake
 ```
 
-
 ### Include Additional Channels
 From the [Conda website](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html) on channels:
 
