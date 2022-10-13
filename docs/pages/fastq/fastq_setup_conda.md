@@ -16,12 +16,14 @@ In most cluster environments (i.e., HCC), you must activate the `conda` module. 
 ```bash
 module load conda
 ```
+
 | Component |                          Description                          | 
 |:---------:|:-------------------------------------------------------------:|
 | `module`  | The module command is used to load, unload, and list modules. |
 |  `load`   |          The load command is used to load a module.           |
 |  `conda`  |  The conda module is used to activate the conda environment.  |
 
+### Create the Environment
 Once this is done, we can create a new conda environment with the name "snakemake". This can be done as follows:
 ```bash
 conda create --name=snakemake
@@ -33,9 +35,30 @@ conda create --name=snakemake
 |      `create`      |            The create command is used to create a new conda environment.            |
 | `--name=snakemake` | The --name flag is used to specify the name of the conda environment (`snakemake`). |
 
+### Activate the Environment
+Once you have created the Snakemake environment, you should activate it with the following command:
+```bash
+conda activate snakemake
+```
+
+
+### Include Additional Channels
+From the [Conda website](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html) on channels:
+
+> Channels are the locations where packages are stored. They serve as the base for hosting and managing packages. Conda packages are downloaded from remote channels, which are URLs to directories containing conda packages. The conda [or mamba, in our case] command seraches a default set of channels and packages are automatically downloaded and updated from [these channels]. 
+
+Because we have additional software required by Snakemake, we must add several channels. These commands only need to be entered once, and you don't have to be in the conda environment to do so. The following commands will add the channels to your conda configuration file:
+```bash
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+conda config --add channels r
+```
+
+
 ## Installing software
 ### Install Mamba
-{% include note.html content="Mamba is [recommended by SnakeMake](https://snakemake.readthedocs.io/en/stable/getting_started/installation.html), as it is much faster than Conda.<br>Additionally, Conda can have issues installing SnakeMake dependencies." %}
+{% include note.html content="Mamba is [recommended by Snakemake](https://snakemake.readthedocs.io/en/stable/getting_started/installation.html), as it is much faster than Conda.<br>Additionally, Conda can have issues installing Snakemake dependencies." %}
 ```bash
 conda install --name snakemake --channel conda-forge mamba
 ```
@@ -48,8 +71,8 @@ conda install --name snakemake --channel conda-forge mamba
 | `--channel conda-forge` |   The --channel flag is used to specify the channel to install the software from   |
 |         `mamba`         |                        The name of the software to install                         |
 
-### Install SnakeMake
-SnakeMake is required to run the pipeline.
+### Install Snakemake
+Snakemake is required to run the pipeline.
 ```bash
 mamba install --name snakemake --channel bioconda snakemake==6.15.5
 ```
@@ -63,7 +86,7 @@ mamba install --name snakemake --channel bioconda snakemake==6.15.5
 | `snakemake==6.15.5`  |          The software and version to install          |
 
 ### Install CookieCutter
-CookieCutter is used to install SnakeMake profiles, which makes it much easier for us to submit our jobs to a cluster.
+CookieCutter is used to install Snakemake profiles, which makes it much easier for us to submit our jobs to a cluster.
 ```bash
 mamba install --name snakemake --channel conda-forge cookiecutter
 ```
