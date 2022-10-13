@@ -21,7 +21,7 @@ module load mamba
 |:---------:|:-------------------------------------------------------------:|
 | `module`  | The module command is used to load, unload, and list modules. |
 |  `load`   |          The load command is used to load a module.           |
-|  `conda`  |  The conda module is used to activate the conda environment.  |
+|  `mamba`  |  The conda module is used to activate the conda environment.  |
 
 ### Create the Environment
 Once this is done, we can create a new conda environment with the name "snakemake". This can be done as follows:
@@ -31,7 +31,7 @@ mamba create --name=snakemake
 
 |     Component      |                                     Description                                     |
 |:------------------:|:-----------------------------------------------------------------------------------:|
-|      `conda`       |     The conda command is used to create, update, and remove conda environments.     |
+|      `mamba`       |     The conda command is used to create, update, and remove conda environments.     |
 |      `create`      |            The create command is used to create a new conda environment.            |
 | `--name=snakemake` | The --name flag is used to specify the name of the conda environment (`snakemake`). |
 
