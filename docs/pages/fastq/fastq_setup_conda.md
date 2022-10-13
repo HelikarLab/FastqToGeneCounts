@@ -14,7 +14,7 @@ Conda is reuired to install and use FastqToGeneCounts. To install Conda, [follow
 ## Creating a Conda Environment
 In most cluster environments (i.e., HCC), you must activate the `conda` module. This can be done as follows:
 ```bash
-module load conda
+module load mamba
 ```
 
 | Component |                          Description                          | 
@@ -26,7 +26,7 @@ module load conda
 ### Create the Environment
 Once this is done, we can create a new conda environment with the name "snakemake". This can be done as follows:
 ```bash
-conda create --name=snakemake
+mamba create --name=snakemake
 ```
 
 |     Component      |                                     Description                                     |
@@ -38,7 +38,7 @@ conda create --name=snakemake
 ### Activate the Environment
 Once you have created the Snakemake environment, you should activate it with the following command:
 ```bash
-conda activate snakemake
+mamba activate snakemake
 ```
 
 
@@ -57,20 +57,6 @@ conda config --add channels r
 
 
 ## Installing software
-### Install Mamba
-{% include note.html content="Mamba is [recommended by Snakemake](https://snakemake.readthedocs.io/en/stable/getting_started/installation.html), as it is much faster than Conda.<br>Additionally, Conda can have issues installing Snakemake dependencies." %}
-```bash
-conda install --name snakemake --channel conda-forge mamba
-```
-
-|        Component        |                                    Description                                     | 
-|:-----------------------:|:----------------------------------------------------------------------------------:|
-|         `conda`         |                                 The conda command                                  |
-|        `install`        |                  The install command is used to install software                   |
-|   `--name snakemake`    | The --name flag is used to specify the name of the conda environment (`snakemake`) |
-| `--channel conda-forge` |   The --channel flag is used to specify the channel to install the software from   |
-|         `mamba`         |                        The name of the software to install                         |
-
 ### Install Snakemake
 Snakemake is required to run the pipeline.
 ```bash
