@@ -54,6 +54,15 @@ conda config --add channels conda-forge
 conda config --add channels r
 ```
 
+If you get an error during this part, try running the following command:
+```bash
+module load anaconda
+```
+
+Then rerun the `conda config...` commands. Once this is done, re-load mamba (as it was unloaded during `module load anaconda`)
+```bash
+module load mamba
+```
 
 ## Installing software
 ### Install Snakemake
