@@ -20,7 +20,7 @@ chmod +x ./gtfToGenePred
 # Execute the gtf to refFlat converter
 # The `genome/Homo_sapiens.GRCh38.105.gtf` is the path to your gtf file
 # The last argument, `refFlat.tmp.txt` is the output filename
-./gtfToGenePRed -genePredExt -geneNameAsName2 genome/Homo_sapiens.GRCh38.105.gtf refFlat.tmp.txt
+./gtfToGenePred -genePredExt -geneNameAsName2 genome/Homo_sapiens.GRCh38.105.gtf refFlat.tmp.txt
 
 # Modify values so Picard is able to parse the refFlat file correctly
 # `refFlat.tmp.txt` is the output of the previous command
