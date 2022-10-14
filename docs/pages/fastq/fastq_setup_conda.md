@@ -71,6 +71,8 @@ Snakemake is required to run the pipeline.
 mamba install --name snakemake --channel bioconda snakemake==6.15.5 tabulate==0.8.10
 ```
 
+We must lock tabulate to version `0.8.10` as anything under the `0.9.*` release causes issues for our current version of Snakemake
+
 |      Component       |                      Description                      |
 |:--------------------:|:-----------------------------------------------------:|
 |       `mamba`        | Use mamba to install additional software more quickly |
@@ -78,6 +80,7 @@ mamba install --name snakemake --channel bioconda snakemake==6.15.5 tabulate==0.
 |  `--name snakemake`  |       The environment to install software into        |
 | `--channel bioconda` |         The channel to install software from          |
 | `snakemake==6.15.5`  |          The software and version to install          |
+| `tabulate==0.8.10`   |          The software and version to install          |
 
 ### Install CookieCutter
 CookieCutter is used to install Snakemake profiles, which makes it much easier for us to submit our jobs to a cluster.
