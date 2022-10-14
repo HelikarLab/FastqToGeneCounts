@@ -68,7 +68,7 @@ module load mamba
 ### Install Snakemake
 Snakemake is required to run the pipeline.
 ```bash
-mamba install --name snakemake --channel bioconda snakemake==6.15.5
+mamba install --name snakemake --channel bioconda snakemake==6.15.5 tabulate==0.8.10
 ```
 
 |      Component       |                      Description                      |
