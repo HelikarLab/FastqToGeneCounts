@@ -649,6 +649,15 @@ if perform_screen():
                         return os.path.join(path,file)
 
 
+    def get_text_output(wildcards):
+        tissue_name = wildcards.tissue_name
+        tag = wildcards.tag
+        PE_SE = wildcards.PE_SE
+        text_file_name = os.path.join(config["ROOTDIR"], f"{tissue_name}_{tags}_{PE_SE}_screen.txt")
+        html_file_name = os.path.join(config["ROOTDIR"], f"{tissue_name}_{tags}_{PE_SE}_screen.html")
+        png_file_name = os.path.join(config["ROOTDIR"], f"{tissue_name}_{tags}_{PE_SE}_screen.png")
+
+        return text_file_name, html_file_name, png_file_name
     rule contaminant_screen:
         input:
             files=get_screen_input,
@@ -656,11 +665,12 @@ if perform_screen():
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
             tissue_name="{tissue_name}",
+            tag="{tag}",
+            PE_SE="{PE_SE}",
             genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf"),
-            # brightNK_S1R1_1_screen.html
-            text_output="{tissue_name}_{tag}_{PE_SE}_screen.txt",
-            html_output="{tissue_name}_{tag}_{PE_SE}_screen.html",
-            png_output="{tissue_name}_{tag}_{PE_SE}_screen.png"
+            # text_output="{config[ROOTDIR]}/{tissue_name}_{tag}_{PE_SE}_screen.txt",
+            # html_output="{tissue_name}_{tag}_{PE_SE}_screen.html",
+            # png_output="{tissue_name}_{tag}_{PE_SE}_screen.png"
         conda: "envs/screen.yaml"
         threads: 10
         resources:
@@ -669,10 +679,12 @@ if perform_screen():
         shell:
             """
             fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input.files}
-            
-            mv {params.text_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            mv {params.html_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            mv {params.png_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+
+            # outputs in format of: [brightNK]_[S1R1]_[1]_[screen.html]
+            base_name={config[ROOTDIR]}/{params.tissue_name}_{params.tag}_{params.PE_SE}}_screen                    
+            mv $base_name.txt {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            mv $base_name.html {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            mv $base_name.png {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
             """
 
 if perform_trim():
