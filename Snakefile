@@ -681,10 +681,10 @@ if perform_screen():
             fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input.files}
 
             # outputs in format of: [brightNK]_[S1R1]_[1]_[screen.html]
-            base_name={config[ROOTDIR]}/{params.tissue_name}_{params.tag}_{params.PE_SE}_screen                    
-            mv $base_name.txt {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            mv $base_name.html {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            mv $base_name.png {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            base_name="./{params.tissue_name}_{params.tag}_{params.PE_SE}_screen"                    
+            mv "$base_name.txt" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            mv "$base_name.html" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            mv "$base_name.png" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
             """
 
 if perform_trim():
