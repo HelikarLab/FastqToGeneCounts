@@ -516,11 +516,18 @@ if perform_prefetch():
         return srr_code
 
 
+    def dump_fastq_output_complete(wildcards):
+        if str(wildcards.PE_SE) == "1":
+            # Output a "file complete" file
+            return os.path.join(config["ROOTDIR"], "temp", "dump_fastq", f"{wildcards.tissue_name}_{wildcards.tag}_complete")
+        else:
+            return []
     checkpoint dump_fastq:
         input: dump_fastq_input
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
-            srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards,input)
+            srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards,input),
+            output_complete=dump_fastq_output_complete
         threads: get_dump_fastq_threads
         conda: "envs/SRAtools.yaml"
         resources:
@@ -534,6 +541,9 @@ if perform_prefetch():
 
                 mv "$output_dir/{params.srr_code}_1.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"
                 mv "$output_dir/{params.srr_code}_2.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"
+                
+                mkdir -p $(dirname {params.output_complete})
+                touch {params.output_complete}
             
             # If PE_SE is 2, we are only touching the output file because Snakemake will complain about missing files
             # This file will be created when PE_SE == "1"
@@ -648,20 +658,11 @@ if perform_screen():
                     if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
                         return os.path.join(path,file)
 
-
-    def get_text_output(wildcards):
-        tissue_name = wildcards.tissue_name
-        tag = wildcards.tag
-        PE_SE = wildcards.PE_SE
-        text_file_name = os.path.join(config["ROOTDIR"], f"{tissue_name}_{tags}_{PE_SE}_screen.txt")
-        html_file_name = os.path.join(config["ROOTDIR"], f"{tissue_name}_{tags}_{PE_SE}_screen.html")
-        png_file_name = os.path.join(config["ROOTDIR"], f"{tissue_name}_{tags}_{PE_SE}_screen.png")
-
-        return text_file_name, html_file_name, png_file_name
     rule contaminant_screen:
         input:
             files=get_screen_input,
-            genomes = rules.get_screen_genomes.params.output_dir
+            dump_fastq_complete=dump_fastq_output_complete,
+            genomes = rules.get_screen_genomes.params.output_dir,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
             tissue_name="{tissue_name}",
@@ -680,11 +681,11 @@ if perform_screen():
             """
             fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input.files}
 
-            # outputs in format of: [brightNK]_[S1R1]_[1]_[screen.html]
-            base_name="./{params.tissue_name}_{params.tag}_{params.PE_SE}_screen"                    
-            mv "$base_name.txt" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            mv "$base_name.html" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            mv "$base_name.png" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            # outputs in format of: [brightNK]_[S1R1]_[1]_screen.[txt|html|png]]
+            # base_name="./{params.tissue_name}_{params.tag}_{params.PE_SE}_screen"                    
+            # mv "$base_name.txt" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            # mv "$base_name.html" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            # mv "$base_name.png" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
             """
 
 if perform_trim():
