@@ -516,11 +516,18 @@ if perform_prefetch():
         return srr_code
 
 
+    def dump_fastq_output_complete(wildcards):
+        if str(wildcards.PE_SE) == "1":
+            # Output a "file complete" file
+            return os.path.join(config["ROOTDIR"], "temp", "dump_fastq", f"{wildcards.tissue_name}_{wildcards.tag}_complete")
+        else:
+            return []
     checkpoint dump_fastq:
         input: dump_fastq_input
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
-            srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards,input)
+            srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards,input),
+            output_complete=dump_fastq_output_complete
         threads: get_dump_fastq_threads
         conda: "envs/SRAtools.yaml"
         resources:
@@ -534,6 +541,9 @@ if perform_prefetch():
 
                 mv "$output_dir/{params.srr_code}_1.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"
                 mv "$output_dir/{params.srr_code}_2.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"
+                
+                mkdir -p $(dirname {params.output_complete})
+                touch {params.output_complete}
             
             # If PE_SE is 2, we are only touching the output file because Snakemake will complain about missing files
             # This file will be created when PE_SE == "1"
@@ -641,26 +651,34 @@ if perform_screen():
         aggregate filesnames of all fastqs
         """
         if perform_prefetch():
-            return checkpoints.dump_fastq.get(**wildcards).output
+            output_files = checkpoints.dump_fastq.get(**wildcards).output
+
+            if "_1.fastq.gz" in output_files:
+                forward_read: str = output_files
+                reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
+                output_files = [forward_read, reverse_read]
+            else:
+                return output_files
+
+            # return checkpoints.dump_fastq.get(**wildcards).output
         else:
             for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
                 for file in files:
                     if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
                         return os.path.join(path,file)
 
-
     rule contaminant_screen:
         input:
             files=get_screen_input,
-            genomes = rules.get_screen_genomes.params.output_dir
+            dump_fastq_complete=dump_fastq_output_complete,
+            genomes = rules.get_screen_genomes.params.output_dir,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
             tissue_name="{tissue_name}",
+            tag="{tag}",
+            PE_SE="{PE_SE}",
             genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf"),
-            # brightNK_S1R1_1_screen.html
-            text_output="{tissue_name}_{tag}_{PE_SE}_screen.txt",
-            html_output="{tissue_name}_{tag}_{PE_SE}_screen.html",
-            png_output="{tissue_name}_{tag}_{PE_SE}_screen.png"
+            output_directory=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen")
         conda: "envs/screen.yaml"
         threads: 10
         resources:
@@ -668,11 +686,26 @@ if perform_screen():
             runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
-            fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input.files}
+            # Run fastq screen if PE_SE is 1 or S
+            if [[ "{params.PE_SE}" == "1" ]]; then
+                # Run on forward strand, send to background
+                fq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files} &
+                
+                # Run on reverse strand, send to background
+                fq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files} &
+                
+                # Wait for above background tasks to complete
+                wait
+              
+            # Run on single strand                  
+            elif [[ "{params.PE_SE}" == "S" ]]; then
+                fq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
+            # Only touch reverse read, will be created by forward read
+            elif [[ "{params.PE_SE}" == "S" ]]; then
+                touch {output}
+            fi
             
-            mv {params.text_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            mv {params.html_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            mv {params.png_output} {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            # fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input.files}
             """
 
 if perform_trim():
@@ -887,7 +920,8 @@ rule star_align:
         tissue_name="{tissue_name}",
         tag="{tag}",
         gene_table_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_ReadsPerGene.out.tab"),
-        bam_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam")
+        bam_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam"),
+        prefix=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_"),
     threads: 40
     conda: "envs/star.yaml"
     resources:
@@ -895,17 +929,16 @@ rule star_align:
         runtime=get_star_align_runtime
     shell:
         """
-        PREFIX="{config[ROOTDIR]}/data/{params.tissue_name}/aligned_reads/{params.tag}/{params.tissue_name}_{params.tag}_"
-        printf "prefix is $PREFIX"
         STAR --runThreadN {threads} \
 		--readFilesCommand "zcat" \
 		--readFilesIn {input.reads} \
 		--genomeDir {input.genome_dir} \
-		--outFileNamePrefix $PREFIX \
+		--outFileNamePrefix {params.prefix} \
 		--outSAMtype BAM SortedByCoordinate \
 		--outSAMunmapped Within \
 		--outSAMattributes Standard \
 		--quantMode GeneCounts
+		
 		mv {params.gene_table_output} {output.gene_table}
 		mv {params.bam_output} {output.bam_file}
         """
