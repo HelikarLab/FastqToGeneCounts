@@ -651,7 +651,16 @@ if perform_screen():
         aggregate filesnames of all fastqs
         """
         if perform_prefetch():
-            return checkpoints.dump_fastq.get(**wildcards).output
+            output_files = checkpoints.dump_fastq.get(**wildcards).output
+
+            if "_1.fastq.gz" in output_files:
+                forward_read: str = output_files
+                reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
+                output_files = [forward_read, reverse_read]
+            else:
+                return output_files
+
+            # return checkpoints.dump_fastq.get(**wildcards).output
         else:
             for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
                 for file in files:
@@ -669,9 +678,7 @@ if perform_screen():
             tag="{tag}",
             PE_SE="{PE_SE}",
             genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf"),
-            # text_output="{config[ROOTDIR]}/{tissue_name}_{tag}_{PE_SE}_screen.txt",
-            # html_output="{tissue_name}_{tag}_{PE_SE}_screen.html",
-            # png_output="{tissue_name}_{tag}_{PE_SE}_screen.png"
+            output_directory=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen")
         conda: "envs/screen.yaml"
         threads: 10
         resources:
@@ -679,13 +686,26 @@ if perform_screen():
             runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
-            fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input.files}
-
-            # outputs in format of: [brightNK]_[S1R1]_[1]_screen.[txt|html|png]]
-            # base_name="./{params.tissue_name}_{params.tag}_{params.PE_SE}_screen"                    
-            # mv "$base_name.txt" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            # mv "$base_name.html" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
-            # mv "$base_name.png" {config[ROOTDIR]}/data/{params.tissue_name}/fq_screen/
+            # Run fastq screen if PE_SE is 1 or S
+            if [[ "{params.PE_SE}" == "1" ]]; then
+                # Run on forward strand, send to background
+                fq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files} &
+                
+                # Run on reverse strand, send to background
+                fq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files} &
+                
+                # Wait for above background tasks to complete
+                wait
+              
+            # Run on single strand                  
+            elif [[ "{params.PE_SE}" == "S" ]]; then
+                fq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
+            # Only touch reverse read, will be created by forward read
+            elif [[ "{params.PE_SE}" == "S" ]]; then
+                touch {output}
+            fi
+            
+            # fastq_screen --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} {input.files}
             """
 
 if perform_trim():
@@ -900,7 +920,8 @@ rule star_align:
         tissue_name="{tissue_name}",
         tag="{tag}",
         gene_table_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_ReadsPerGene.out.tab"),
-        bam_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam")
+        bam_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam"),
+        prefix=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_"),
     threads: 40
     conda: "envs/star.yaml"
     resources:
@@ -908,17 +929,16 @@ rule star_align:
         runtime=get_star_align_runtime
     shell:
         """
-        PREFIX="{config[ROOTDIR]}/data/{params.tissue_name}/aligned_reads/{params.tag}/{params.tissue_name}_{params.tag}_"
-        printf "prefix is $PREFIX"
         STAR --runThreadN {threads} \
 		--readFilesCommand "zcat" \
 		--readFilesIn {input.reads} \
 		--genomeDir {input.genome_dir} \
-		--outFileNamePrefix $PREFIX \
+		--outFileNamePrefix {params.prefix} \
 		--outSAMtype BAM SortedByCoordinate \
 		--outSAMunmapped Within \
 		--outSAMattributes Standard \
 		--quantMode GeneCounts
+		
 		mv {params.gene_table_output} {output.gene_table}
 		mv {params.bam_output} {output.bam_file}
         """
