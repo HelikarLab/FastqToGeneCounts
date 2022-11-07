@@ -517,17 +517,23 @@ if perform_prefetch():
 
 
     def dump_fastq_output_complete(wildcards):
+        print("dump_fastq_output_complete")
         if str(wildcards.PE_SE) == "1":
+            print(wildcards)
+            to_return = os.path.join(config["ROOTDIR"], "temp", "dump_fastq", f"{wildcards.tissue_name}_{wildcards.tag}_complete")
+            print(to_return)
             # Output a "file complete" file
-            return os.path.join(config["ROOTDIR"], "temp", "dump_fastq", f"{wildcards.tissue_name}_{wildcards.tag}_complete")
+            return to_return
         else:
             return []
     checkpoint dump_fastq:
         input: dump_fastq_input
-        output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+        output:
+            fastq = os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
+            rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "dump_fastq", "{tissue_name}_{tag}_{PE_SE}_complete"))
         params:
             srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards,input),
-            output_complete=dump_fastq_output_complete
+            # output_complete=dump_fastq_output_complete
         threads: get_dump_fastq_threads
         conda: "envs/SRAtools.yaml"
         resources:
@@ -535,20 +541,17 @@ if perform_prefetch():
             runtime=lambda wildcards, attempt: 45 * attempt  # 45 minutse * attempt
         shell:
             """
-            output_dir="$(dirname {output})"
+            output_dir="$(dirname {output.fastq})"
             if [ "{wildcards.PE_SE}" == "1" ]; then
                 parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip --split-files
 
                 mv "$output_dir/{params.srr_code}_1.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"
                 mv "$output_dir/{params.srr_code}_2.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"
-                
-                mkdir -p $(dirname {params.output_complete})
-                touch {params.output_complete}
             
             # If PE_SE is 2, we are only touching the output file because Snakemake will complain about missing files
             # This file will be created when PE_SE == "1"
             elif [ "{wildcards.PE_SE}" == "2" ]; then
-                touch {output}
+                touch {output.fastq}
             elif [ "{wildcards.PE_SE}" == "S" ]; then
                 parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip
 
@@ -656,7 +659,7 @@ if perform_screen():
             if "_1.fastq.gz" in output_files:
                 forward_read: str = output_files
                 reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
-                output_files = [forward_read, reverse_read]
+                return [forward_read, reverse_read]
             else:
                 return output_files
 
@@ -666,11 +669,16 @@ if perform_screen():
                 for file in files:
                     if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
                         return os.path.join(path,file)
+    def cont_dump_fastq_output_complete(wildcards):
+        if perform_prefetch():
+            return dump_fastq_output_complete(wildcards)
+        else:
+            return ""
 
     rule contaminant_screen:
         input:
             files=get_screen_input,
-            dump_fastq_complete=dump_fastq_output_complete,
+            # dump_fastq_complete=cont_dump_fastq_output_complete,  # dump_fastq_output_compete
             genomes = rules.get_screen_genomes.params.output_dir,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
@@ -1237,7 +1245,7 @@ rule multiqc:
         runtime=lambda wildcards, attempt: int(30 * (attempt * 0.75))  # 30 minutes, don't need much more time than this if it fails
     shell:
         """
-        mkdir -p "{output}"
+        mkdir -p "{output.output_directory}"
         multiqc "{params.input_directory}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}
         if ls ./*.txt 1> /dev/null 2>&1; then
             rm *.txt
