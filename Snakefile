@@ -495,19 +495,13 @@ if perform_prefetch():
     def dump_fastq_input(wildcards):
         output_files = expand(rules.prefetch.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
         for file in output_files:
-            if (wildcards.tissue_name in file) and (wildcards.tag in file):
+            if wildcards.tissue_name in file and wildcards.tag in file:
                 return file
-
-
-    def get_dump_fastq_threads(wildcards):
-        """Get threads for dump fastq"""
-        threads = 1
-        if str(wildcards.PE_SE) in ["1", "S"]:
-            threads = 40
-        elif str(wildcards.PE_SE) == "2":
-            threads = 1
-        return threads
-
+        print(f"Could not find input file for the following")
+        print(f"wildcards: {wildcards}")
+        print(f"tissue_name: {wildcards.tissue_name}")
+        print(f"tag: {wildcards.tag}")
+        return ""
 
     def get_dump_fastq_srr_code(wildcards, input):
         """Get SRR codes corresponding to dump_fastq output"""
@@ -532,9 +526,9 @@ if perform_prefetch():
             fastq = os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
             rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "dump_fastq", "{tissue_name}_{tag}_{PE_SE}_complete"))
         params:
-            srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards,input),
+            srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards, input),
             # output_complete=dump_fastq_output_complete
-        threads: get_dump_fastq_threads
+        threads: lambda wildcards: 40 if str(wildcards.PE_SE) in ["1", "S"] else 1
         conda: "envs/SRAtools.yaml"
         resources:
             mem_mb=lambda wildcards, attempt: 20000 * attempt, # 20 GB
@@ -585,10 +579,12 @@ def fastqc_dump_fastq_input(wildcards):
     If input is a single end read, it will only return the single end read
     """
     if perform_prefetch():
-        checkpoint_output = str(checkpoints.dump_fastq.get(**wildcards).output)
+        checkpoint_output = str(checkpoints.dump_fastq.get(**wildcards).output.fastq)
         if str(wildcards.PE_SE) == "1":
-            file_two = os.path.join(os.path.dirname(checkpoint_output),f"{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz")
-            return [checkpoint_output, file_two]
+            forward_read: str = checkpoint_output
+            reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
+            # file_two = os.path.join(os.path.dirname(checkpoint_output),f"{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"))
+            return [forward_read, reverse_read]
         else:
             return checkpoint_output
     else:
@@ -597,8 +593,9 @@ def fastqc_dump_fastq_input(wildcards):
                 if (wildcards.tissue_name in file) and (wildcards.tag in file) and (f"_{wildcards.PE_SE}" in file):
                     file_one = os.path.join(path,file)
                     if str(wildcards.PE_SE) == "1":
-                        file_two = os.path.join(path,f"{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz")
-                        return [file_one, file_two]
+                        forward_read: str = file_one
+                        reverse_read: str = forward_read.replace("_1.fastq.gz","_2.fastq.gz")
+                        return [forward_read, reverse_read]
                     else:
                         return file_one
 
@@ -654,9 +651,9 @@ if perform_screen():
         aggregate filesnames of all fastqs
         """
         if perform_prefetch():
-            output_files = checkpoints.dump_fastq.get(**wildcards).output
+            output_files = checkpoints.dump_fastq.get(**wildcards).output.fastq
 
-            if "_1.fastq.gz" in output_files:
+            if str(wildcards.PE_SE) == "1":
                 forward_read: str = output_files
                 reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
                 return [forward_read, reverse_read]
