@@ -162,6 +162,21 @@ def get_dump_fastq_output(wildcards):
             return working_file_path
 
 
+def dump_fastq_complete(wildcards):
+    """
+    This function will return the [tissue name]_[tag]_[PE_SE]_complete file for 1/2/S files
+    """
+    if perform_prefetch():
+        checkpoint_output = checkpoints.dump_fastq.get(**wildcards).output
+        rule_complete = checkpoint_output.rule_complete
+        if str(wildcards.PE_SE) == "1":
+            forward_complete: str = rule_complete
+            reverse_complete = forward_complete.replace("_1_complete", "_2_complete")
+            return [forward_complete, reverse_complete]
+        else:
+            return rule_complete
+
+
 def perform_screen_rule(wildcards):
     """
     If screening for contamination, return fastq_screen output
@@ -509,17 +524,6 @@ if perform_prefetch():
         srr_code = file_name.split(".")[0]
         return srr_code
 
-
-    def dump_fastq_output_complete(wildcards):
-        print("dump_fastq_output_complete")
-        if str(wildcards.PE_SE) == "1":
-            print(wildcards)
-            to_return = os.path.join(config["ROOTDIR"], "temp", "dump_fastq", f"{wildcards.tissue_name}_{wildcards.tag}_complete")
-            print(to_return)
-            # Output a "file complete" file
-            return to_return
-        else:
-            return []
     checkpoint dump_fastq:
         input: dump_fastq_input
         output:
@@ -527,7 +531,6 @@ if perform_prefetch():
             rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "dump_fastq", "{tissue_name}_{tag}_{PE_SE}_complete"))
         params:
             srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards, input),
-            # output_complete=dump_fastq_output_complete
         threads: lambda wildcards: 40 if str(wildcards.PE_SE) in ["1", "S"] else 1
         conda: "envs/SRAtools.yaml"
         resources:
@@ -579,11 +582,11 @@ def fastqc_dump_fastq_input(wildcards):
     If input is a single end read, it will only return the single end read
     """
     if perform_prefetch():
-        checkpoint_output = str(checkpoints.dump_fastq.get(**wildcards).output.fastq)
+        checkpoint_output = checkpoints.dump_fastq.get(**wildcards).output
+        fastq_output = checkpoint_output.fastq
         if str(wildcards.PE_SE) == "1":
-            forward_read: str = checkpoint_output
+            forward_read: str = fastq_output
             reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
-            # file_two = os.path.join(os.path.dirname(checkpoint_output),f"{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"))
             return [forward_read, reverse_read]
         else:
             return checkpoint_output
@@ -599,9 +602,10 @@ def fastqc_dump_fastq_input(wildcards):
                     else:
                         return file_one
 
-
 rule fastqc_dump_fastq:
-    input: fastqc_dump_fastq_input
+    input:
+        fastq = fastqc_dump_fastq_input,
+        dump_fastq_complete = dump_fastq_complete
     output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params:
         file_one_zip=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
@@ -649,33 +653,22 @@ if perform_screen():
     def get_screen_input(wildcards):
         """
         aggregate filesnames of all fastqs
+        Already checking if performing screen, no need to check again
         """
-        if perform_prefetch():
-            output_files = checkpoints.dump_fastq.get(**wildcards).output.fastq
+        output_files = checkpoints.dump_fastq.get(**wildcards).output
 
-            if str(wildcards.PE_SE) == "1":
-                forward_read: str = output_files
-                reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
-                return [forward_read, reverse_read]
-            else:
-                return output_files
+        if str(wildcards.PE_SE) == "1":
+            forward_read: str = output_files.fastq
+            reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
+            return [forward_read, reverse_read]
+        else:
+            return output_files
 
-            # return checkpoints.dump_fastq.get(**wildcards).output
-        else:
-            for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
-                for file in files:
-                    if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
-                        return os.path.join(path,file)
-    def cont_dump_fastq_output_complete(wildcards):
-        if perform_prefetch():
-            return dump_fastq_output_complete(wildcards)
-        else:
-            return ""
 
     rule contaminant_screen:
         input:
             files=get_screen_input,
-            # dump_fastq_complete=cont_dump_fastq_output_complete,  # dump_fastq_output_compete
+            dump_fastq_complete=dump_fastq_complete,
             genomes = rules.get_screen_genomes.params.output_dir,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
@@ -694,19 +687,19 @@ if perform_screen():
             # Run fastq screen if PE_SE is 1 or S
             if [[ "{params.PE_SE}" == "1" ]]; then
                 # Run on forward strand, send to background
-                fq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files} &
+                fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files} &
                 
                 # Run on reverse strand, send to background
-                fq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files} &
+                fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files} &
                 
                 # Wait for above background tasks to complete
                 wait
               
             # Run on single strand                  
             elif [[ "{params.PE_SE}" == "S" ]]; then
-                fq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
+                fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
             # Only touch reverse read, will be created by forward read
-            elif [[ "{params.PE_SE}" == "S" ]]; then
+            elif [[ "{params.PE_SE}" == "2" ]]; then
                 touch {output}
             fi
             
@@ -715,13 +708,14 @@ if perform_screen():
 
 if perform_trim():
     def get_trim_input(wildcards):
-        if perform_prefetch():
-            return checkpoints.dump_fastq.get(**wildcards).output
+        output_files = checkpoints.dump_fastq.get(**wildcards).output
+
+        if str(wildcards.PE_SE) == "1":
+            forward_read: str = output_files.fastq
+            reverse_read: str = forward_read.replace("_1.fastq.gz","_2.fastq.gz")
+            return [forward_read, reverse_read]
         else:
-            for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
-                for file in files:
-                    if (wildcards.tissue_name in file) and (f"_{wildcards.tag}" in file) and (f"_{wildcards.PE_SE}" in file):
-                        return os.path.join(path,file)
+            return output_files
 
 
     def get_trim_threads(wildcards):
@@ -730,18 +724,19 @@ if perform_trim():
         Note: The actual trim_galore call below does not request the maximum threads given.
         Trim galore's MAN page states that it can use UP TO this many threads, however
         """
-        threads = 1
+        threads = 1  # Default return if PE_SE is not 1 or S
         if str(wildcards.PE_SE) == "1":
             threads = 16
-        elif str(wildcards.PE_SE) == "2":
-            threads = 1
         elif str(wildcards.PE_SE) == "S":
             threads = 9
         return threads
 
 
     rule trim:
-        input: get_trim_input
+        input:
+            fastq = get_trim_input,
+            rule_complete = dump_fastq_complete
+
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
             tissue_name="{tissue_name}",
@@ -930,7 +925,7 @@ rule star_align:
     threads: 40
     conda: "envs/star.yaml"
     resources:
-        mem_mb=50000,# 50 GB
+        mem_mb=50000,  # 50 GB
         runtime=get_star_align_runtime
     shell:
         """
