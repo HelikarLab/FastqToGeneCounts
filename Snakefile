@@ -501,8 +501,8 @@ if perform_prefetch():
                            
             IFS=", "
             while read srr name endtype prep; do
-                # prefetch has a default max size of 20G. Effectively remove this size by allowing files up to 1TB to be downloaded
-                prefetch $srr --max-size 1024000000000 --output-file {output}
+                # set unlimited max size for prefetch
+                prefetch $srr --max-size u --output-file {output}
             done < {input}
             """
 
