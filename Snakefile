@@ -749,20 +749,19 @@ if perform_trim():
             runtime=lambda wildcards, attempt: 120 * attempt
         shell:
             """
-            # Only process on forward reads
-            input_directory="$(dirname {input})"
+            # input_directory="$(dirname {input})"
             output_directory="$(dirname {output})"
 
             if [ "{params.direction}" == "1" ]; then
-                file_in_1="{input}"                                                               # Input file 1
-                file_in_2="$input_directory/{params.tissue_name}_{params.tag}_2.fastq.gz"         # Input file 2
+                file_in_1="{input.fastq[0]}"  # Input file 1
+                file_in_2="{input.fastq[1]}"  # Input file 2
 
                 file_out_1="$output_directory/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"    # final output paired end, forward read
                 file_out_2="$output_directory/{params.tissue_name}_{params.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
                 file_rename_1="$output_directory/trimmed_{params.tissue_name}_{params.tag}_1.fastq.gz"    # final renamed output paired end, forward read
                 file_rename_2="$output_directory/trimmed_{params.tissue_name}_{params.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
 
-                trim_galore --paired --cores 4 -o "$(dirname {output})" "$file_in_1" "$file_in_2"
+                trim_galore --paired --cores 4 -o "$output_directory" "$file_in_1" "$file_in_2"
 
                 mv "$file_out_1" "$file_rename_1"
                 mv "$file_out_2" "$file_rename_2"
