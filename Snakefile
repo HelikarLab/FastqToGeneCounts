@@ -678,9 +678,10 @@ if perform_screen():
             genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf"),
             output_directory=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen")
         conda: "envs/screen.yaml"
-        threads: 10
+        threads: lambda wildcards: 10 if str(wildcards.PE_SE) in ["1", "S"] else 1
         resources:
-            mem_mb=lambda wildcards, attempt: 5000 * attempt,# 5 GB
+            # TODO: Limit ram if on reverse read
+            mem_mb=lambda wildcards, attempt: 20000 * attempt if str(wildcards.PE_SE) in ["1", "S"] else 200, # 20 GB
             runtime=lambda wildcards, attempt: 30 * attempt
         shell:
             """
@@ -698,6 +699,7 @@ if perform_screen():
             # Run on single strand                  
             elif [[ "{params.PE_SE}" == "S" ]]; then
                 fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
+            
             # Only touch reverse read, will be created by forward read
             elif [[ "{params.PE_SE}" == "2" ]]; then
                 touch {output}
