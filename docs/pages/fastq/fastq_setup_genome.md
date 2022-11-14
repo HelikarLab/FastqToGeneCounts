@@ -18,7 +18,7 @@ cd genome
 # Download the assembly
 # To set the release number, set the following variable
 assembly_release=105
-wget ftp://ftp.ensembl.org/pub/release-$(assembly_release)/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+wget ftp://ftp.ensembl.org/pub/release-${assembly_release}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 
 # Unzip the file
 gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
@@ -66,7 +66,7 @@ cd genome
 # Download the assembly
 # To set the release number, set the following variable
 assembly_release=105
-wget ftp://ftp.ensembl.org/pub/release-$(assembly_release)/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+wget ftp://ftp.ensembl.org/pub/release-${assembly_release}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 
 # Unzip the file
 gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
