@@ -32,7 +32,7 @@ cd genome
 # Download the annotations
 # To set releases, modify the following variable to the release number
 annotation_release=105
-wget ftp://ftp.ensembl.org/pub/release-$(annotation_release)/gtf/homo_sapiens/Homo_sapiens.GRCh38.$(annotation_release).gtf.gz
+wget ftp://ftp.ensembl.org/pub/release-${annotation_release}/gtf/homo_sapiens/Homo_sapiens.GRCh38.${annotation_release}.gtf.gz
 gunzip Homo_sapiens.GRCh38.${annotation_release}.gtf.gz
 ```
 
