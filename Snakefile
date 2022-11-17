@@ -670,7 +670,7 @@ if perform_screen():
         input:
             files=get_screen_input,
             dump_fastq_complete=dump_fastq_complete,
-            genomes = rules.get_screen_genomes.params.output_dir,
+            genomes = rules.get_screen_genomes.output,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
             tissue_name="{tissue_name}",
@@ -720,21 +720,6 @@ if perform_trim():
         else:
             return output_files.fastq
 
-
-    def get_trim_threads(wildcards):
-        """
-        Trim galore uses 9 threads on single-ended data, and 15 cores for paired-end data.
-        Note: The actual trim_galore call below does not request the maximum threads given.
-        Trim galore's MAN page states that it can use UP TO this many threads, however
-        """
-        threads = 1  # Default return if PE_SE is not 1 or S
-        if str(wildcards.PE_SE) == "1":
-            threads = 16
-        elif str(wildcards.PE_SE) == "S":
-            threads = 9
-        return threads
-
-
     rule trim:
         input:
             fastq = get_trim_input,
@@ -744,7 +729,8 @@ if perform_trim():
             tissue_name="{tissue_name}",
             tag="{tag}",
             direction="{PE_SE}"
-        threads: get_trim_threads
+        # Trim galore call uses 4 threads for forward/single reads. Request more because Trim can use UP TO this many
+        threads: lambda wildcards: 16 if str(wildcards.PE_SE) in ["1", "S"] else 1
         conda: "envs/trim.yaml"
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,# 10 GB
