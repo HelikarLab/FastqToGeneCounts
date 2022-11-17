@@ -169,6 +169,7 @@ def dump_fastq_complete(wildcards):
     if perform_prefetch():
         checkpoint_output = checkpoints.dump_fastq.get(**wildcards).output
         rule_complete = checkpoint_output.rule_complete
+
         if str(wildcards.PE_SE) == "1":
             forward_complete: str = rule_complete
             reverse_complete = forward_complete.replace("_1_complete", "_2_complete")
@@ -717,7 +718,7 @@ if perform_trim():
             reverse_read: str = forward_read.replace("_1.fastq.gz","_2.fastq.gz")
             return [forward_read, reverse_read]
         else:
-            return output_files
+            return output_files.fastq
 
 
     def get_trim_threads(wildcards):
@@ -738,7 +739,6 @@ if perform_trim():
         input:
             fastq = get_trim_input,
             rule_complete = dump_fastq_complete
-
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         params:
             tissue_name="{tissue_name}",
@@ -751,7 +751,6 @@ if perform_trim():
             runtime=lambda wildcards, attempt: 120 * attempt
         shell:
             """
-            # input_directory="$(dirname {input})"
             output_directory="$(dirname {output})"
 
             if [ "{params.direction}" == "1" ]; then
@@ -775,9 +774,8 @@ if perform_trim():
             # Work on single-end reads
             elif [ "{params.direction}" == "S" ]; then
                 file_out="$output_directory/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"   # final output single end
-                #file_rename="$output_directory/trimmed_{params.tissue_name}_{params.tag}_S.fastq.gz"
 
-                trim_galore --cores 4 -o "$(dirname {output})" "{input}"
+                trim_galore --cores 4 -o "$output_directory" "{input.fastq}"
 
                 mv "$file_out" "{output}"
             fi
