@@ -146,7 +146,7 @@ def get_dump_fastq_output(wildcards):
     :param wildcards:
     :return:
     """
-    checkpoint_output = checkpoints.dump_fastq.get(**wildcards).output
+    checkpoint_output = checkpoints.fasterq_dump.get(**wildcards).output
     for output in checkpoint_output:
         # Only match tissue_name, tag, and PE_SE
         if wildcards.tissue_name in output and \
@@ -167,8 +167,7 @@ def dump_fastq_complete(wildcards):
     This function will return the [tissue name]_[tag]_[PE_SE]_complete file for 1/2/S files
     """
     if perform_prefetch():
-        checkpoint_output = checkpoints.dump_fastq.get(**wildcards).output
-        rule_complete = checkpoint_output.rule_complete
+        checkpoint_output = checkpoints.fasterq_dump.get(**wildcards).output
 
         if str(wildcards.PE_SE) == "1":
             forward_complete: str = rule_complete
@@ -470,7 +469,7 @@ if perform_prefetch():
         params: id="{tissue_name}_{tag}"
         threads: 1
         resources:
-            mem_mb=lambda wildcards, attempt: 1500 * attempt,
+            mem_mb=lambda wildcards, attempt: 300 * attempt,
             runtime=lambda wildcards, attempt: 5 * attempt
         run:
             # Get lines in master control file
@@ -486,9 +485,11 @@ if perform_prefetch():
 
     rule prefetch:
         input: rules.distribute_init_files.output
-        output: os.path.join(config["ROOTDIR"],"temp", "prefetch", "{tissue_name}_{tag}", "{srr_code}.sra")
+        output: os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}","{tissue_name}_{tag}.sra")
         conda: "envs/SRAtools.yaml"
         threads: 1
+        params:
+            temp_file="/scratch/{tissue_name}_{tag}.sra"
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,
             runtime=lambda wildcards, attempt: 30 * attempt
@@ -503,8 +504,42 @@ if perform_prefetch():
             IFS=", "
             while read srr name endtype prep; do
                 # set unlimited max size for prefetch
-                prefetch $srr --max-size u --output-file {output}
+                prefetch --max-size u --output-file {params.temp_file} $srr
             done < {input}
+            
+            mv {params.temp_file} {output}
+            """
+
+
+    checkpoint fasterq_dump:
+        input: rules.prefetch.output
+        output: fastq=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+        threads: 10
+        conda: "envs/SRAtools.yaml"
+        params:
+            temp_dir="/scratch/",
+            temp_file="/scratch/{tissue_name}_{tag}_{PE_SE}.fastq",
+            gzip_file="/scratch/{tissue_name}_{tag}_{PE_SE}.fastq.gz"
+        resources:
+            mem_mb=lambda wildcards, attempt: 10000 * attempt,
+            time_min=lambda wildcards, attempt: 30 * attempt
+        shell:
+            """
+            mkdir -p {params.temp_dir}
+        
+            fasterq-dump \
+            --split-3 \
+            --threads {threads} \
+            --progress \
+            --bufsize 4G \
+            --mem 6G \
+            --temp {params.temp_dir} \
+            --outdir {params.temp_dir} \
+            {input}
+        
+            pigz --processes {threads} {params.temp_file}
+        
+            mv {params.gzip_file} {output}
             """
 
 
@@ -520,37 +555,7 @@ if perform_prefetch():
         srr_code = file_name.split(".")[0]
         return srr_code
 
-    checkpoint dump_fastq:
-        input: dump_fastq_input
-        output:
-            fastq = os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
-            rule_complete = touch(os.path.join(config["ROOTDIR"], "temp", "dump_fastq", "{tissue_name}_{tag}_{PE_SE}_complete"))
-        params:
-            srr_code=lambda wildcards, input: get_dump_fastq_srr_code(wildcards, input),
-        threads: lambda wildcards: 40 if str(wildcards.PE_SE) in ["1", "S"] else 1
-        conda: "envs/SRAtools.yaml"
-        resources:
-            mem_mb=lambda wildcards, attempt: 20000 * attempt, # 20 GB
-            runtime=lambda wildcards, attempt: 45 * attempt  # 45 minutse * attempt
-        shell:
-            """
-            output_dir="$(dirname {output.fastq})"
-            if [ "{wildcards.PE_SE}" == "1" ]; then
-                parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip --split-files
 
-                mv "$output_dir/{params.srr_code}_1.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"
-                mv "$output_dir/{params.srr_code}_2.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"
-            
-            # If PE_SE is 2, we are only touching the output file because Snakemake will complain about missing files
-            # This file will be created when PE_SE == "1"
-            elif [ "{wildcards.PE_SE}" == "2" ]; then
-                touch {output.fastq}
-            elif [ "{wildcards.PE_SE}" == "S" ]; then
-                parallel-fastq-dump --sra-id {input} --threads {threads} --outdir "$output_dir" --gzip
-
-                mv "$output_dir/{params.srr_code}.fastq.gz" "$output_dir/{wildcards.tissue_name}_{wildcards.tag}_S.fastq.gz"
-            fi
-            """
 
 
 def get_tag(file_path: str) -> str:
@@ -578,7 +583,7 @@ def fastqc_dump_fastq_input(wildcards):
     If input is a single end read, it will only return the single end read
     """
     if perform_prefetch():
-        checkpoint_output = checkpoints.dump_fastq.get(**wildcards).output
+        checkpoint_output = checkpoints.fasterq_dump.get(**wildcards).output
         fastq_output = checkpoint_output.fastq
         if str(wildcards.PE_SE) == "1":
             forward_read: str = fastq_output
@@ -601,7 +606,6 @@ def fastqc_dump_fastq_input(wildcards):
 rule fastqc_dump_fastq:
     input:
         fastq = fastqc_dump_fastq_input,
-        dump_fastq_complete = dump_fastq_complete
     output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
     params:
         file_one_zip=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
@@ -650,7 +654,7 @@ if perform_screen():
         """
         aggregate filesnames of all fastqs
         """
-        output_files = checkpoints.dump_fastq.get(**wildcards).output
+        output_files = checkpoints.fasterq_dump.get(**wildcards).output
 
         if str(wildcards.PE_SE) == "1":
             forward_read: str = output_files.fastq
@@ -663,7 +667,6 @@ if perform_screen():
     rule contaminant_screen:
         input:
             files=get_screen_input,
-            dump_fastq_complete=dump_fastq_complete,
             genomes = rules.get_screen_genomes.output,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
@@ -705,8 +708,7 @@ if perform_screen():
 
 if perform_trim():
     def get_trim_input(wildcards):
-        output_files = checkpoints.dump_fastq.get(**wildcards).output
-
+        output_files = checkpoints.fasterq_dump.get(**wildcards).output
         if str(wildcards.PE_SE) == "1":
             forward_read: str = output_files.fastq
             reverse_read: str = forward_read.replace("_1.fastq.gz","_2.fastq.gz")
@@ -715,14 +717,8 @@ if perform_trim():
             return output_files.fastq
 
     rule trim:
-        input:
-            fastq = get_trim_input,
-            rule_complete = dump_fastq_complete
+        input: get_trim_input,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-        params:
-            tissue_name="{tissue_name}",
-            tag="{tag}",
-            direction="{PE_SE}"
         # Trim galore call uses 4 threads for forward/single reads. Request more because Trim can use UP TO this many
         threads: lambda wildcards: 16 if str(wildcards.PE_SE) in ["1", "S"] else 1
         conda: "envs/trim.yaml"
@@ -733,29 +729,26 @@ if perform_trim():
             """
             output_directory="$(dirname {output})"
 
-            if [ "{params.direction}" == "1" ]; then
-                file_in_1={input.fastq[0]}  # Input file 1
-                file_in_2={input.fastq[1]}  # Input file 2
+            if [ "{wildcards.PE_SE}" == "1" ]; then
+                file_out_1="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
+                file_out_2="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
+                file_rename_1="$output_directory/trimmed_{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"    # final renamed output paired end, forward read
+                file_rename_2="$output_directory/trimmed_{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
 
-                file_out_1="$output_directory/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"    # final output paired end, forward read
-                file_out_2="$output_directory/{params.tissue_name}_{params.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
-                file_rename_1="$output_directory/trimmed_{params.tissue_name}_{params.tag}_1.fastq.gz"    # final renamed output paired end, forward read
-                file_rename_2="$output_directory/trimmed_{params.tissue_name}_{params.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
-
-                trim_galore --paired --cores 4 -o "$output_directory" "$file_in_1" "$file_in_2"
+                trim_galore --paired --cores 4 -o "$output_directory" {input}
 
                 mv "$file_out_1" "$file_rename_1"
                 mv "$file_out_2" "$file_rename_2"
 
             # Skip over reverse-reads. Create the output file so snakemake does not complain about the rule not generating output
-            elif [ "{params.direction}" == "2" ]; then
+            elif [ "{wildcards.PE_SE}" == "2" ]; then
                 touch {output}
 
             # Work on single-end reads
-            elif [ "{params.direction}" == "S" ]; then
-                file_out="$output_directory/{params.tissue_name}_{params.tag}_S_trimmed.fq.gz"   # final output single end
+            elif [ "{wildcards.PE_SE}" == "S" ]; then
+                file_out="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_S_trimmed.fq.gz"   # final output single end
 
-                trim_galore --cores 4 -o "$output_directory" "{input.fastq}"
+                trim_galore --cores 4 -o "$output_directory" {input}
 
                 mv "$file_out" "{output}"
             fi
@@ -781,11 +774,10 @@ if perform_trim():
             mkdir -p "$output_directory"
 
             if [ "{wildcards.PE_SE}" == "1" ]; then
-                fastqc {input} --threads {threads} -o "$output_directory"
-                printf "FastQC finished $(basename {input}) (1/2)\n\n"
-
-                fastqc {params.file_two_input} --threads {threads} -o "$output_directory"
-                printf "FastQC finished $(basename {params.file_two_input}) (2/2)\n\n"
+                # send fastqc commands to background so we can run both at the same time 
+                fastqc {input} --threads {threads} -o "$output_directory" &
+                fastqc {params.file_two_input} --threads {threads} -o "$output_directory" &
+                wait
 
             # Skip reverse reads, but create the output file so Snakemake does not complain about missing files
             # This file will be created when wildcards.PE_SE == "1"
@@ -794,7 +786,6 @@ if perform_trim():
 
             elif [ "{wildcards.PE_SE}" == "S" ]; then
                 fastqc {input} --threads {threads} -o "$output_directory"
-                printf "FastQC finished $(basename {input}) (1/1)\n\n"
             fi
             """
 
@@ -822,7 +813,7 @@ def collect_star_align_input(wildcards):
         # already expanding output from dump_fastq, no need to expand it here
         in_files = sorted(
             expand(
-                rules.dump_fastq.output,
+                rules.fasterq_dump.output,
                 zip,
                 tissue_name=get_tissue_name(),
                 tag=get_tags(),
@@ -908,7 +899,8 @@ rule star_align:
         runtime=get_star_align_runtime
     shell:
         """
-        STAR --runThreadN {threads} \
+        STAR \
+        --runThreadN {threads} \
 		--readFilesCommand "zcat" \
 		--readFilesIn {input.reads} \
 		--genomeDir {input.genome_dir} \
