@@ -513,11 +513,6 @@ if perform_prefetch():
         for file in output_files:
             if wildcards.tissue_name in file and wildcards.tag in file:
                 return file
-        print(f"Could not find input file for the following")
-        print(f"wildcards: {wildcards}")
-        print(f"tissue_name: {wildcards.tissue_name}")
-        print(f"tag: {wildcards.tag}")
-        return ""
 
     def get_dump_fastq_srr_code(wildcards, input):
         """Get SRR codes corresponding to dump_fastq output"""
@@ -654,7 +649,6 @@ if perform_screen():
     def get_screen_input(wildcards):
         """
         aggregate filesnames of all fastqs
-        Already checking if performing screen, no need to check again
         """
         output_files = checkpoints.dump_fastq.get(**wildcards).output
 
@@ -740,8 +734,8 @@ if perform_trim():
             output_directory="$(dirname {output})"
 
             if [ "{params.direction}" == "1" ]; then
-                file_in_1="{input.fastq[0]}"  # Input file 1
-                file_in_2="{input.fastq[1]}"  # Input file 2
+                file_in_1={input.fastq[0]}  # Input file 1
+                file_in_2={input.fastq[1]}  # Input file 2
 
                 file_out_1="$output_directory/{params.tissue_name}_{params.tag}_1_val_1.fq.gz"    # final output paired end, forward read
                 file_out_2="$output_directory/{params.tissue_name}_{params.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
