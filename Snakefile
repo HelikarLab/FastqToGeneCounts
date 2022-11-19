@@ -269,7 +269,7 @@ def perform_dump_fastq(wildcards):
 
 
 rule_all = [
-    os.path.join(config["ROOTDIR"], "temp", "preroundup.txt"),  # pre-roundup
+    expand(os.path.join(config["ROOTDIR"], "temp", "{tissue_name}_preroundup.txt"), tissue_name=get_tissue_name()),  # pre-roundup
     config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],  # Generate Genome
     perform_dump_fastq,  # dump_fastq
     perform_screen_rule,  # fastq_screen
@@ -367,7 +367,7 @@ rule all:
 
 rule preroundup:
     input: config["MASTER_CONTROL"]
-    output: touch(os.path.join(config["ROOTDIR"], "temp", "preroundup.txt"))
+    output: touch(os.path.join(config["ROOTDIR"], "temp", "{tissue_name}_preroundup.txt"))
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 200 * attempt,
@@ -510,7 +510,6 @@ if perform_prefetch():
             mv {params.temp_file} {output}
             """
 
-
     checkpoint fasterq_dump:
         input: rules.prefetch.output
         output: fastq=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
@@ -518,25 +517,39 @@ if perform_prefetch():
         conda: "envs/SRAtools.yaml"
         params:
             temp_dir="/scratch/",
-            temp_file="/scratch/{tissue_name}_{tag}_{PE_SE}.fastq",
-            gzip_file="/scratch/{tissue_name}_{tag}_{PE_SE}.fastq.gz"
+            temp_file=lambda wildcards: f"/scratch/{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq" if wildcards.PE_SE in ["1", "2"]
+                                        else f"/scratch/{wildcards.tissue_name}_{wildcards.tag}.fastq",
+            gzip_file=lambda wildcards: f"/scratch/{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq.gz" if wildcards.PE_SE in ["1", "2"]
+                                        else f"/scratch/{wildcards.tissue_name}_{wildcards.tag}.fastq.gz",
         resources:
-            mem_mb=lambda wildcards, attempt: 10000 * attempt,
+            mem_mb=lambda wildcards, attempt: 25600 * attempt,  # 25 GB
             time_min=lambda wildcards, attempt: 30 * attempt
         shell:
             """
             mkdir -p {params.temp_dir}
+            
+            # Set the split command for forward/reverse reads and single reads
+            # Single reads don't need the split-3 command, as there is no reverse read
+            if [[ "{wildcards.PE_SE}" == "1" ]]; then
+                split_command="--split-3"
+            elif [[ "{wildcards.PE_SE}" == "2" ]]; then
+                split_command="--split-3"
+            elif [[ "{wildcards.PE_SE}" == "S" ]]; then
+                split_command="--split-spot"
+            fi
+                
         
             fasterq-dump \
-            --split-3 \
+            "$split_command" \
             --threads {threads} \
             --progress \
-            --bufsize 4G \
-            --mem 6G \
+            --bufsize 1G \
+            --mem 3G \
             --temp {params.temp_dir} \
             --outdir {params.temp_dir} \
             {input}
         
+            # gzip the output
             pigz --processes {threads} {params.temp_file}
         
             mv {params.gzip_file} {output}
@@ -964,8 +977,8 @@ rule get_rnaseq_metrics:
     shell:
         """
         # Create the parent output directories
-        #mkdir -p $(dirname -- {output.metrics})
-        #mkdir -p $(dirname -- {output.strand})
+        #mkdir -p $(dirname -- "{output.metrics}")
+        #mkdir -p $(dirname -- "{output.strand}")
         
         # Get the column sums and store them in unst, forw, and rev, respectively
         # We are interested in columns 2, 3, and 4, which correspond to the number of reads in the unstranded, forward, and reverse strand, respectively
@@ -1011,7 +1024,7 @@ rule copy_strandedness:
         runtime=5
     shell:
         """
-        mkdir -p {params.sample}
+        mkdir -p "{params.sample}"
         cp {input} {output}
         """
 
