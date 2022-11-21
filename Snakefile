@@ -612,7 +612,7 @@ rule fastqc_dump_fastq:
         file_one_html_rename=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
         file_two_zip_rename=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.zip"),
         file_two_html_rename=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.html")
-    threads: get_fastqc_threads
+    threads: lambda wildcards: 4 if wildcards.tag in ["1", "S"] else 1
     conda: "envs/fastqc.yaml"
     resources:
         mem_mb=lambda wildcards, attempt: 15000 * attempt, # 15 GB * attempt number
@@ -749,8 +749,16 @@ if perform_trim():
             fi
             """
 
+    def get_fastqc_trim_input(wildcards):
+        output = checkpoints.trim.get(**wildcards).output
+        if wildcards.PE_SE == "1":
+            forward: str = str(output)
+            reverse: str = forward.replace("_1.fastq.gz", "_2.fastq.gz")
+            return [forward, reverse]
+        else:
+            return output
     rule fastqc_trim:
-        input: lambda wildcards: checkpoints.trim.get(**wildcards).output  # Original: rules.trim.output
+        input: get_fastqc_trim_input  # Original: rules.trim.output
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
         params:
             file_two_input=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"),
@@ -885,13 +893,13 @@ def get_star_align_runtime(wildcards, input, attempt):
     """
     This function will return the length of time required for star_align to complete X number of reads
     Using 40 threads, it takes ~9 minutes per input file
-    Round this value to 20 minutes (in case using fewer threads)
+    Round this value to 30 minutes (to be on the very safe side)
     We are also going to multiply by the attempt that the workflow is on.
     If on the second/third/etc. attempt, double/triple/etc. time is requested
-    Return an integer of: len(input) * 20 minutes = total runtime
+    Return an integer of: len(input) * 30 minutes * attempt number = total runtime
     """
     # Max time is 7 days (10,080 minutes). Do not let this function return more than this time
-    return min(len(input.reads) * 60 * 4 * attempt, 10079)
+    return min(len(input.reads) * 30 * attempt, 10079)
 
 
 rule star_align:
