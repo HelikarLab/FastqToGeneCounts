@@ -516,7 +516,7 @@ if perform_prefetch():
         threads: 10
         conda: "envs/SRAtools.yaml"
         params:
-            split_command="--split-files" if "{wildcards.PE_SE}" in ["1", "2"] else "--concatenate-reads",
+            split_command=lambda wildcards: "--split-files" if wildcards.PE_SE in ["1", "2"] else "--concatenate-reads",
             temp_dir="/scratch",
             temp_filename=lambda wildcards: f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq" if wildcards.PE_SE in ["1", "2"]
                                             else f"{wildcards.tissue_name}_{wildcards.tag}.fastq",
@@ -526,13 +526,7 @@ if perform_prefetch():
             mem_mb=lambda wildcards, attempt: 25600 * attempt,  # 25 GB
             time_min=lambda wildcards, attempt: 30 * attempt
         shell:
-            """
-            echo BEFORE
-            ls {params.temp_dir}
-            rm -rf {params.temp_dir}/*
-            echo AFTER
-            ls {params.temp_dir}
-                        
+            """         
             fasterq-dump \
             {params.split_command} \
             --threads {threads} \
@@ -544,15 +538,11 @@ if perform_prefetch():
             {input}
         
             # gzip the output
-            if [[ "{wildcards.PE_SE}" == "S" ]]; then
-                echo PRE pigz
-                ls {params.temp_dir}
-            fi
+            echo PRE pigz
+            ls {params.temp_dir}
             pigz --synchronous --processes {threads} {params.temp_dir}/{params.temp_filename}
-            if [[ "{wildcards.PE_SE}" == "S" ]]; then
-                echo POST pigz
-                ls {params.temp_dir}
-            fi
+            echo POST pigz
+            ls {params.temp_dir}
         
             mv {params.temp_dir}/{params.gzip_file} {output}
             """
