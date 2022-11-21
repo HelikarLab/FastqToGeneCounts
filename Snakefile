@@ -516,31 +516,25 @@ if perform_prefetch():
         threads: 10
         conda: "envs/SRAtools.yaml"
         params:
-            temp_dir="/scratch/",
-            temp_file=lambda wildcards: f"/scratch/{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq" if wildcards.PE_SE in ["1", "2"]
-                                        else f"/scratch/{wildcards.tissue_name}_{wildcards.tag}.fastq",
-            gzip_file=lambda wildcards: f"/scratch/{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq.gz" if wildcards.PE_SE in ["1", "2"]
-                                        else f"/scratch/{wildcards.tissue_name}_{wildcards.tag}.fastq.gz",
+            split_command="--split-files" if "{wildcards.PE_SE}" in ["1", "2"] else "--concatenate-reads",
+            temp_dir="/scratch",
+            temp_filename=lambda wildcards: f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq" if wildcards.PE_SE in ["1", "2"]
+                                            else f"{wildcards.tissue_name}_{wildcards.tag}.fastq",
+            gzip_file=lambda wildcards: f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq.gz" if wildcards.PE_SE in ["1", "2"]
+                                        else f"{wildcards.tissue_name}_{wildcards.tag}.fastq.gz",
         resources:
             mem_mb=lambda wildcards, attempt: 25600 * attempt,  # 25 GB
             time_min=lambda wildcards, attempt: 30 * attempt
         shell:
             """
-            mkdir -p {params.temp_dir}
-            
-            # Set the split command for forward/reverse reads and single reads
-            # Single reads don't need the split-3 command, as there is no reverse read
-            if [[ "{wildcards.PE_SE}" == "1" ]]; then
-                split_command="--split-3"
-            elif [[ "{wildcards.PE_SE}" == "2" ]]; then
-                split_command="--split-3"
-            elif [[ "{wildcards.PE_SE}" == "S" ]]; then
-                split_command="--split-spot"
-            fi
-                
-        
+            echo BEFORE
+            ls {params.temp_dir}
+            rm -rf {params.temp_dir}/*
+            echo AFTER
+            ls {params.temp_dir}
+                        
             fasterq-dump \
-            "$split_command" \
+            {params.split_command} \
             --threads {threads} \
             --progress \
             --bufsize 1G \
@@ -550,9 +544,17 @@ if perform_prefetch():
             {input}
         
             # gzip the output
-            pigz --processes {threads} {params.temp_file}
+            if [[ "{wildcards.PE_SE}" == "S" ]]; then
+                echo PRE pigz
+                ls {params.temp_dir}
+            fi
+            pigz --synchronous --processes {threads} {params.temp_dir}/{params.temp_filename}
+            if [[ "{wildcards.PE_SE}" == "S" ]]; then
+                echo POST pigz
+                ls {params.temp_dir}
+            fi
         
-            mv {params.gzip_file} {output}
+            mv {params.temp_dir}/{params.gzip_file} {output}
             """
 
 
