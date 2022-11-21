@@ -721,7 +721,7 @@ if perform_trim():
         else:
             return output_files.fastq
 
-    rule trim:
+    checkpoint trim:
         input: get_trim_input,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         # Trim galore call uses 4 threads for forward/single reads. Request more because Trim can use UP TO this many
@@ -734,7 +734,7 @@ if perform_trim():
             """
             output_directory="$(dirname {output})"
 
-            if [ "{wildcards.PE_SE}" == "1" ]; then
+            if [[ "{wildcards.PE_SE}" == "1" ]]; then
                 file_out_1="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
                 file_out_2="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
                 file_rename_1="$output_directory/trimmed_{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"    # final renamed output paired end, forward read
@@ -746,11 +746,11 @@ if perform_trim():
                 mv "$file_out_2" "$file_rename_2"
 
             # Skip over reverse-reads. Create the output file so snakemake does not complain about the rule not generating output
-            elif [ "{wildcards.PE_SE}" == "2" ]; then
+            elif [[ "{wildcards.PE_SE}" == "2" ]]; then
                 touch {output}
 
             # Work on single-end reads
-            elif [ "{wildcards.PE_SE}" == "S" ]; then
+            elif [[ "{wildcards.PE_SE}" == "S" ]]; then
                 file_out="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_S_trimmed.fq.gz"   # final output single end
 
                 trim_galore --cores 4 -o "$output_directory" {input}
@@ -761,7 +761,7 @@ if perform_trim():
 
 
     rule fastqc_trim:
-        input: rules.trim.output
+        input: lambda wildcards: checkpoints.trim.get(**wildcards).output  # rules.trim.output
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
         params:
             file_two_input=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"),
@@ -869,6 +869,27 @@ def collect_star_align_input(wildcards):
         if wildcards.tissue_name in read and wildcards.tag in read:
             return read.split(" ")
 
+def new_star_input(wildcards):
+    # Open the control file to determine which samples are paired end or not
+    is_paired_end: bool = False
+    with open(config["MASTER_CONTROL"], "r") as i_stream:
+        for line in i_stream:
+
+            # If the current tissue and tag is found in the line, we can determine paired or single end
+            sample = f"{wildcards.tissue_name}_{wildcards.tag}"
+            if sample in line:
+                # Set boolean to determine if it is paired end
+                is_paired_end = "PE" in line
+
+    # Get the output files, using our determined paired/single ends
+    if is_paired_end:
+        forward = checkpoints.trim.get(**wildcards, PE_SE="1").output
+        reverse = checkpoints.trim.get(**wildcards, PE_SE="2").output
+        return [forward, reverse]
+    else:
+        single = checkpoints.trim.get(**wildcards, PE_SE="S").output
+        return single
+
 
 def get_star_align_runtime(wildcards, input, attempt):
     """
@@ -885,7 +906,8 @@ def get_star_align_runtime(wildcards, input, attempt):
 
 rule star_align:
     input:
-        reads=collect_star_align_input,
+        # reads=collect_star_align_input,
+        reads=new_star_input,
         genome_dir=rules.generate_genome.output.genome_dir,
         generate_genome_complete=rules.generate_genome.output.rule_complete
     output:
