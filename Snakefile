@@ -880,6 +880,7 @@ def new_star_input(wildcards):
             if sample in line:
                 # Set boolean to determine if it is paired end
                 is_paired_end = "PE" in line
+                break  # No need to continue looping
 
     # Get the output files, using our determined paired/single ends
     if is_paired_end:
