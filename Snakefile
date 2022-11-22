@@ -1240,7 +1240,7 @@ rule multiqc:
     shell:
         """
         mkdir -p "{output.output_directory}"
-        multiqc --force --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory} "{params.input_directory}"
+        multiqc --force --title "{wildcards.tissue_name}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory} "{params.input_directory}"
         if ls ./*.txt 1> /dev/null 2>&1; then
             rm *.txt
         fi
