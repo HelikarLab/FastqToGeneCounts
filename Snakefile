@@ -888,7 +888,6 @@ def new_star_input(wildcards):
         single = checkpoints.trim.get(**wildcards, PE_SE="S").output
         returnal = single
 
-    print(f"Returnal: '{returnal}'")
     return returnal
 
 
