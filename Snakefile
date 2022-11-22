@@ -763,12 +763,12 @@ if perform_trim():
         params:
             file_two_input=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"),
             file_two_out=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip")
-        threads: lambda wildcards: 4 if wildcards.tag in ["1", "S"] else 1
+        threads: lambda wildcards: 8 if wildcards.PE_SE in ["1", "S"] else 1
         conda: "envs/fastqc.yaml"
         resources:
             # Allocate 250MB per thread, plus extra to be safe
             # threads * 250 * 2 ~= 500 to 1000 GB
-            mem_mb=lambda wildcards, attempt, threads: attempt * threads * 500,
+            mem_mb=lambda wildcards, attempt, threads: attempt * threads * 1000,
             runtime=lambda wildcards, attempt: 150 * attempt  # 2.5 hours * attempt
         shell:
             """
@@ -883,10 +883,13 @@ def new_star_input(wildcards):
     if is_paired_end:
         forward = checkpoints.trim.get(**wildcards, PE_SE="1").output
         reverse = checkpoints.trim.get(**wildcards, PE_SE="2").output
-        return [forward, reverse]
+        returnal = forward + reverse
     else:
         single = checkpoints.trim.get(**wildcards, PE_SE="S").output
-        return single
+        returnal = single
+
+    print(f"Returnal: '{returnal}'")
+    return returnal
 
 
 def get_star_align_runtime(wildcards, input, attempt):
@@ -898,8 +901,11 @@ def get_star_align_runtime(wildcards, input, attempt):
     If on the second/third/etc. attempt, double/triple/etc. time is requested
     Return an integer of: len(input) * 30 minutes * attempt number = total runtime
     """
+    # Convert input to a list, it is sent as a string
+    input_list = str(input.reads).split(" ")
+
     # Max time is 7 days (10,080 minutes). Do not let this function return more than this time
-    return min(len(input.reads) * 30 * attempt, 10079)
+    return min(len(input_list) * 30 * attempt, 10079)
 
 
 rule star_align:
@@ -920,7 +926,7 @@ rule star_align:
     threads: 40
     conda: "envs/star.yaml"
     resources:
-        mem_mb=50000,  # 50 GB
+        mem_mb=51200,  # 50 GB
         runtime=get_star_align_runtime
     shell:
         """
@@ -1234,7 +1240,7 @@ rule multiqc:
     shell:
         """
         mkdir -p "{output.output_directory}"
-        multiqc "{params.input_directory}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory}
+        multiqc --force --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory} "{params.input_directory}"
         if ls ./*.txt 1> /dev/null 2>&1; then
             rm *.txt
         fi
