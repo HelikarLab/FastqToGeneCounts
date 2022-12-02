@@ -63,13 +63,16 @@ rm refFlat.tmp.txt
 # Change directories into your `genome` directory
 cd genome
 
-# Download the assembly
-# To set the release number, set the following variable
-assembly_release=105
-wget ftp://ftp.ensembl.org/pub/release-${assembly_release}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+# Download the BED file, then set the file name
+wget https://sourceforge.net/projects/rseqc/files/BED/Human_Homo_sapiens/hg38_GENCODE.v38.bed.gz/download
+mv download hg38_GENCODE.v38.bed.gz
 
 # Unzip the file
-gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+gunzip hg38_GENCODE.v38.bed.gz
+
+# remove (1) quotation marks from exon positions and (2) “chr” from chromosome indices
+sed -i 's/"//g' hg38_GENCODE.v38.bed
+sed -i 's/chr//g' hg38_GENCODE.v38.bed
 ```
 
 
