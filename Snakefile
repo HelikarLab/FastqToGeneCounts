@@ -594,7 +594,7 @@ def fastqc_dump_fastq_input(wildcards):
         fastq_output = checkpoint_output.fastq
         if str(wildcards.PE_SE) == "1":
             forward_read: str = fastq_output
-            reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
+            reverse_read: str = checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2")# forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
             return [forward_read, reverse_read]
         else:
             return checkpoint_output
@@ -1246,13 +1246,14 @@ rule multiqc:
     threads: 1
     conda: "envs/multiqc.yaml"
     resources:
-        mem_mb=lambda wildcards, attempt: 1000 * attempt,# 1 GB * attempt
+        mem_mb=lambda wildcards, attempt: 10240 * attempt,# 10 GB * attempt
         runtime=lambda wildcards, attempt: int(30 * (attempt * 0.75))  # 30 minutes, don't need much more time than this if it fails
     benchmark: os.path.join("benchmarks","{tissue_name}","multiqc","{tissue_name}.benchmark")
     shell:
         """
         mkdir -p "{output.output_directory}"
         multiqc --force --title "{wildcards.tissue_name}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory} "{params.input_directory}"
+        
         if ls ./*.txt 1> /dev/null 2>&1; then
             rm *.txt
         fi
