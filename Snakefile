@@ -782,9 +782,7 @@ if perform_trim():
 
             if [ "{wildcards.PE_SE}" == "1" ]; then
                 # send fastqc commands to background so we can run both at the same time 
-                fastqc {input} --threads {threads} -o "$output_directory" &
-                fastqc {params.file_two_input} --threads {threads} -o "$output_directory" &
-                wait
+                fastqc {input} --threads {threads} -o "$output_directory"
 
             # Skip reverse reads, but create the output file so Snakemake does not complain about missing files
             # This file will be created when wildcards.PE_SE == "1"
