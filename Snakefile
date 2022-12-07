@@ -594,7 +594,7 @@ def fastqc_dump_fastq_input(wildcards):
         fastq_output = checkpoint_output.fastq
         if str(wildcards.PE_SE) == "1":
             forward_read: str = fastq_output
-            reverse_read: str = checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2")# forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
+            reverse_read: str = checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0]  # forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
             return [forward_read, reverse_read]
         else:
             return checkpoint_output
@@ -624,7 +624,7 @@ rule fastqc_dump_fastq:
         file_one_html_rename=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
         file_two_zip_rename=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.zip"),
         file_two_html_rename=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.html")
-    threads: lambda wildcards: 4 if wildcards.tag in ["1", "S"] else 1
+    threads: 8
     conda: "envs/fastqc.yaml"
     resources:
         mem_mb=lambda wildcards, attempt: 15000 * attempt, # 15 GB * attempt number
@@ -767,7 +767,7 @@ if perform_trim():
         params:
             file_two_input=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"),
             file_two_out=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip")
-        threads: lambda wildcards: 8 if wildcards.PE_SE in ["1", "S"] else 1
+        threads: 8
         conda: "envs/fastqc.yaml"
         resources:
             # Allocate 250MB per thread, plus extra to be safe
