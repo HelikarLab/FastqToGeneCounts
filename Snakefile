@@ -527,7 +527,7 @@ if perform_prefetch():
         threads: 10
         conda: "envs/SRAtools.yaml"
         params:
-            split_command=lambda wildcards: "--split-files" if wildcards.PE_SE in ["1", "2"] else "--concatenate-reads",
+            # split_command=lambda wildcards: "--split-files" if wildcards.PE_SE in ["1", "2"] else "--concatenate-reads",
             temp_dir="/scratch",
             temp_filename=lambda wildcards: f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq" if wildcards.PE_SE in ["1", "2"]
                                             else f"{wildcards.tissue_name}_{wildcards.tag}.fastq",
@@ -540,7 +540,7 @@ if perform_prefetch():
         shell:
             """         
             fasterq-dump \
-            {params.split_command} \
+            --split-files \
             --threads {threads} \
             --progress \
             --bufsize 1G \
