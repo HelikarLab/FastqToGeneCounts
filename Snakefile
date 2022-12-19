@@ -1,10 +1,8 @@
 import os
-import csv
 import warnings
 import sys
 import pandas as pd
-from pathlib import Path
-import snakemake
+from utils import get, perform
 
 configfile: "snakemake_config.yaml"
 samples: pd.DataFrame = pd.read_csv(config["MASTER_CONTROL"])
@@ -12,185 +10,39 @@ samples: pd.DataFrame = pd.read_csv(config["MASTER_CONTROL"])
 # Ensure the results directory is made
 os.makedirs(config["ROOTDIR"], exist_ok=True)
 
+
 # Validate users are using conda. This is important for temporary conda environments defined in the workflow
 if not workflow.use_conda:
     sys.stderr.write("\nYou are not using conda. Pass the '--use-conda' flag to snakemake.\nExample: snakemake --cores 10 --use-conda\n\n")
     sys.exit(1)
 
-def perform_trim():  # QC
-    return str(config["PERFORM_TRIM"]).lower() == "true"
-
-
-def perform_screen():  # QC
-    return str(config["PERFORM_SCREEN"]).lower() == "true"
-
-
-def perform_prefetch():
-    return str(config["PERFORM_PREFETCH"]).lower() == "true"
-
-
-def perform_get_insert_size():
-    return str(config["PERFORM_GET_INSERT_SIZE"]).lower() == "true"
-
-
-def perform_get_fragment_size():  # for zFPKM QC
-    return str(config["PERFORM_GET_FRAGMENT_SIZE"]).lower() == "true"
-
-
-def perform_get_rnaseq_metrics():  # QC
-    return str(config["PERFORM_GET_RNASEQ_METRICS"]).lower() == "true"
-
-
-def get_from_master_config(attribute: str) -> list[str]:
-    valid_inputs = ["SRR", "tissue", "tag", "PE_SE"]
-    sub_list = ["tissue", "tag"]
-    if attribute not in valid_inputs:
-        sys.exit(f"\nInvalid attribute input. '{attribute}' is not one of: {valid_inputs}\n")
+def fastqc_trimmed_reads(wildcards):
+    """
+    If we are going to trim, return output for rule fastqc_trim
+    """
+    if perform.trim(config=config):
+        return expand(
+            os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
+            zip,
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            PE_SE=get.PE_SE(config=config)
+        )
     else:
-        collect_attributes = []
-        index_value = valid_inputs.index(attribute)
-
-        # We have to subtract one because "tissue" and "tag" are in the same index, thus the index value in valid_inputs is increased by one
-        if index_value >= 2:
-            index_value -= 1
-
-
-        control_lines = open(config["MASTER_CONTROL"], "r").readlines()
-        reader = csv.reader(control_lines)
-
-        for line in reader:
-
-            # Get the column from master_control we are interested in
-            column_value = line[index_value]
-            PE_SE_value = line[2]  # get PE or SE
-
-            # test if we are looking for "tissue" or "tag", as these two values are located at master_control index 1
-            if attribute in sub_list:
-                sub_index = sub_list.index(attribute)
-                split_list = str(line[index_value]).split("_")
-
-                # We must append the target attribute twice if it is paired end, once if it is single end
-                if PE_SE_value == "PE":
-                    target_attribute = [split_list[sub_index], split_list[sub_index]]
-                else:  # Single end
-                    target_attribute = [split_list[sub_index]]
-
-            elif attribute == "PE_SE":
-                # We must append the target attribute twice if it is paired end, once if it is single end
-                if column_value == "PE":
-                    target_attribute = ["1", "2"]
-                else:  # Single end
-                    target_attribute = ["S"]
-
-            else:
-                if PE_SE_value == "PE":
-                    target_attribute = [line[index_value], line[index_value]]
-                else:
-                    target_attribute = [line[index_value]]
-
-            collect_attributes += target_attribute
-
-        return collect_attributes
-
-
-def get_srr_code() -> list[str]:
-    """
-    Only should be getting SRR values if we are performing prefetch
-    """
-    if perform_trim():
-        return get_from_master_config("SRR")
-
-
-def get_tissue_name() -> list[str]:
-    if perform_prefetch():
-        return get_from_master_config("tissue")
-    else:
-        fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"],"{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
-        return fastq_input.tissue_name
-
-
-def get_tags() -> list[str]:
-    if perform_prefetch():
-        return get_from_master_config("tag")
-    else:
-        fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"],"{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
-        return fastq_input.tag
-
-
-def get_PE_SE() -> list[str]:
-    if perform_prefetch():
-        return get_from_master_config("PE_SE")
-    else:
-        fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"],"{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
-        return fastq_input.PE_SE
-
-
-def get_sample() -> list[str]:
-    if perform_prefetch():
-        tag = get_from_master_config("tag")
-    else:
-        fastq_input = glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"],"{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
-        tag = fastq_input.tag
-
-    sample = []
-    for t in tag:
-        sample.append(t.split("R")[0])
-    return sample
-
-
-def get_dump_fastq_output(wildcards):
-    """
-    rule dump_fastq's output has expand(). This means calling rules.dump_fastq.output will retrieve ALL output, not just a single file
-    This function will be used to get a single file as input for rule trim, based on rule trim's expected output file
-    Example:
-        dump_fastq output: results/data/naiveB/raw/naiveB_S1R1_1.fastq.gz, results/data/naiveB/raw/naiveB_S1R1_2.fastq.gz, results/data/naiveB/raw/naiveB_S1R2_1.fastq.gz, results/data/naiveB/raw/naiveB_S1R2_2.fastq.gz
-        trim's requested input: results/data/naiveB/raw/naiveB_S1R2_2.fastq.gz
-        we will return: results/data/naiveB/raw/naiveB_S1R2_2.fastq.gz
-    :param wildcards:
-    :return:
-    """
-    checkpoint_output = checkpoints.fasterq_dump.get(**wildcards).output
-    for output in checkpoint_output:
-        # Only match tissue_name, tag, and PE_SE
-        if wildcards.tissue_name in output and \
-                wildcards.tag in output and \
-                f"_{wildcards.PE_SE}" in output:
-            # Getting directory name from dump_fastq
-            directory_name = os.path.dirname(output)
-
-            # Generate our working file name, and working file path
-            working_file = f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq.gz"
-            working_file_path = os.path.join(directory_name,working_file)
-
-            return working_file_path
-
-
-def dump_fastq_complete(wildcards):
-    """
-    This function will return the [tissue name]_[tag]_[PE_SE]_complete file for 1/2/S files
-    """
-    if perform_prefetch():
-        checkpoint_output = checkpoints.fasterq_dump.get(**wildcards).output
-
-        if str(wildcards.PE_SE) == "1":
-            forward_complete: str = rule_complete
-            reverse_complete = forward_complete.replace("_1_complete", "_2_complete")
-            return [forward_complete, reverse_complete]
-        else:
-            return rule_complete
+        return []
 
 
 def perform_screen_rule(wildcards):
     """
     If screening for contamination, return fastq_screen output
     """
-    if perform_screen():
-        return expand(
+    if perform.screen(config=config):
+        return snakemake.io.expand(
             os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt"),
             zip,
-            tissue_name=get_tissue_name(),
-            tag=get_tags(),
-            PE_SE=get_PE_SE()
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            PE_SE=get.PE_SE(config=config)
         )
     else:
         return []
@@ -200,12 +52,12 @@ def perform_get_insert_size_rule(wildcards):
     """
     If getting insert sizes with picard, return GetinsertSizeMetrics output
     """
-    if perform_get_insert_size():
-        return expand(
+    if perform.get_insert_size(config=config):
+        return snakemake.io.expand(
             os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "insert", "{tissue_name}_{tag}_insert_size.txt"),
             zip,
-            tissue_name=get_tissue_name(),
-            tag=get_tags()
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config)
         )
     else:
         return []
@@ -215,12 +67,12 @@ def perform_get_fragment_size_rule(wildcards):
     """
     If getting fragment sizes with deeptools, return RNA_fragment_size.py output
     """
-    if perform_get_fragment_size():
-        return expand(
+    if perform.get_fragment_size(config=config):
+        return snakemake.io.expand(
             os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt"),
             zip,
-            tissue_name=get_tissue_name(),
-            tag=get_tags()
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config)
         )
     else:
         return []
@@ -230,49 +82,33 @@ def perform_trim_rule(wildcards):
     """
     If we are performing trimming, return trim's output
     """
-    if perform_trim():
-        return expand(
+    if perform.trim(config=config):
+        return snakemake.io.expand(
             os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
             zip,
-            tissue_name=get_tissue_name(),
-            tag=get_tags(),
-            PE_SE=get_PE_SE()
-        )
-    else:
-        return []
-
-
-def fastqc_trimmed_reads(wildcards):
-    """
-    If we are going to trim, return output for rule fastqc_trim
-    """
-    if perform_trim():
-        return expand(
-            os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
-            zip,
-            tissue_name=get_tissue_name(),
-            tag=get_tags(),
-            PE_SE=get_PE_SE()
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            PE_SE=get.PE_SE(config=config)
         )
     else:
         return []
 
 
 def perform_dump_fastq(wildcards):
-    if perform_prefetch():
+    if perform.prefetch(config=config):
         return expand(
             os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
             zip,
-            tissue_name=get_tissue_name(),
-            tag=get_tags(),
-            PE_SE=get_PE_SE()
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            PE_SE=get.PE_SE(config=config)
         )
     else:
         return []
 
 
 rule_all = [
-    expand(os.path.join(config["ROOTDIR"], "temp", "preroundup", "{tissue_name}_preroundup.txt"), tissue_name=get_tissue_name()),  # pre-roundup
+    expand(os.path.join(config["ROOTDIR"], "temp", "preroundup", "{tissue_name}_preroundup.txt"), tissue_name=get.tissue_name(config=config)),  # pre-roundup
     config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],  # Generate Genome
     perform_dump_fastq,  # dump_fastq
     perform_screen_rule,  # fastq_screen
@@ -282,9 +118,9 @@ rule_all = [
     expand(
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
         zip,
-        tissue_name=get_tissue_name(),
-        tag=get_tags(),
-        PE_SE=get_PE_SE()
+        tissue_name=get.tissue_name(config=config),
+        tag=get.tags(config=config),
+        PE_SE=get.PE_SE(config=config)
     ),
     fastqc_trimmed_reads,
 
@@ -292,51 +128,52 @@ rule_all = [
     expand(
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
         zip,
-        tissue_name=get_tissue_name(),
-        tag=get_tags()
+        tissue_name=get.tissue_name(config=config),
+        tag=get.tags(config=config)
     ),
 
     # FastQ aligned reads
     expand(
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai"),
         zip,
-        tissue_name=get_tissue_name(),
-        tag=get_tags()
+        tissue_name=get.tissue_name(config=config),
+        tag=get.tags(config=config)
     ),
 
     # copy .tab
     expand(
         os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"),
         zip,
-        tissue_name=get_tissue_name(),
-        tag=get_tags(),sample=get_sample()
+        tissue_name=get.tissue_name(config=config),
+        tag=get.tags(config=config),
+        sample=get.sample(config=config)
     ),
 
     # get rnaseq metrics
     expand(
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
         zip,
-        tissue_name=get_tissue_name(),
-        tag=get_tags()
+        tissue_name=get.tissue_name(config=config),
+        tag=get.tags(config=config)
     ),
 
     # copy strandedness
     expand(
         os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
         zip,
-        tissue_name=get_tissue_name(),
-        tag=get_tags(),
-        sample=get_sample()
+        tissue_name=get.tissue_name(config=config),
+        tag=get.tags(config=config),
+        sample=get.sample(config=config)
     ),
 
     # MultiQC
     expand(
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
-        tissue_name=get_tissue_name()
+        tissue_name=get.tissue_name(config=config)
     ),
 ]
 
-if perform_get_insert_size():
+if perform.get_insert_size(config=config):
     rule_all.extend([
         # Get Insert sizes
         perform_get_insert_size_rule,
@@ -344,13 +181,13 @@ if perform_get_insert_size():
         # copy insert
         expand(os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
             zip,
-            tissue_name=get_tissue_name(),
-            tag=get_tags(),
-            sample=get_sample()
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            sample=get.sample(config=config)
         )
     ])
 
-if perform_get_fragment_size():
+if perform.get_fragment_size(config=config):
     rule_all.extend([
         # get fragment lengths
         perform_get_fragment_size_rule,
@@ -358,9 +195,9 @@ if perform_get_fragment_size():
         # copy fragment
         expand(os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt"),
             zip,
-            tissue_name=get_tissue_name(),
-            tag=get_tags(),
-            sample=get_sample()
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            sample=get.sample(config=config)
         )
     ])
 
@@ -436,7 +273,7 @@ rule generate_genome:
         --sjdbOverhang 99
         """
 
-if perform_screen():
+if perform.screen(config=config):
     rule get_screen_genomes:
         """
         Download genomes to screen against
@@ -464,7 +301,7 @@ if perform_screen():
             """
 
 
-if perform_prefetch():
+if perform.prefetch(config=config):
     rule distribute_init_files:
         input: ancient(config["MASTER_CONTROL"])  # Always run this rule to update its output
         output: report(os.path.join(config["ROOTDIR"],"controls", "{tissue_name}_{tag}.csv"))
@@ -554,7 +391,13 @@ if perform_prefetch():
 
 
     def dump_fastq_input(wildcards):
-        output_files = expand(rules.prefetch.output, zip, tissue_name=get_tissue_name(), tag=get_tags(), srr_code=get_srr_code())
+        output_files = expand(
+            rules.prefetch.output,
+            zip,
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            srr_code=get.srr_code(config=config)
+        )
         for file in output_files:
             if wildcards.tissue_name in file and wildcards.tag in file:
                 return file
@@ -566,15 +409,6 @@ if perform_prefetch():
         return srr_code
 
 
-
-
-def get_tag(file_path: str) -> str:
-    file_name = os.path.basename(file_path)
-    purge_extension = file_name.split(".")[0]
-    tag = purge_extension.split("_")[-1]
-    return str(tag)
-
-
 def fastqc_dump_fastq_input(wildcards):
     """
     This function will return the input for fastqc_dump_fastq
@@ -582,15 +416,13 @@ def fastqc_dump_fastq_input(wildcards):
     If input is the reverse read, it will only return the reverse read
     If input is a single end read, it will only return the single end read
     """
-    if perform_prefetch():
-        checkpoint_output = checkpoints.fasterq_dump.get(**wildcards).output
-        fastq_output = checkpoint_output.fastq
+    if perform.prefetch(config=config):
         if str(wildcards.PE_SE) == "1":
-            forward_read: str = fastq_output
-            reverse_read: str = checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0]  # forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
+            forward_read: str = checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0]
+            reverse_read: str = checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0]
             return [forward_read, reverse_read]
         else:
-            return checkpoint_output
+            return checkpoints.fasterq_dump.get(**wildcards).output
     else:
         for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
             for file in files:
@@ -650,19 +482,18 @@ rule fastqc_dump_fastq:
         """
 
 
-if perform_screen():
+if perform.screen(config=config):
     def get_screen_input(wildcards):
         """
         aggregate filesnames of all fastqs
         """
-        output_files = checkpoints.fasterq_dump.get(**wildcards).output
-
         if str(wildcards.PE_SE) == "1":
-            forward_read: str = output_files.fastq
-            reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
+            forward_read: str = str(checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)
+            reverse_read: str = str(checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)
+            # reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
             return [forward_read, reverse_read]
         else:
-            return output_files
+            return checkpoints.fasterq_dump.get(**wildcards).output
 
 
     rule contaminant_screen:
@@ -697,12 +528,12 @@ if perform_screen():
             fi
             """
 
-if perform_trim():
+if perform.trim(config=config):
     def get_trim_input(wildcards):
         output_files = checkpoints.fasterq_dump.get(**wildcards).output
         if str(wildcards.PE_SE) == "1":
-            forward_read: str = output_files.fastq
-            reverse_read: str = forward_read.replace("_1.fastq.gz","_2.fastq.gz")
+            forward_read: str = str(checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)
+            reverse_read: str = str(checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)
             return [forward_read, reverse_read]
         else:
             return output_files.fastq
@@ -747,13 +578,12 @@ if perform_trim():
             """
 
     def get_fastqc_trim_input(wildcards):
-        output = checkpoints.trim.get(**wildcards).output
         if wildcards.PE_SE == "1":
-            forward: str = str(output)
-            reverse: str = forward.replace("_1.fastq.gz", "_2.fastq.gz")
+            forward: str = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)
+            forward: str = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)
             return [forward, reverse]
         else:
-            return output
+            return checkpoints.trim.get(**wildcards).output
     rule fastqc_trim:
         input: get_fastqc_trim_input  # Original: rules.trim.output
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip")
@@ -788,23 +618,16 @@ if perform_trim():
             """
 
 
-def get_direction_from_name(file: str):
-    file_name = os.path.basename(file)
-    purge_extension = file_name.split(".")[0]
-    direction = purge_extension.split("_")[-1]
-    return direction
-
-
 def collect_star_align_input(wildcards):
-    if perform_trim():
+    if perform.trim(config=config):
         # Have not expanded output from rule trim, need to expand it here
         in_files = sorted(
             expand(
                 rules.trim.output,
                 zip,
-                tissue_name=get_tissue_name(),
-                tag=get_tags(),
-                PE_SE=get_PE_SE()
+                tissue_name=get.tissue_name(config=config),
+                tag=get.tags(config=config),
+                PE_SE=get.PE_SE(config=config)
             )
         )
     else:
@@ -813,18 +636,18 @@ def collect_star_align_input(wildcards):
             expand(
                 rules.fasterq_dump.output,
                 zip,
-                tissue_name=get_tissue_name(),
-                tag=get_tags(),
-                PE_SE=get_PE_SE()
+                tissue_name=get.tissue_name(config=config),
+                tag=get.tags(config=config),
+                PE_SE=get.PE_SE(config=config)
             )
         )
 
     grouped_reads = []
     for i, in_file in enumerate(in_files):
-        direction = get_direction_from_name(in_file)
+        direction = get.direction_from_name(in_file)
         try:
             next_file = in_files[i + 1]
-            next_direction = get_direction_from_name(next_file)
+            next_direction = get.direction_from_name(next_file)
         except:
             if direction == "S":
                 grouped_reads.append(in_file)
@@ -881,8 +704,7 @@ def new_star_input(wildcards):
         reverse = checkpoints.trim.get(**wildcards, PE_SE="2").output
         returnal = forward + reverse
     else:
-        single = checkpoints.trim.get(**wildcards, PE_SE="S").output
-        returnal = single
+        returnal = checkpoints.trim.get(**wildcards, PE_SE="S").output
 
     return returnal
 
@@ -1045,7 +867,7 @@ rule copy_strandedness:
         """
 
 
-if perform_get_insert_size():
+if perform.get_insert_size(config=config):
     def insert_size_get_star_data(wildcards):
         return_files = []
         for file in expand(rules.star_align.output.bam_file,zip,tissue_name=get_tissue_name(),tag=get_tags()):
@@ -1102,7 +924,7 @@ if perform_get_insert_size():
             cp {input} {output}
             """
 
-if perform_get_fragment_size():
+if perform.get_fragment_size(config=config):
     rule get_fragment_size:
         input:
             bam=rules.star_align.output.bam_file,
@@ -1111,10 +933,10 @@ if perform_get_fragment_size():
             os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt")
         params:
             layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt")
-        threads: 4
+        threads: 1
         resources:
-            mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
-            runtime=lambda wildcards, attempt: 60 * attempt
+            mem_mb=lambda wildcards, attempt: 8192 * attempt,  # 8 GB / attempt
+            runtime=lambda wildcards, attempt: 90 * attempt  # 90 minutes, should never take this long
         conda: "envs/rseqc.yaml"
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_fragment_size","{tissue_name}_{tag}.benchmark"), 3)
         shell:
@@ -1147,9 +969,20 @@ if perform_get_fragment_size():
 
 
 def multiqc_get_dump_fastq_data(wildcards):
-    if perform_prefetch():
-        output = expand(os.path.join(config[
-            "ROOTDIR"],"data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE())
+    if perform.prefetch(config=config):
+        output = expand(
+            os.path.join(
+                config["ROOTDIR"],
+                "data",
+                "{tissue_name}",
+                "raw",
+                "{tissue_name}_{tag}_{PE_SE}.fastq.gz"
+            ),
+            zip,
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            PE_SE=get.PE_SE(config=config)
+        )
     else:
         output = []
         for path, subdir, files in os.walk(config["DUMP_FASTQ_FILES"]):
@@ -1163,10 +996,22 @@ def multiqc_get_dump_fastq_data(wildcards):
 
 
 def multiqc_get_fastqc_data(wildcards):
-    if perform_trim():
-        output_files = expand(rules.fastqc_trim.output,zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE())
+    if perform.trim(config=config):
+        output_files = expand(
+            rules.fastqc_trim.output,
+            zip,
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            PE_SE=get.PE_SE(config=config)
+        )
     else:
-        output_files = expand(rules.fastqc_dump_fastq.output,zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE())
+        output_files = expand(
+            rules.fastqc_dump_fastq.output,
+            zip,
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            PE_SE=get.PE_SE(config=config)
+        )
     return_files = []
     for file in output_files:
         if wildcards.tissue_name in file:
@@ -1176,15 +1021,26 @@ def multiqc_get_fastqc_data(wildcards):
 
 def multiqc_get_star_data(wildcards):
     return_files = []
-    for file in expand(rules.star_align.output.gene_table,zip,tissue_name=get_tissue_name(),tag=get_tags()):
+    for file in expand(
+            rules.star_align.output.gene_table,
+            zip,
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config)
+    ):
         if wildcards.tissue_name in file:
             return_files.append(file)
     return return_files
 
 
 def multiqc_get_screen_data(wildcards):
-    if perform_screen():
-        output_files = expand(rules.contaminant_screen.output,zip,tissue_name=get_tissue_name(),tag=get_tags(),PE_SE=get_PE_SE())
+    if perform.screen(config=config):
+        output_files = expand(
+            rules.contaminant_screen.output,
+            zip,
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config),
+            PE_SE=get.PE_SE(config=config)
+        )
     else:
         output_files = []
     return_files = []
@@ -1196,8 +1052,13 @@ def multiqc_get_screen_data(wildcards):
 
 def multiqc_get_insertsize_data(wildcards):
     return_files = []
-    if perform_get_insert_size():
-        for file in expand(rules.get_insert_size.output.txt,zip,tissue_name=get_tissue_name(),tag=get_tags()):
+    if perform.get_insert_size(config=config):
+        for file in expand(
+                rules.get_insert_size.output.txt,
+                zip,
+                tissue_name=get.tissue_name(config=config),
+                tag=get.tags(config=config)
+        ):
             if wildcards.tissue_name in file:
                 return_files.append(file)
     return return_files
@@ -1205,8 +1066,13 @@ def multiqc_get_insertsize_data(wildcards):
 
 def multiqc_get_fragmentsize_data(wildcards):
     return_files = []
-    if perform_get_fragment_size():
-        for file in expand(rules.get_fragment_size.output,zip,tissue_name=get_tissue_name(),tag=get_tags()):
+    if perform.get_fragment_size(config=config):
+        for file in expand(
+                rules.get_fragment_size.output,
+                zip,
+                tissue_name=get.tissue_name(config=config),
+                tag=get.tags(config=config)
+        ):
             if wildcards.tissue_name in file:
                 return_files.append(file)
     return return_files
@@ -1214,7 +1080,12 @@ def multiqc_get_fragmentsize_data(wildcards):
 
 def multiqc_get_rnaseq_data(wildcards):
     return_files = []
-    for file in expand(rules.get_rnaseq_metrics.output,zip,tissue_name=get_tissue_name(),tag=get_tags()):
+    for file in expand(
+            rules.get_rnaseq_metrics.output,
+            zip,
+            tissue_name=get.tissue_name(config=config),
+            tag=get.tags(config=config)
+    ):
         if wildcards.tissue_name in file:
             return_files.append(file)
     return return_files
