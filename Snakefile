@@ -353,7 +353,9 @@ if perform.prefetch(config=config):
             """
 
     checkpoint fasterq_dump:
-        input: rules.prefetch.output
+        input:
+            prefetch=rules.prefetch.output,
+            srr=rules.distribute_init_files.output
         output: fastq=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         threads: 10
         conda: "envs/SRAtools.yaml"
@@ -367,11 +369,11 @@ if perform.prefetch(config=config):
             split_files=lambda wildcards: True if wildcards.PE_SE in ["1", "2"] else False
         resources:
             mem_mb=lambda wildcards, attempt: 25600 * attempt,  # 25 GB
-            time_min=lambda wildcards, attempt: 30 * attempt
+            time_min=lambda wildcards, attempt: 45 * attempt
         # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fasterq_dump","{tissue_name}_{tag}_{PE_SE}.benchmark"), 3)
         shell:
             """
-            command='fasterq-dump --force --threads {threads} --progress --bufsize 1G --mem 3G --temp {params.temp_dir} --outdir {params.temp_dir} {input}'
+            command='fasterq-dump --force --progress --threads {threads} --temp {params.temp_dir} --outdir {params.temp_dir}'
             
             # Set the split/concatenate based on paired end or single end data
             if [[ "{params.split_files}" == "True" ]]; then
@@ -380,7 +382,10 @@ if perform.prefetch(config=config):
                 command+=' --concatenate-reads'
             fi
             
-            # Run the command
+            # Add the SRA file path to the command
+            command+=' {input.prefetch}'
+            
+            echo $command
             eval $command
             
             ls {params.temp_dir}
