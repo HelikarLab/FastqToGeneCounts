@@ -122,6 +122,7 @@ rule_all = [
         tag=get.tags(config=config),
         PE_SE=get.PE_SE(config=config)
     ),
+
     fastqc_trimmed_reads,
 
     # STAR aligner
@@ -304,13 +305,13 @@ if perform.screen(config=config):
 if perform.prefetch(config=config):
     rule distribute_init_files:
         input: ancient(config["MASTER_CONTROL"])  # Always run this rule to update its output
-        output: report(os.path.join(config["ROOTDIR"],"controls", "{tissue_name}_{tag}.csv"))
+        output: report(os.path.join(config["ROOTDIR"],"temp","init_files","{tissue_name}", "{tissue_name}_{tag}.csv"))
         params: id="{tissue_name}_{tag}"
         threads: 1
         resources:
             mem_mb=lambda wildcards, attempt: 300 * attempt,
             runtime=lambda wildcards, attempt: 5 * attempt
-        # benchmark: repeat(os.path.join( "benchmarks", "{tissue_name}", "distribute_init_files", "{tissue_name}_{tag}.benchmark"), 3)
+        benchmark: repeat(os.path.join( "benchmarks", "{tissue_name}", "distribute_init_files", "{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         run:
             # Get lines in master control file
             # Open output for writing
@@ -325,16 +326,17 @@ if perform.prefetch(config=config):
 
     rule prefetch:
         input: rules.distribute_init_files.output
-        output: os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}.sra")
+        output: os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}","{tissue_name}_{tag}","{tissue_name}_{tag}.sra")
         conda: "envs/SRAtools.yaml"
         threads: 1
         params:
             temp_directory="/scratch",
-            temp_file="/scratch/{tissue_name}_{tag}.sra"
+            temp_file="/scratch/{tissue_name}_{tag}.sra",
+            output_directory=os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}")
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,
-            runtime=lambda wildcards, attempt: 30 * attempt
-        # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","prefetch","{tissue_name}_{tag}.benchmark"), 3)
+            runtime=lambda wildcards, attempt: 30 * attempt,
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","prefetch","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
             # If the SRA file lock exists, remove it
@@ -342,14 +344,27 @@ if perform.prefetch(config=config):
             if [ -f "$lock_file" ]; then
                 rm $lock_file
             fi
-                           
+                    
             IFS=", "
+            curr_dir=$(pwd)
             while read srr name endtype prep; do
+                # Change into the "scratch" directory so temp files do not populate in the working directory
+                cd {params.temp_directory}
+                
                 # set unlimited max size for prefetch
-                prefetch --max-size u --progress --output-file {params.temp_file} $srr
+                prefetch --max-size u --progress --resume yes --output-file {params.temp_file} $srr
             done < {input}
             
+            # Change back to the working directory before moving files
+            cd $curr_dir
             mv {params.temp_file} {output}
+            
+            # Move dependencies into the output directory, checking if files exist in "/scratch"
+            if [ -n "$(find {params.temp_directory} -prune -empty)" ]; then
+                mv {params.temp_directory}/* {params.output_directory}
+            fi
+                
+            
             """
 
     checkpoint fasterq_dump:
@@ -357,7 +372,7 @@ if perform.prefetch(config=config):
             prefetch=rules.prefetch.output,
             srr=rules.distribute_init_files.output
         output: fastq=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-        threads: 10
+        threads: 40
         conda: "envs/SRAtools.yaml"
         params:
             # split_command=lambda wildcards: "--split-files" if wildcards.PE_SE in ["1", "2"] else "--concatenate-reads",
@@ -369,8 +384,9 @@ if perform.prefetch(config=config):
             split_files=lambda wildcards: True if wildcards.PE_SE in ["1", "2"] else False
         resources:
             mem_mb=lambda wildcards, attempt: 25600 * attempt,  # 25 GB
-            time_min=lambda wildcards, attempt: 45 * attempt
-        # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fasterq_dump","{tissue_name}_{tag}_{PE_SE}.benchmark"), 3)
+            time_min=lambda wildcards, attempt: 45 * attempt,
+            disk_mb=lambda wildcards, attempt: 256000 * attempt,  # 250 GB
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fasterq_dump","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
             command='fasterq-dump --force --progress --threads {threads} --temp {params.temp_dir} --outdir {params.temp_dir}'
@@ -387,8 +403,6 @@ if perform.prefetch(config=config):
             
             echo $command
             eval $command
-            
-            ls {params.temp_dir}
         
             # gzip the output
             pigz --synchronous --processes {threads} {params.temp_dir}/{params.temp_filename}
@@ -461,7 +475,7 @@ rule fastqc_dump_fastq:
     resources:
         mem_mb=lambda wildcards, attempt: 15000 * attempt, # 15 GB * attempt number
         runtime=lambda wildcards, attempt: 150 * attempt  # 150 minutes * attempt number
-    # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fastqc_dump_fastq","{tissue_name}_{tag}_{PE_SE}.benchmark"), 3)
+    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fastqc_dump_fastq","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
         output_directory="$(dirname {output})"
@@ -520,7 +534,7 @@ if perform.screen(config=config):
             # TODO: Limit ram if on reverse read
             mem_mb=lambda wildcards, attempt: 20000 * attempt if str(wildcards.PE_SE) in ["1", "S"] else 200, # 20 GB
             runtime=lambda wildcards, attempt: 30 * attempt
-        # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","contaminant_screen","{tissue_name}_{tag}_{PE_SE}.benchmark"), 3)
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","contaminant_screen","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
             # Run fastq screen if PE_SE is 1 or S
@@ -554,7 +568,7 @@ if perform.trim(config=config):
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,# 10 GB
             runtime=lambda wildcards, attempt: 120 * attempt
-        # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","trim","{tissue_name}_{tag}_{PE_SE}.benchmark"), 3)
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","trim","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
             output_directory="$(dirname {output})"
@@ -605,7 +619,7 @@ if perform.trim(config=config):
             # threads * 250 * 2 ~= 500 to 1000 GB
             mem_mb=lambda wildcards, attempt, threads: attempt * threads * 1000,
             runtime=lambda wildcards, attempt: 150 * attempt  # 2.5 hours * attempt
-        # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fastqc_trim","{tissue_name}_{tag}_{PE_SE}.benchmark"), 3)
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fastqc_trim","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
             output_directory="$(dirname {output})"
@@ -753,7 +767,7 @@ rule star_align:
     resources:
         mem_mb=51200,  # 50 GB
         runtime=get_star_align_runtime
-    # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","star_align","{tissue_name}_{tag}.benchmark"), 3)
+    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","star_align","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
         STAR \
@@ -782,7 +796,7 @@ rule copy_geneCounts:
     resources:
         mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
         runtime=5
-    # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_geneCounts","{sample}_{tissue_name}_{tag}.benchmark"), 3)
+    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_geneCounts","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
             mkdir -p {params.sample}
@@ -798,7 +812,7 @@ rule index_bam_file:
         mem_mb=lambda wildcards, attempt: 2000 * attempt, # 2 GB per attempt
         runtime=lambda wildcards, attempt: 5 * attempt  # 5 minutes per attempt
     conda: "envs/samtools.yaml"
-    # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","index_bam_file","{tissue_name}_{tag}.benchmark"), 3)
+    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","index_bam_file","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
         samtools index -@ {threads} {input} {output}
@@ -820,7 +834,7 @@ rule get_rnaseq_metrics:
         mem_mb=lambda wildcards, attempt: 2500 * 5 * attempt,# 5 GB / attempt
         runtime=lambda wildcards, attempt: 60 * attempt
     conda: "envs/picard.yaml"
-    # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_rnaseq_metrics","{tissue_name}_{tag}.benchmark"), 3)
+    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_rnaseq_metrics","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
         # Create the parent output directories
@@ -867,7 +881,7 @@ rule copy_strandedness:
     resources:
         mem_mb=lambda wildcards, attempt: 200 * attempt,  # 200 MB * attempt
         runtime=5
-    # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_strandedness","{sample}_{tissue_name}_{tag}.benchmark"), 3)
+    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_strandedness","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
         mkdir -p "{params.sample}"
@@ -898,7 +912,7 @@ if perform.get_insert_size(config=config):
             mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
             runtime=lambda wildcards, attempt: 60 * attempt
         conda: "envs/picard.yaml"
-        # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_insert_size","{tissue_name}_{tag}.benchmark"), 3)
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_insert_size","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
             lay=$(cat {params.layout})
@@ -925,7 +939,7 @@ if perform.get_insert_size(config=config):
         resources:
             mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
             runtime=5
-        # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_insert_size","{sample}_{tissue_name}_{tag}.benchmark"), 3)
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_insert_size","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
             mkdir -p {params.sample}
@@ -946,7 +960,7 @@ if perform.get_fragment_size(config=config):
             mem_mb=lambda wildcards, attempt: 8192 * attempt,  # 8 GB / attempt
             runtime=lambda wildcards, attempt: 90 * attempt  # 90 minutes, should never take this long
         conda: "envs/rseqc.yaml"
-        # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_fragment_size","{tissue_name}_{tag}.benchmark"), 3)
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_fragment_size","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
             # get matches of script file ( should only be one, but just to be safe run it anyway )
@@ -968,7 +982,7 @@ if perform.get_fragment_size(config=config):
         resources:
             mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
             runtime=5
-        # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","resources","{sample}_{tissue_name}_{tag}.benchmark"), 3)
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","resources","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
             mkdir -p {params.sample}
@@ -1118,7 +1132,7 @@ rule multiqc:
     resources:
         mem_mb=lambda wildcards, attempt: 10240 * attempt,# 10 GB * attempt
         runtime=lambda wildcards, attempt: int(30 * (attempt * 0.75))  # 30 minutes, don't need much more time than this if it fails
-    # benchmark: repeat(os.path.join("benchmarks","{tissue_name}","multiqc","{tissue_name}.benchmark"), 3)
+    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","multiqc","{tissue_name}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
         mkdir -p "{output.output_directory}"
