@@ -108,7 +108,11 @@ def perform_dump_fastq(wildcards):
 
 
 rule_all = [
-    expand(os.path.join(config["ROOTDIR"], "temp", "preroundup", "{tissue_name}_preroundup.txt"), tissue_name=get.tissue_name(config=config)),  # pre-roundup
+    # Preroundup
+    expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"), tissue_name=get.tissue_name(config=config), tag=get.tags(config=config)),
+    expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"), tissue_name=get.tissue_name(config=config), tag=get.tags(config=config)),
+
+    # expand(os.path.join(config["ROOTDIR"], "temp", "preroundup", "{tissue_name}_preroundup.txt"), tissue_name=get.tissue_name(config=config)),  # pre-roundup
     config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],  # Generate Genome
     perform_dump_fastq,  # dump_fastq
     perform_screen_rule,  # fastq_screen
@@ -207,14 +211,17 @@ rule all:
 
 rule preroundup:
     input: config["MASTER_CONTROL"]
-    output: touch(os.path.join(config["ROOTDIR"], "temp", "preroundup", "{tissue_name}_preroundup.txt"))
+    # output: touch(os.path.join(config["ROOTDIR"], "temp", "preroundup", "{tissue_name}_preroundup.txt"))
+    output:
+        layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
+        preparation=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 200 * attempt,
         runtime=lambda wildcards, attempt: 5 * attempt
     shell:
         """
-        IFS=", "
+        IFS=","
         while read srr name endtype prep; do
             tissue=$(echo $name | cut -d '_' -f1)
             prepl=$(echo "$prep" | tr '[:upper:]' '[:lower:]')
@@ -901,12 +908,11 @@ if perform.get_insert_size(config=config):
     rule get_insert_size:
         input:
             bam=rules.star_align.output.bam_file,
-            preround=rules.preroundup.output
+            preround=rules.preroundup.output.layout
         output:
             txt=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "insert", "{tissue_name}_{tag}_insert_size.txt"),
-            pdf=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "hist", "{tissue_name}_{tag}_insert_size_histo.pdf")
-        params:
-            layout=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt")
+            pdf=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "hist", "{tissue_name}_{tag}_insert_size_histo.pdf"),
+        # params: layout=os.path.join(config["ROOTDIR"],"MADRID_input", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt")
         threads: 4
         resources:
             mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
@@ -915,13 +921,13 @@ if perform.get_insert_size(config=config):
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_insert_size","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
-            lay=$(cat {params.layout})
+            lay=$(cat {input.preround})
             if [ $lay == "paired-end"]; then
                 picard CollectinsertSizeMetrics \
                 I={input.bam} \
                 O={output.txt} \
                 H={output.pdf} \
-                M=0.05 || picard CollectinsertSizeMetrics I={input} O={output.txt} H={output.pdf} M=0.5
+                M=0.05
             else
                 echo "cannot collect metrics for single-end data" > {output.txt}
                 touch {output.pdf}
