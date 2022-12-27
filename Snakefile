@@ -585,33 +585,19 @@ if perform.trim(config=config):
 
             if [[ "{wildcards.PE_SE}" == "1" ]]; then
                 file_out_1="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
-                file_out_2="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
-                # file_rename_1="{params.temp_dir}/trimmed_{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"    # final renamed output paired end, forward read
-                # file_rename_2="{params.temp_dir}/trimmed_{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
-
                 trim_galore --paired --cores 4 -o {params.temp_dir} {input}
-                # trim_galore --paired --cores 4 -o "$output_directory" {input}
-
                 mv "$file_out_1" "{output}"
 
             # Skip over reverse-reads. Create the output file so snakemake does not complain about the rule not generating output
             elif [[ "{wildcards.PE_SE}" == "2" ]]; then
-                file_out_1="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
                 file_out_2="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
-                # file_rename_1="{params.temp_dir}/trimmed_{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"    # final renamed output paired end, forward read
-                # file_rename_2="{params.temp_dir}/trimmed_{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
-
                 trim_galore --paired --cores 4 -o {params.temp_dir} {input}
-                # trim_galore --paired --cores 4 -o "$output_directory" {input}
-
                 mv "$file_out_2" "{output}"
 
             # Work on single-end reads
             elif [[ "{wildcards.PE_SE}" == "S" ]]; then
                 file_out="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_S_trimmed.fq.gz"   # final output single end
-
                 trim_galore --cores 4 -o "$output_directory" {input}
-
                 mv "$file_out" "{output}"
             fi
             """
