@@ -112,7 +112,7 @@ rule_all = [
     expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"), tissue_name=get.tissue_name(config=config), tag=get.tags(config=config)),
     expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"), tissue_name=get.tissue_name(config=config), tag=get.tags(config=config)),
 
-    # expand(os.path.join(config["ROOTDIR"], "temp", "preroundup", "{tissue_name}_preroundup.txt"), tissue_name=get.tissue_name(config=config)),  # pre-roundup
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "fastq_screen.conf"),  # Screen genome
     config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],  # Generate Genome
     perform_dump_fastq,  # dump_fastq
     perform_screen_rule,  # fastq_screen
@@ -286,20 +286,21 @@ if perform.screen(config=config):
         """
         Download genomes to screen against
         """
-        output: job_done=touch(os.path.join(config["ROOTDIR"], "temp", "get_screen_genomes.complete"))
-        # output: directory("FastQ_Screen_Genomes")
+        output:
+            job_done=touch(os.path.join(config["ROOTDIR"], "temp", "get_screen_genomes.complete")),
+            config=os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "fastq_screen.conf")
+        threads: 10
+        conda: "envs/screen.yaml"
         params:
             output_dir = config["ROOTDIR"],
             sed_dir = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
-        threads: 10
         resources:
             mem_mb=lambda wildcards, attempt: 1500 * attempt, # 1.5 GB * attempt
             runtime=lambda wildcards, attempt: 240 * attempt  # 240 minutes * attempt (4 hours)
-        conda: "envs/screen.yaml"
         shell:
             """
-            if [[ ! -d {output} ]]; then
-                fastq_screen --get_genomes --quiet --threads {threads} --outdir {params.output_dir}
+            if [[ ! -f {output.config} ]]; then
+                fastq_screen --get_genomes --force --quiet --threads {threads} --outdir {params.output_dir}
                 
                 # remove data1/ from screen genome paths
                 sed -i 's/\/data1\///' {params.sed_dir}/fastq_screen.conf
@@ -569,8 +570,10 @@ if perform.trim(config=config):
     checkpoint trim:
         input: get_trim_input,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+        params:
+            temp_dir="/scratch",
         # Trim galore call uses 4 threads for forward/single reads. Request more because Trim can use UP TO this many
-        threads: lambda wildcards: 16 if str(wildcards.PE_SE) in ["1", "S"] else 1
+        threads: 16
         conda: "envs/trim.yaml"
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,# 10 GB
@@ -581,20 +584,27 @@ if perform.trim(config=config):
             output_directory="$(dirname {output})"
 
             if [[ "{wildcards.PE_SE}" == "1" ]]; then
-                echo HERE {input}
-                file_out_1="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
-                file_out_2="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
-                file_rename_1="$output_directory/trimmed_{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"    # final renamed output paired end, forward read
-                file_rename_2="$output_directory/trimmed_{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
+                file_out_1="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
+                file_out_2="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
+                # file_rename_1="{params.temp_dir}/trimmed_{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"    # final renamed output paired end, forward read
+                # file_rename_2="{params.temp_dir}/trimmed_{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
 
-                trim_galore --paired --cores 4 -o "$output_directory" {input}
+                trim_galore --paired --cores 4 -o {params.temp_dir} {input}
+                # trim_galore --paired --cores 4 -o "$output_directory" {input}
 
-                mv "$file_out_1" "$file_rename_1"
-                mv "$file_out_2" "$file_rename_2"
+                mv "$file_out_1" "{output}"
 
             # Skip over reverse-reads. Create the output file so snakemake does not complain about the rule not generating output
             elif [[ "{wildcards.PE_SE}" == "2" ]]; then
-                touch {output}
+                file_out_1="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
+                file_out_2="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
+                # file_rename_1="{params.temp_dir}/trimmed_{wildcards.tissue_name}_{wildcards.tag}_1.fastq.gz"    # final renamed output paired end, forward read
+                # file_rename_2="{params.temp_dir}/trimmed_{wildcards.tissue_name}_{wildcards.tag}_2.fastq.gz"    # final renamed output paired end, reverse read
+
+                trim_galore --paired --cores 4 -o {params.temp_dir} {input}
+                # trim_galore --paired --cores 4 -o "$output_directory" {input}
+
+                mv "$file_out_2" "{output}"
 
             # Work on single-end reads
             elif [[ "{wildcards.PE_SE}" == "S" ]]; then
@@ -751,7 +761,7 @@ def get_star_align_runtime(wildcards, input, attempt):
     input_list = str(input.reads).split(" ")
 
     # Max time is 7 days (10,080 minutes). Do not let this function return more than this time
-    return min(len(input_list) * 30 * attempt, 10079)
+    return min(len(input_list) * 20 * attempt, 10079)
 
 
 rule star_align:
