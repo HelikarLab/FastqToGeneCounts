@@ -560,7 +560,7 @@ if perform.screen(config=config):
 if perform.trim(config=config):
     def get_trim_input(wildcards):
         output_files = checkpoints.fasterq_dump.get(**wildcards).output
-        if str(wildcards.PE_SE) == "1":
+        if str(wildcards.PE_SE) in ["1", "2"]:
             forward_read: str = str(checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)
             reverse_read: str = str(checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)
             return [forward_read, reverse_read]
@@ -580,7 +580,7 @@ if perform.trim(config=config):
             runtime=lambda wildcards, attempt: 120 * attempt
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","trim","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
-            """
+            """            
             output_directory="$(dirname {output})"
 
             if [[ "{wildcards.PE_SE}" == "1" ]]; then
