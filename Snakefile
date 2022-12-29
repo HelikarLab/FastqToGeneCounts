@@ -1,4 +1,5 @@
 import os
+import csv
 import warnings
 import sys
 import pandas as pd
@@ -112,8 +113,26 @@ rule_all = [
     expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"), tissue_name=get.tissue_name(config=config), tag=get.tags(config=config)),
     expand(os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"), tissue_name=get.tissue_name(config=config), tag=get.tags(config=config)),
 
-    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "fastq_screen.conf"),  # Screen genome
-    config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],  # Generate Genome
+    # Screen Genome data
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Adapters"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Arabidopsis"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Drosophila"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "E_coli"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Human"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Lambda"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Mitochondria"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Mouse"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "PhiX"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Rat"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Vectors"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Worm"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Yeast"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "rRNA"),
+    os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "fastq_screen.conf"),
+
+    # Generate Genome
+    config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],
     perform_dump_fastq,  # dump_fastq
     perform_screen_rule,  # fastq_screen
     perform_trim_rule,  # trim reads
@@ -211,7 +230,6 @@ rule all:
 
 rule preroundup:
     input: config["MASTER_CONTROL"]
-    # output: touch(os.path.join(config["ROOTDIR"], "temp", "preroundup", "{tissue_name}_preroundup.txt"))
     output:
         layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
         preparation=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
@@ -219,45 +237,77 @@ rule preroundup:
     resources:
         mem_mb=lambda wildcards, attempt: 200 * attempt,
         runtime=lambda wildcards, attempt: 5 * attempt
-    shell:
-        """
-        IFS=","
-        while read srr name endtype prep; do
-            tissue=$(echo $name | cut -d '_' -f1)
-            prepl=$(echo "$prep" | tr '[:upper:]' '[:lower:]')
-            study=$(echo $name | grep -oP "_\KS\d+(?=R\d+[r]?[\d+]?)")
-            
-            mkdir -p MADRID_input/${{tissue}}/geneCounts/
-            mkdir -p MADRID_input/${{tissue}}/insertSizeMetrics/
-            mkdir -p MADRID_input/${{tissue}}/layouts/
-            mkdir -p MADRID_input/${{tissue}}/layouts/${{study}}/
-            mkdir -p MADRID_input/${{tissue}}/fragmentSizes/
-            mkdir -p MADRID_input/${{tissue}}/prepMethods/
-            mkdir -p MADRID_input/${{tissue}}/prepMethods/${{study}}/
-            mkdir -p {config[ROOTDIR]}/data/${{tissue}}/layouts/
-            mkdir -p {config[ROOTDIR]}/data/${{tissue}}/prepMethods/
-            
-            if [[ $endtype == "SE" ]]; then
-                echo "single-end" > {config[ROOTDIR]}/data/${{tissue}}/layouts/${{name}}_layout.txt
-                echo "single-end" > MADRID_input/${{tissue}}/layouts/${{study}}/${{name}}_layout.txt
-            elif [[ $endtype == "PE" ]]; then
-                echo "paired-end" > {config[ROOTDIR]}/data/${{tissue}}/layouts/${{name}}_layout.txt
-                echo "paired-end" > MADRID_input/${{tissue}}/layouts/${{study}}/${{name}}_layout.txt
-            else
-                echo "invalid layout"
-            fi
-            
-            if [[ $prepl == "mrna" ]]; then
-                echo "mrna" > {config[ROOTDIR]}/data/${{tissue}}/prepMethods/${{name}}_prep_method.txt
-                echo "mrna" > MADRID_input/${{tissue}}/prepMethods/${{study}}/${{name}}_prep_method.txt
-            elif [[ $prepl == "total" ]]; then
-                echo "total" > {config[ROOTDIR]}/data/${{tissue}}/prepMethods/${{name}}_prep_method.txt
-                echo "total" > MADRID_input/${{tissue}}/prepMethods/${{study}}/${{name}}_prep_method.txt
-            else
-                echo "invalid library preparation method. Must be total or mrna"
-            fi 
-        done < {input}
-        """
+    run:
+        # SRR12873784,effectorcd8_S1R1,PE,total
+        with open(input,"r") as i_stream:
+            reader = csv.reader(i_stream)
+            for line in reader:
+                # Collect the required data
+                srr_code: str = line[0]                 # SRR123
+                name: str = line[1]                     # naiveB_S1R1
+                tissue_name: str = name.split("_")[0]   # naiveB
+                tag: str = name.split("_")[1]           # S1R1
+                endtype: str = line[2]                  # PE
+                prep: str = line[3].lower()             # total
+
+                # Set the study
+                # If the tag is S1R1, extract the "S1" component
+                study: str = ""
+                for char in tag:
+                    if char == "R":  # Once we reach the replicate, we can exit the loop
+                        break
+                    elif char == "S":
+                        study += char
+                    elif char.isdigit():
+                        study += char
+
+                print(srr_code)
+                print(name)
+                print(tissue_name)
+                print(tag)
+                print(endtype)
+                print(prep)
+                print(study)
+
+                # Make the required directories
+                os.makedirs(os.path.join("MADRID_input", tissue_name, "geneCounts"), exist_ok=True)
+                os.makedirs(os.path.join("MADRID_input", tissue_name, "insertSizeMetrics"), exist_ok=True)
+                os.makedirs(os.path.join("MADRID_input", tissue_name, "layouts"), exist_ok=True)
+                os.makedirs(os.path.join("MADRID_input", tissue_name, "layouts", study), exist_ok=True)
+                os.makedirs(os.path.join("MADRID_input", tissue_name, "fragmentSizes"), exist_ok=True)
+                os.makedirs(os.path.join("MADRID_input", tissue_name, "prepMethods"), exist_ok=True)
+                os.makedirs(os.path.join("MADRID_input", tissue_name, "prepMethods", study), exist_ok=True)
+                os.makedirs(os.path.join(config["ROOTDIR"], "data", tissue_name, "layouts"), exist_ok=True)
+                os.makedirs(os.path.join(config["ROOTDIR"], "data", tissue_name, "prepMethods"), exist_ok=True)
+
+                # Write single/paired end to the appropriate location
+                end_type_write_root = open(os.path.join(config["ROOTDIR"], "data", tissue_name, "layouts", f"{name}_layout.txt"), "w")
+                end_type_write_madrid = open(os.path.join("MADRID_input",tissue_name,"layouts",study,f"{name}_layout.txt"), "w")
+                if endtype == "SE":
+                    end_type_write_root.write("single-end")
+                    end_type_write_madrid.write("single-end")
+                elif endtype == "PE":
+                    end_type_write_root.write("paired-end")
+                    end_type_write_madrid.write("paired-end")
+                else:
+                    raise ValueError(f"Rule preroundup: Invalid endtype: {endtype}")
+                end_type_write_root.close()
+                end_type_write_madrid.close()
+
+                # Write mrna/total to the appropriate location
+                prep_method_root = open(os.path.join(config["ROOTDIR"],"data",tissue_name,"prepMethods",f"{name}_prep_method.txt"), "w")
+                prep_method_madrid = open(os.path.join("MADRID_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt"), "w")
+                if prep == "mrna":
+                    prep_method_root.write("mrna")
+                    prep_method_madrid.write("mrna")
+                elif prep == "total":
+                    prep_method_root.write("total")
+                    prep_method_madrid.write("total")
+                else:
+                    raise ValueError(f"Rule preroundup: Invalid library preparation: {prep}. Must be `total` or `mrna`")
+                prep_method_root.close()
+                prep_method_madrid.close()
+
 
 rule generate_genome:
     input:
@@ -287,26 +337,73 @@ if perform.screen(config=config):
         Download genomes to screen against
         """
         output:
-            job_done=touch(os.path.join(config["ROOTDIR"], "temp", "get_screen_genomes.complete")),
+            genomes=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")),
+            Adapters=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Adapters")),
+            Arabidopsis=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Arabidopsis")),
+            Drosophila=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Drosophila")),
+            E_coli=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "E_coli")),
+            Human=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Human")),
+            Lambda=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Lambda")),
+            Mitochondria=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Mitochondria")),
+            Mouse=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Mouse")),
+            PhiX=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "PhiX")),
+            Rat=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Rat")),
+            Vectors=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Vectors")),
+            Worm=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Worm")),
+            Yeast=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "Yeast")),
+            rRNA=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "rRNA")),
             config=os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "fastq_screen.conf")
-        threads: 10
-        conda: "envs/screen.yaml"
+        threads: 15
         params:
             output_dir = config["ROOTDIR"],
-            sed_dir = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
+            download_paths = [
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Adapters/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Arabidopsis/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Drosophila/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/E_coli/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Human/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Lambda/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Mitochondria/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Mouse/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/PhiX/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Rat/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Vectors/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Worm/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Yeast/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/rRNA/",
+                "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/fastq_screen.conf"
+            ]
         resources:
             mem_mb=lambda wildcards, attempt: 1500 * attempt, # 1.5 GB * attempt
             runtime=lambda wildcards, attempt: 240 * attempt  # 240 minutes * attempt (4 hours)
         shell:
             """
-            if [[ ! -f {output.config} ]]; then
-                fastq_screen --get_genomes --force --quiet --threads {threads} --outdir {params.output_dir}
+            for path in {params.download_paths}; do
+                # Get the species from the URL (i.e., E_coli, Human, Rat, etc.)
+                species=$(echo $path | cut -d "/" -f 6)
                 
-                # remove data1/ from screen genome paths
-                sed -i 's/\/data1\///' {params.sed_dir}/fastq_screen.conf
-            else
-                touch -c {output}/*
-            fi
+                # Only download directories that are not currently existing
+                # Use `--reject` to ignore any index files
+                # If it does exist, touch the file so snakeamke doesn't complain about output files not existing
+                if [[ ! -d "{output.genomes}/$species" ]]; then
+                    # Test if working on fastq_screen.conf, we don't want to make this a directory because it is a file
+                    if [[ ! $path =~ .*fastq_screen\.conf.* ]]; then
+                        mkdir -p /scratch/$species
+                    fi
+                    wget --quiet --recursive --no-parent --no-host-directories --cut-dirs=2 --reject="index.html*" -P /scratch $path && echo "Finished $species" &
+                else
+                    find "{output.genomes}/$species" -t file -exec touch {{}} \; &
+                fi
+            done
+            
+            # Wait for all downloads to be done
+            wait
+            
+            # Move scratch downloads into the results directory
+            mv /scratch/* {output.genomes}
+            
+            # Replace "[FastQ_Screen_Genomes_Path]" with the sed_dir
+            sed -i 's.\[FastQ_Screen_Genomes_Path\].{output.genomes}.g' {output.config}
             """
 
 
@@ -528,13 +625,13 @@ if perform.screen(config=config):
     rule contaminant_screen:
         input:
             files=get_screen_input,
-            genomes=rules.get_screen_genomes.output,
+            genomes=rules.get_screen_genomes.output.genomes,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
             tissue_name="{tissue_name}",
             tag="{tag}",
             PE_SE="{PE_SE}",
-            genomes_config=os.path.join(rules.get_screen_genomes.params.sed_dir, "fastq_screen.conf"),
+            genomes_config=rules.get_screen_genomes.output.config,
             output_directory=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen")
         conda: "envs/screen.yaml"
         threads: lambda wildcards: 20 if str(wildcards.PE_SE) in ["1", "S"] else 1
@@ -549,9 +646,11 @@ if perform.screen(config=config):
             if [[ "{params.PE_SE}" == "1" ]]; then
                 fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
                     # Run on single strand
+
             elif [[ "{params.PE_SE}" == "S" ]]; then
                 fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
-                    # Only touch reverse read, will be created by forward read
+
+            # Only touch reverse read, will be created by forward read
             elif [[ "{params.PE_SE}" == "2" ]]; then
                 touch {output}
             fi
