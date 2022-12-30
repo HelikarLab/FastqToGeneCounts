@@ -3,10 +3,18 @@ import csv
 import warnings
 import sys
 import pandas as pd
-from utils import get, perform
+from utils import get, perform, validate
 
 configfile: "snakemake_config.yaml"
-# samples: pd.DataFrame = pd.read_csv(config["MASTER_CONTROL"])
+
+# Validate file before reading with pandas
+if validate.validate(config_file=config["MASTER_CONTROL"]):
+    print("Control file valid! Continuing...")
+
+samples: pd.DataFrame = pd.read_csv(
+    config["MASTER_CONTROL"],
+    names=["srr", "sample", "endtype", "prep_method"]
+)
 
 # Ensure the results directory is made
 os.makedirs(config["ROOTDIR"], exist_ok=True)
@@ -239,7 +247,7 @@ rule preroundup:
         runtime=lambda wildcards, attempt: 5 * attempt
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
-        with open(input,"r") as i_stream:
+        with open(str(input),"r") as i_stream:
             reader = csv.reader(i_stream)
             for line in reader:
                 # Collect the required data
@@ -408,33 +416,14 @@ if perform.screen(config=config):
 
 
 if perform.prefetch(config=config):
-    rule distribute_init_files:
-        input: ancient(config["MASTER_CONTROL"])  # Always run this rule to update its output
-        output: report(os.path.join(config["ROOTDIR"],"temp","init_files","{tissue_name}", "{tissue_name}_{tag}.csv"))
-        params: id="{tissue_name}_{tag}"
-        threads: 1
-        resources:
-            mem_mb=lambda wildcards, attempt: 300 * attempt,
-            runtime=lambda wildcards, attempt: 5 * attempt
-        benchmark: repeat(os.path.join( "benchmarks", "{tissue_name}", "distribute_init_files", "{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-        run:
-            # Get lines in master control file
-            # Open output for writing
-            lines = open(str(input),"r").readlines()
-            for line in lines:
-
-                # Only write line if the output file has the current tissue-name_tag (naiveB_S1R1) in the file name
-                if params.id in line:
-                    with open(str(output), "w") as o_stream:
-                        o_stream.write(line)
-
-
     rule prefetch:
-        input: rules.distribute_init_files.output
         output: os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}","{tissue_name}_{tag}","{tissue_name}_{tag}.sra")
         conda: "envs/SRAtools.yaml"
         threads: 1
         params:
+            row=lambda wildcards: samples.loc[
+                samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}"
+            ].values[0].tolist(),
             temp_directory="/scratch",
             temp_file="/scratch/{tissue_name}_{tag}.sra",
             output_directory=os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}")
@@ -444,21 +433,20 @@ if perform.prefetch(config=config):
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","prefetch","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
+            srr={params.row[0]}
+            
             # If the SRA file lock exists, remove it
             lock_file={output}.lock
             if [ -f "$lock_file" ]; then
                 rm $lock_file
             fi
                     
-            IFS=", "
+            # Change into the "scratch" directory so temp files do not populate in the working directory
             curr_dir=$(pwd)
-            while read srr name endtype prep; do
-                # Change into the "scratch" directory so temp files do not populate in the working directory
-                cd {params.temp_directory}
+            cd {params.temp_directory}
                 
-                # set unlimited max size for prefetch
-                prefetch --max-size u --progress --resume yes --output-file {params.temp_file} $srr
-            done < {input}
+            # set unlimited max size for prefetch
+            prefetch --max-size u --progress --resume yes --output-file {params.temp_file} $srr
             
             # Change back to the working directory before moving files
             cd $curr_dir
@@ -468,14 +456,11 @@ if perform.prefetch(config=config):
             if [ -n "$(find {params.temp_directory} -prune -empty)" ]; then
                 mv {params.temp_directory}/* {params.output_directory}
             fi
-                
-            
             """
 
     checkpoint fasterq_dump:
         input:
-            prefetch=rules.prefetch.output,
-            srr=rules.distribute_init_files.output
+            prefetch=rules.prefetch.output
         output: fastq=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         threads: 40
         conda: "envs/SRAtools.yaml"
@@ -645,7 +630,6 @@ if perform.screen(config=config):
             # Run fastq screen if PE_SE is 1 or S
             if [[ "{params.PE_SE}" == "1" ]]; then
                 fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
-                    # Run on single strand
 
             elif [[ "{params.PE_SE}" == "S" ]]; then
                 fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
