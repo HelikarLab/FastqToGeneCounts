@@ -51,7 +51,7 @@ conda install -n snakemake -c conda-forge mamba
 ### 4. Install Snakemake
 After installing Mamba, we can install Snakemake. This will take a while, as Snakemake has a lot of dependencies. We have specified version `6.15.5`, as version 7 includes breaking changes not yet resolved.
 ```bash
-mamba install -n snakemake -c conda-forge -c bioconda snakemake=7.19.1
+mamba install -n snakemake -c conda-forge -c bioconda snakemake=7.19.1 pydantic=1.10.3
 ```
 
 |          Component           |                          Description                          |
@@ -61,6 +61,7 @@ mamba install -n snakemake -c conda-forge -c bioconda snakemake=7.19.1
 |        `-n snakemake`        | The name of the conda environment to install into (snakemake) |
 | `-c conda-forge -c bioconda` |    The channels to install from (Conda Forge and Bioconda)    |
 |      `snakemake=6.15.5`      |                    The package to install                     |
+|       `pydantic=10.3`        |             Install pydantic for dataclass usage              |
 
 ### 5. Install CookieCutter
 ```bash
