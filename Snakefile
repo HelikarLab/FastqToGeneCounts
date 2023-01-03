@@ -8,7 +8,7 @@ from utils import get, perform, validate
 configfile: "snakemake_config.yaml"
 
 # Validate file before reading with pandas
-if validate.validate(config_file=config["MASTER_CONTROL"]):
+if validate.validate(config=config):
     print("Control file valid! Continuing...")
 
 samples: pd.DataFrame = pd.read_csv(
@@ -422,7 +422,7 @@ if perform.prefetch(config=config):
         threads: 1
         params:
             row=lambda wildcards: samples.loc[
-                samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}"
+                samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}", :  # Collect everything from the row with `:`
             ].values[0].tolist(),
             temp_directory="/scratch",
             temp_file="/scratch/{tissue_name}_{tag}.sra",
@@ -871,24 +871,23 @@ rule star_align:
 		mv {params.bam_output} {output.bam_file}
         """
 
-rule copy_geneCounts:
-    input: rules.star_align.output.gene_table
-    output: os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab")
-    params:
-        tissue_name="{tissue_name}",
-        tag="{tag}",
-        sample=os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}")
-    threads: 1
-    resources:
-        mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
-        runtime=5
-    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_geneCounts","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-    shell:
-        """
-            mkdir -p {params.sample}
-            cp {input} {output}
-        """
-
+# rule copy_geneCounts:
+#     input: rules.star_align.output.gene_table
+#     output: os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab")
+#     params:
+#         tissue_name="{tissue_name}",
+#         tag="{tag}",
+#         sample=os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}")
+#     threads: 1
+#     resources:
+#         mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
+#         runtime=5
+#     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_geneCounts","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
+#     shell:
+#         """
+#             mkdir -p {params.sample}
+#             cp {input} {output}
+#         """
 
 rule index_bam_file:
     input: rules.star_align.output.bam_file
@@ -901,8 +900,8 @@ rule index_bam_file:
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","index_bam_file","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
-        samtools index -@ {threads} {input} {output}
-        """
+       samtools index -@ {threads} {input} {output}
+       """
 
 
 rule get_rnaseq_metrics:
@@ -958,21 +957,21 @@ rule get_rnaseq_metrics:
         picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={config[REF_FLAT_FILE]} STRAND_SPECIFICITY=$strand_spec RIBOSOMAL_INTERVALS={config[RRNA_INTERVAL_LIST]}
         """
 
-rule copy_strandedness:
-    input: rules.get_rnaseq_metrics.output.strand
-    output: os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt")
-    params:
-        sample=os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}")
-    threads: 1
-    resources:
-        mem_mb=lambda wildcards, attempt: 200 * attempt,  # 200 MB * attempt
-        runtime=5
-    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_strandedness","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-    shell:
-        """
-        mkdir -p "{params.sample}"
-        cp {input} {output}
-        """
+# rule copy_strandedness:
+#     input: rules.get_rnaseq_metrics.output.strand
+#     output: os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt")
+#     params:
+#         sample=os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}")
+#     threads: 1
+#     resources:
+#         mem_mb=lambda wildcards, attempt: 200 * attempt,  # 200 MB * attempt
+#         runtime=5
+#     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_strandedness","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
+#     shell:
+#         """
+#         mkdir -p "{params.sample}"
+#         cp {input} {output}
+#         """
 
 
 if perform.get_insert_size(config=config):
@@ -1013,23 +1012,23 @@ if perform.get_insert_size(config=config):
             fi
             """
 
-    rule copy_insert_size:
-        input: rules.get_insert_size.output.txt
-        output: os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt")
-        params:
-            tissue_name="{tissue_name}",
-            tag="{tag}",
-            sample=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}")
-        threads: 1
-        resources:
-            mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
-            runtime=5
-        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_insert_size","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-        shell:
-            """
-            mkdir -p {params.sample}
-            cp {input} {output}
-            """
+#     rule copy_insert_size:
+#         input: rules.get_insert_size.output.txt
+#         output: os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt")
+#         params:
+#             tissue_name="{tissue_name}",
+#             tag="{tag}",
+#             sample=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}")
+#         threads: 1
+#         resources:
+#             mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
+#             runtime=5
+#         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_insert_size","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
+#         shell:
+#             """
+#             mkdir -p {params.sample}
+#             cp {input} {output}
+#             """
 
 if perform.get_fragment_size(config=config):
     rule get_fragment_size:
@@ -1055,24 +1054,59 @@ if perform.get_fragment_size(config=config):
             python3 ${{files[0]}} -r {config[BED_FILE]} -i {input.bam} > {output}
             """
 
-    rule copy_fragment_size:
-        input: rules.get_fragment_size.output
-        output: os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
+#     rule copy_fragment_size:
+#         input: rules.get_fragment_size.output
+#         output: os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
+#
+#         params:
+#             tissue_name="{tissue_name}",
+#             tag="{tag}",
+#             sample=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}")
+#         threads: 1
+#         resources:
+#             mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
+#             runtime=5
+#         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","resources","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
+#         shell:
+#             """
+#             mkdir -p {params.sample}
+#             cp {input} {output}
+#             """
 
-        params:
-            tissue_name="{tissue_name}",
-            tag="{tag}",
-            sample=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}")
-        threads: 1
-        resources:
-            mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
-            runtime=5
-        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","resources","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-        shell:
-            """
-            mkdir -p {params.sample}
-            cp {input} {output}
-            """
+
+rule copy:
+    input:
+        gene_counts=rules.star_align.output.gene_table,
+        strandedness=rules.get_rnaseq_metrics.output.strand,
+        insert_sizes=rules.get_insert_size.output.txt,
+        fragment_size=rules.get_fragment_size.output
+    output:
+        gene_counts=os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"),
+        strandedness=os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
+        insert_sizes=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
+        fragment_size=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
+    params:
+        gene_counts=os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}"),
+        strandedness=os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}"),
+        size_metrics=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}"),
+        fragment_sizes=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}")
+    threads: 1
+    resources:
+        mem_mb=lambda wildcards, attempt: 1024 * attempt,  # 1 GB
+        runtime=10  # 10 minutes
+    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","MADRID_copy","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
+    shell:
+        """
+        mkdir -p {params.gene_counts}
+        mkdir -p {params.strandedness}
+        mkdir -p {params.size_metrics}
+        mkdir -p {params.fragment_sizes}
+
+        cp {input.gene_counts} {output.gene_counts}
+        cp {input.strandedness} {output.strandedness}
+        cp {input.insert_sizes} {output.insert_sizes}
+        cp {input.fragment_size} {output.fragment_size}
+        """
 
 
 def multiqc_get_dump_fastq_data(wildcards):
