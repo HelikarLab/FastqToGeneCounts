@@ -1074,39 +1074,43 @@ if perform.get_fragment_size(config=config):
 #             """
 
 
-rule copy:
-    input:
-        gene_counts=rules.star_align.output.gene_table,
-        strandedness=rules.get_rnaseq_metrics.output.strand,
-        insert_sizes=rules.get_insert_size.output.txt,
-        fragment_size=rules.get_fragment_size.output
-    output:
-        gene_counts=os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"),
-        strandedness=os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
-        insert_sizes=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
-        fragment_size=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
-    params:
-        gene_counts=os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}"),
-        strandedness=os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}"),
-        size_metrics=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}"),
-        fragment_sizes=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}")
-    threads: 1
-    resources:
-        mem_mb=lambda wildcards, attempt: 1024 * attempt,  # 1 GB
-        runtime=10  # 10 minutes
-    benchmark: repeat(os.path.join("benchmarks","{tissue_name}","MADRID_copy","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-    shell:
-        """
-        mkdir -p {params.gene_counts}
-        mkdir -p {params.strandedness}
-        mkdir -p {params.size_metrics}
-        mkdir -p {params.fragment_sizes}
+if perform.get_rnaseq_metrics(config=config) and \
+    perform.get_insert_size(config=config) and \
+    perform.get_fragment_size(config=config):
 
-        cp {input.gene_counts} {output.gene_counts}
-        cp {input.strandedness} {output.strandedness}
-        cp {input.insert_sizes} {output.insert_sizes}
-        cp {input.fragment_size} {output.fragment_size}
-        """
+    rule copy:
+        input:
+            gene_counts=rules.star_align.output.gene_table,
+            strandedness=rules.get_rnaseq_metrics.output.strand,
+            insert_sizes=rules.get_insert_size.output.txt,
+            fragment_size=rules.get_fragment_size.output
+        output:
+            gene_counts=os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"),
+            strandedness=os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
+            insert_sizes=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
+            fragment_size=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
+        params:
+            gene_counts=os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}"),
+            strandedness=os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}"),
+            size_metrics=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}"),
+            fragment_sizes=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}")
+        threads: 1
+        resources:
+            mem_mb=lambda wildcards, attempt: 1024 * attempt,  # 1 GB
+            runtime=10  # 10 minutes
+        benchmark: repeat(os.path.join("benchmarks","{tissue_name}","MADRID_copy","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
+        shell:
+            """
+            mkdir -p {params.gene_counts}
+            mkdir -p {params.strandedness}
+            mkdir -p {params.size_metrics}
+            mkdir -p {params.fragment_sizes}
+    
+            cp {input.gene_counts} {output.gene_counts}
+            cp {input.strandedness} {output.strandedness}
+            cp {input.insert_sizes} {output.insert_sizes}
+            cp {input.fragment_size} {output.fragment_size}
+            """
 
 
 def multiqc_get_dump_fastq_data(wildcards):
