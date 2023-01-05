@@ -19,8 +19,8 @@ PERFORM_GET_RNASEQ_METRICS: True # True or False -- get more information about R
 
 # Additional options
 PERFORM_PREFETCH: True  # True or False -- prefetch sra files before writing to fastq (recommended true)
-PERFORM_GET_INSERT_SIZE: False # True or False -- insert sizes can also be used for fragment len calculation
-PERFORM_GET_FRAGMENT_SIZE: False # True or False, required for zFPKM calculation
+PERFORM_GET_INSERT_SIZE: True # True or False -- insert sizes can also be used for fragment len calculation
+PERFORM_GET_FRAGMENT_SIZE: True # True or False, required for zFPKM calculation
 
 GENERATE_GENOME:
   # The full path where the genome generation data should be saved

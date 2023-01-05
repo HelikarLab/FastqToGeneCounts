@@ -4,28 +4,24 @@ import warnings
 import sys
 import pandas as pd
 from utils import get, perform, validate
-
-configfile: "snakemake_config.yaml"
+configfile: "config.yaml"
 
 # Validate file before reading with pandas
 if validate.validate(config=config):
     print("Control file valid! Continuing...")
 
+os.makedirs(config["ROOTDIR"], exist_ok=True)
 samples: pd.DataFrame = pd.read_csv(
     config["MASTER_CONTROL"],
     names=["srr", "sample", "endtype", "prep_method"]
 )
 
-# Ensure the results directory is made
-os.makedirs(config["ROOTDIR"], exist_ok=True)
-
 
 # Validate users are using conda. This is important for temporary conda environments defined in the workflow
 if not workflow.use_conda:
-    sys.stderr.write("\nYou are not using conda. Pass the '--use-conda' flag to snakemake.\nExample: snakemake --cores 10 --use-conda\n\n")
-    sys.exit(1)
+    raise ValueError("\nYou are not using conda. Pass the '--use-conda' flag to snakemake.\nExample: snakemake --cores 10 --use-conda\n\n")
 
-def fastqc_trimmed_reads(wildcards):
+def perform_fastqc_on_trimmed_reads(wildcards):
     """
     If we are going to trim, return output for rule fastqc_trim
     """
@@ -154,7 +150,7 @@ rule_all = [
         PE_SE=get.PE_SE(config=config)
     ),
 
-    fastqc_trimmed_reads,
+    perform_fastqc_on_trimmed_reads,
 
     # STAR aligner
     expand(
@@ -189,15 +185,6 @@ rule_all = [
         tag=get.tags(config=config)
     ),
 
-    # copy strandedness
-    expand(
-        os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
-        zip,
-        tissue_name=get.tissue_name(config=config),
-        tag=get.tags(config=config),
-        sample=get.sample(config=config)
-    ),
-
     # MultiQC
     expand(
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
@@ -205,27 +192,22 @@ rule_all = [
     ),
 ]
 
-if perform.get_insert_size(config=config):
-    rule_all.extend([
-        # Get Insert sizes
-        perform_get_insert_size_rule,
+if perform.get_insert_size(config=config) and \
+    perform.get_fragment_size(config=config):
 
-        # copy insert
+    rule_all.extend([
+        # Calculate values
+        perform_get_insert_size_rule,
+        perform_get_fragment_size_rule,
+
+        # Copy to MADRID
         expand(os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
             zip,
             tissue_name=get.tissue_name(config=config),
             tag=get.tags(config=config),
             sample=get.sample(config=config)
-        )
-    ])
-
-if perform.get_fragment_size(config=config):
-    rule_all.extend([
-        # get fragment lengths
-        perform_get_fragment_size_rule,
-
-        # copy fragment
-        expand(os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt"),
+        ),
+        expand(os.path.join("MADRID_input","{tissue_name}","fragmentSizes","{sample}","{tissue_name}_{tag}_fragment_size.txt"),
             zip,
             tissue_name=get.tissue_name(config=config),
             tag=get.tags(config=config),
@@ -871,24 +853,6 @@ rule star_align:
 		mv {params.bam_output} {output.bam_file}
         """
 
-# rule copy_geneCounts:
-#     input: rules.star_align.output.gene_table
-#     output: os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab")
-#     params:
-#         tissue_name="{tissue_name}",
-#         tag="{tag}",
-#         sample=os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}")
-#     threads: 1
-#     resources:
-#         mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
-#         runtime=5
-#     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_geneCounts","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-#     shell:
-#         """
-#             mkdir -p {params.sample}
-#             cp {input} {output}
-#         """
-
 rule index_bam_file:
     input: rules.star_align.output.bam_file
     output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai")
@@ -957,23 +921,6 @@ rule get_rnaseq_metrics:
         picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={config[REF_FLAT_FILE]} STRAND_SPECIFICITY=$strand_spec RIBOSOMAL_INTERVALS={config[RRNA_INTERVAL_LIST]}
         """
 
-# rule copy_strandedness:
-#     input: rules.get_rnaseq_metrics.output.strand
-#     output: os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt")
-#     params:
-#         sample=os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}")
-#     threads: 1
-#     resources:
-#         mem_mb=lambda wildcards, attempt: 200 * attempt,  # 200 MB * attempt
-#         runtime=5
-#     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_strandedness","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-#     shell:
-#         """
-#         mkdir -p "{params.sample}"
-#         cp {input} {output}
-#         """
-
-
 if perform.get_insert_size(config=config):
     def insert_size_get_star_data(wildcards):
         return_files = []
@@ -1012,23 +959,6 @@ if perform.get_insert_size(config=config):
             fi
             """
 
-#     rule copy_insert_size:
-#         input: rules.get_insert_size.output.txt
-#         output: os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt")
-#         params:
-#             tissue_name="{tissue_name}",
-#             tag="{tag}",
-#             sample=os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}")
-#         threads: 1
-#         resources:
-#             mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
-#             runtime=5
-#         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","copy_insert_size","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-#         shell:
-#             """
-#             mkdir -p {params.sample}
-#             cp {input} {output}
-#             """
 
 if perform.get_fragment_size(config=config):
     rule get_fragment_size:
@@ -1053,25 +983,6 @@ if perform.get_fragment_size(config=config):
             # run first match      
             python3 ${{files[0]}} -r {config[BED_FILE]} -i {input.bam} > {output}
             """
-
-#     rule copy_fragment_size:
-#         input: rules.get_fragment_size.output
-#         output: os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
-#
-#         params:
-#             tissue_name="{tissue_name}",
-#             tag="{tag}",
-#             sample=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}")
-#         threads: 1
-#         resources:
-#             mem_mb=lambda wildcards, attempt: 500 * attempt,# 0.5 GB
-#             runtime=5
-#         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","resources","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-#         shell:
-#             """
-#             mkdir -p {params.sample}
-#             cp {input} {output}
-#             """
 
 
 if perform.get_rnaseq_metrics(config=config) and \
