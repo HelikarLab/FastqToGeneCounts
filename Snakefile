@@ -234,23 +234,24 @@ rule preroundup:
             reader = csv.reader(i_stream)
             for line in reader:
                 # Collect the required data
-                srr_code: str = line[0]                 # SRR123
-                name: str = line[1]                     # naiveB_S1R1
-                tissue_name: str = name.split("_")[0]   # naiveB
-                tag: str = name.split("_")[1]           # S1R1
+                srr_code: str = line[0]                         # SRR123
+                name: str = line[1]                             # naiveB_S1R1
+                tissue_name: str = name.split("_")[0]           # naiveB
+                tag: str = name.split("_")[1]                   # S1R1
+                study: str = re.match(r"S\d+", tag).group()     # S1
 
                 # Write paired/single end or single cell to the appropriate location
                 end_type_write_root = open(Path(config["ROOTDIR"],"data",tissue_name,"layouts",f"{name}_layout.txt"),"w")
                 end_type_write_madrid = open(Path("MADRID_input",tissue_name,"layouts",study,f"{name}_layout.txt"),"w")
                 end_type = line[2].upper()  # PE, SE, or SLC
                 match EndType[end_type]:
-                    case EndType.paired_end:
+                    case EndType.PE:
                         end_type_write_root.write("paired-end")
                         end_type_write_madrid.write("paired-end")
-                    case EndType.single_end:
+                    case EndType.SE:
                         end_type_write_root.write("single-end")
                         end_type_write_madrid.write("single-end")
-                    case EndType.single_cell:
+                    case EndType.SLC:
                         end_type_write_root.write("single-cell")
                         end_type_write_madrid.write("single-cell")
                 end_type_write_root.close()
@@ -269,17 +270,6 @@ rule preroundup:
                         prep_method_madrid.write("mrna")
                 prep_method_root.close()
                 prep_method_madrid.close()
-
-                # Set the study
-                # If the tag is S1R1, extract the "S1" component
-                study: str = ""
-                for char in tag:
-                    if char == "R":  # Once we reach the replicate, we can exit the loop
-                        break
-                    elif char == "S":
-                        study += char
-                    elif char.isdigit():
-                        study += char
 
                 # Make the required directories
                 directories: list[str] = [
@@ -342,7 +332,6 @@ if perform.screen(config=config):
             config=os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "fastq_screen.conf")
         threads: 15
         params:
-            output_dir = config["ROOTDIR"],
             download_paths = [
                 "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Adapters/",
                 "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Arabidopsis/",
@@ -1167,7 +1156,7 @@ rule multiqc:
     shell:
         """
         mkdir -p "{output.output_directory}"
-        multiqc --force --title "{wildcards.tissue_name}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory} "{params.input_directory}"
+        multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory} "{params.input_directory}"
         
         if ls ./*.txt 1> /dev/null 2>&1; then
             rm *.txt
