@@ -5,7 +5,38 @@ import csv
 from pathlib import Path
 import re
 
-class _ValidateInput:
+
+class _GenomeData:
+    @classmethod
+    def validate(cls, config):
+        # Validate the genome input paths
+        reference_flat_file: Path = Path(config["REF_FLAT_FILE"])
+        rRna_interval_list: Path = Path(config["RRNA_INTERVAL_LIST"])
+        bed_file: Path = Path(config["BED_FILE"])
+        genome_fasta_file: Path = Path(config["GENERATE_GENOME"]["GENOME_FASTA_FILE"])
+        gtf_file: Path = Path(config["GENERATE_GENOME"]["GTF_FILE"])
+    
+        if not reference_flat_file.exists():
+            genome_valid = False
+            print("The REF_FLAT_FILE file was not found")
+        if not rRna_interval_list.exists():
+            genome_valid = False
+            print("The RRNA_INTERVAL_LIST file was not found")
+        if not bed_file.exists():
+            genome_valid = False
+            print("The BED_FILE file was not found")
+        if not genome_fasta_file.exists():
+            genome_valid = False
+            print("The GENOME_FASTA_FILE file was not found")
+        if not gtf_file.exists():
+            genome_valid = False
+            print("The GTF_FILE file was not found")
+    
+        if not genome_valid:
+            print(f"Searching config file: {config}")
+            raise ValueError("Unable to find one or more genome-related files")
+
+class _ControlData:
     @classmethod
     def ingest(cls, control: str | Path) -> dict[str, dict[str, list[str]]]:
         """
@@ -61,8 +92,6 @@ class _ValidateInput:
 
 
 def validate(config: dict) -> bool:
-    if config["BYPASS_VALIDATION"]:
-        return True
     config_file: str = config["MASTER_CONTROL"]
 
     # These are the "master" controls
@@ -70,36 +99,19 @@ def validate(config: dict) -> bool:
     control_valid: bool = True
     genome_valid: bool = True
     
-    # Validate the control file (file containing SRR, sample, etc.)
-    schema = _ValidateInput.ingest(config_file)
-    if not _ValidateInput.is_valid(schema):
-        control_valid = False
-
-    # Validate the genome input paths
-    reference_flat_file: Path = Path(config["REF_FLAT_FILE"])
-    rRna_interval_list: Path = Path(config["RRNA_INTERVAL_LIST"])
-    bed_file: Path = Path(config["BED_FILE"])
-    genome_fasta_file: Path = Path(config["GENOME_FASTA_FILE"])
-    gtf_file: Path = Path(config["GTF_FILE"])
-
-    if not reference_flat_file.exists():
-        genome_valid = False
-        print("The REF_FLAT_FILE file was not found")
-    if not rRna_interval_list.exists():
-        genome_valid = False
-        print("The RRNA_INTERVAL_LIST file was not found")
-    if not bed_file.exists():
-        genome_valid = False
-        print("The BED_FILE file was not found")
-    if not genome_fasta_file.exists():
-        genome_valid = False
-        print("The GENOME_FASTA_FILE file was not found")
-    if not gtf_file.exists():
-        genome_valid = False
-        print("The GTF_FILE file was not found")
-        
-    if not genome_valid:
-        print(f"Searching config file: {config_file}")
-        raise ValueError("Unable to find one or more genome-related files")
+    if config["BYPASS_REPLICATE_VALIDATION"]:
+        control_valid = True
+    else:
+        # Validate the control file (file containing SRR, sample, etc.)
+        schema = _ControlData.ingest(config_file)
+        if not _ControlData.is_valid(schema):
+            control_valid = False
+    
+    if config["BYPASS_GENOME_VALIDATION"]:
+        genome_valid = True
+    else:
+        genome = _GenomeData.validate(config)
+        if not genome:
+            genome_valid = False
     
     return control_valid and genome_valid

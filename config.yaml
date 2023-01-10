@@ -34,8 +34,11 @@ GENERATE_GENOME:
   GENOME_FASTA_FILE: "genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
   GTF_FILE: "genome/Homo_sapiens.GRCh38.105.gtf"
 
-# If you would like to bypass the error that occurs when only 1 replicate is in the control file, set this to True
-BYPASS_VALIDATION: False
+# If you would like to bypass checking for single-replicates in the control file, set this to True
+BYPASS_REPLICATE_VALIDATION: False
+
+# If you would like to bypass checking that genome-related files can be found, set this to True
+BYPASS_GENOME_VALIDATION: False
 
 # If you would like to perform benchmarking more than once, increase this value
 BENCHMARK_TIMES: 1
