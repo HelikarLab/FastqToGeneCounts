@@ -8,7 +8,7 @@ import re
 
 class _GenomeData:
     @classmethod
-    def validate(cls, config):
+    def validate(cls, config_filename, config):
         # Validate the genome input paths
         reference_flat_file: Path = Path(config["REF_FLAT_FILE"])
         rRna_interval_list: Path = Path(config["RRNA_INTERVAL_LIST"])
@@ -16,7 +16,6 @@ class _GenomeData:
         genome_fasta_file: Path = Path(config["GENERATE_GENOME"]["GENOME_FASTA_FILE"])
         gtf_file: Path = Path(config["GENERATE_GENOME"]["GTF_FILE"])
 
-        print(f"Searching config file: {config}")
         genome_valid = True
         if not reference_flat_file.exists():
             genome_valid = False
@@ -35,6 +34,7 @@ class _GenomeData:
             print("The GTF_FILE file was not found")
     
         if not genome_valid:
+            print(f"Searching config file: {config}")
             raise ValueError("Unable to find one or more genome-related files")
 
 class _ControlData:
@@ -111,7 +111,7 @@ def validate(config: dict) -> bool:
     if config["BYPASS_GENOME_VALIDATION"]:
         genome_valid = True
     else:
-        genome = _GenomeData.validate(config)
+        genome = _GenomeData.validate(config_file, config)
         if not genome:
             genome_valid = False
     

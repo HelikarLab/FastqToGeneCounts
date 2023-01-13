@@ -368,7 +368,8 @@ if perform.screen(config=config):
                     fi
                     wget --quiet --recursive --no-parent --no-host-directories --cut-dirs=2 --reject="index.html*" -P /scratch $path && echo "Finished $species" &
                 else
-                    find "{output.genomes}/$species" -t file -exec touch {{}} \; &
+                    # If the director exists, touch all the files so snakemake sees updates 
+                    find "{output.genomes}/$species -exec touch {{}} \; &
                 fi
             done
             
@@ -1146,6 +1147,7 @@ rule multiqc:
         output_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
         output_directory=directory(os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "multiqc"))
     params:
+        config_file_basename=os.path.basename(config["MASTER_CONTROL"]).split(".")[0],
         input_directory=os.path.join(config["ROOTDIR"],"data", "{tissue_name}")
     threads: 1
     conda: "envs/multiqc.yaml"
@@ -1155,8 +1157,9 @@ rule multiqc:
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","multiqc","{tissue_name}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
-        mkdir -p "{output.output_directory}"
-        multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir {output.output_directory} "{params.input_directory}"
+        output_dir="{output.output_directory}/{params.config_file_basename}"
+        mkdir -p "output_dir"
+        multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir "$output_dir" "{params.input_directory}"
         
         if ls ./*.txt 1> /dev/null 2>&1; then
             rm *.txt
