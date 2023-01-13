@@ -16,6 +16,7 @@ samples: pd.DataFrame = pd.read_csv(
     config["MASTER_CONTROL"],
     names=["srr", "sample", "endtype", "prep_method"]
 )
+config_file_basename=os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
 
 
 # Validate users are using conda. This is important for temporary conda environments defined in the workflow
@@ -188,7 +189,7 @@ rule_all = [
 
     # MultiQC
     expand(
-        os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
+        os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", str(config_file_basename),"{tissue_name}_multiqc_report.html"),
         tissue_name=get.tissue_name(config=config)
     ),
 ]
@@ -350,7 +351,7 @@ if perform.screen(config=config):
                 "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/fastq_screen.conf"
             ]
         resources:
-            mem_mb=lambda wildcards, attempt: 1500 * attempt, # 1.5 GB * attempt
+            mem_mb=lambda wildcards, attempt: 10240 * attempt, # 10 GB * attempt
             runtime=lambda wildcards, attempt: 240 * attempt  # 240 minutes * attempt (4 hours)
         shell:
             """
@@ -369,7 +370,7 @@ if perform.screen(config=config):
                     wget --quiet --recursive --no-parent --no-host-directories --cut-dirs=2 --reject="index.html*" -P /scratch $path && echo "Finished $species" &
                 else
                     # If the director exists, touch all the files so snakemake sees updates 
-                    find "{output.genomes}/$species -exec touch {{}} \; &
+                    find "{output.genomes}/$species" -exec touch {{}} \; &
                 fi
             done
             
@@ -1144,10 +1145,10 @@ rule multiqc:
         rnaseq_data=multiqc_get_rnaseq_data,
         fragment_size_data=multiqc_get_fragmentsize_data
     output:
-        output_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", "{tissue_name}_multiqc_report.html"),
-        output_directory=directory(os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "multiqc"))
+        output_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", str(config_file_basename),"{tissue_name}_multiqc_report.html"),
+        output_directory=directory(os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "multiqc", str(config_file_basename)))
     params:
-        config_file_basename=os.path.basename(config["MASTER_CONTROL"]).split(".")[0],
+        config_file_basename=config_file_basename,
         input_directory=os.path.join(config["ROOTDIR"],"data", "{tissue_name}")
     threads: 1
     conda: "envs/multiqc.yaml"
@@ -1157,9 +1158,9 @@ rule multiqc:
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","multiqc","{tissue_name}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
-        output_dir="{output.output_directory}/{params.config_file_basename}"
-        mkdir -p "output_dir"
-        multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir "$output_dir" "{params.input_directory}"
+        mkdir -p "{output.output_directory}"
+        
+        multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir "{output.output_directory}" "{params.input_directory}"
         
         if ls ./*.txt 1> /dev/null 2>&1; then
             rm *.txt
