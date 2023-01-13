@@ -12,7 +12,7 @@ def create_dataframe(files: dict[str, list[Path]]) -> pd.DataFrame:
     :param files: A list of benchmark files as Path objects
     :return: A pandas dataframe
     """
-
+    
     dataframes: pd.DataFrame = pd.DataFrame()
     column_names: list[str] = []
     for rule_name, files in files.items():
@@ -41,7 +41,8 @@ def create_dataframe(files: dict[str, list[Path]]) -> pd.DataFrame:
     dataframes.loc["Average"] = dataframes.mean()
     
     return dataframes
-    
+
+
 def plot_data(df: pd.DataFrame) -> Figure:
     """
     This function is responsible for plotting the benchmark data using Plotly
@@ -68,7 +69,8 @@ def plot_data(df: pd.DataFrame) -> Figure:
     )
     
     return fig
-    
+
+
 def save_plot(fig: Figure) -> None:
     """
     This function is responsible for saving the plotly figure to a file
@@ -78,10 +80,11 @@ def save_plot(fig: Figure) -> None:
     # Write the plotly figure to an html file with the following name: benchmarking_{date}_{time}.html
     fig.write_html(f"benchmarking_{datetime.now().strftime('%Y-%m-%d')}.html")
 
+
 def main():
     # Get all benchmark files in the current directory
-    benchmark_files: list[Path] = [file for file in Path().rglob("*.benchmark")]
-
+    benchmark_files: list[Path] = [file for file in Path("../benchmarks").rglob("*.benchmark")]
+    
     # Create a dictionary of rule names and their corresponding benchmark files
     rule_benchmark_files: dict[str, list[Path]] = {}
     for file in benchmark_files:
@@ -89,11 +92,11 @@ def main():
         if rule_name not in rule_benchmark_files:
             rule_benchmark_files[rule_name] = []
         rule_benchmark_files[rule_name].append(file)
-        
+    
     benchmark_df: pd.DataFrame = create_dataframe(rule_benchmark_files)
     plotly: Figure = plot_data(benchmark_df)
     save_plot(plotly)
-    
-    
+
+
 if __name__ == '__main__':
     main()
