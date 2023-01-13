@@ -15,7 +15,9 @@ class _GenomeData:
         bed_file: Path = Path(config["BED_FILE"])
         genome_fasta_file: Path = Path(config["GENERATE_GENOME"]["GENOME_FASTA_FILE"])
         gtf_file: Path = Path(config["GENERATE_GENOME"]["GTF_FILE"])
-    
+
+        print(f"Searching config file: {config}")
+        genome_valid = True
         if not reference_flat_file.exists():
             genome_valid = False
             print("The REF_FLAT_FILE file was not found")
@@ -33,7 +35,6 @@ class _GenomeData:
             print("The GTF_FILE file was not found")
     
         if not genome_valid:
-            print(f"Searching config file: {config}")
             raise ValueError("Unable to find one or more genome-related files")
 
 class _ControlData:
