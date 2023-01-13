@@ -189,7 +189,7 @@ rule_all = [
 
     # MultiQC
     expand(
-        os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", str(config_file_basename),"{tissue_name}_multiqc_report.html"),
+        os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", str(config_file_basename),f"{config_file_basename}_multiqc_report.html"),
         tissue_name=get.tissue_name(config=config)
     ),
 ]
@@ -1145,7 +1145,7 @@ rule multiqc:
         rnaseq_data=multiqc_get_rnaseq_data,
         fragment_size_data=multiqc_get_fragmentsize_data
     output:
-        output_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", str(config_file_basename),"{tissue_name}_multiqc_report.html"),
+        output_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", str(config_file_basename),f"{config_file_basename}_multiqc_report.html"),
         output_directory=directory(os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "multiqc", str(config_file_basename)))
     params:
         config_file_basename=config_file_basename,
@@ -1160,7 +1160,7 @@ rule multiqc:
         """
         mkdir -p "{output.output_directory}"
         
-        multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {wildcards.tissue_name}_multiqc_report.html --outdir "{output.output_directory}" "{params.input_directory}"
+        multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {params.config_file_basename}_multiqc_report.html --outdir "{output.output_directory}" "{params.input_directory}"
         
         if ls ./*.txt 1> /dev/null 2>&1; then
             rm *.txt
