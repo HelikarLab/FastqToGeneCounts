@@ -242,8 +242,12 @@ rule preroundup:
                 study: str = re.match(r"S\d+", tag).group()     # S1
 
                 # Write paired/single end or single cell to the appropriate location
-                end_type_write_root = open(Path(config["ROOTDIR"],"data",tissue_name,"layouts",f"{name}_layout.txt"),"w")
-                end_type_write_madrid = open(Path("MADRID_input",tissue_name,"layouts",study,f"{name}_layout.txt"),"w")
+                layouts_root: Path = Path(config["ROOTDIR"],"data",tissue_name,"layouts",f"{name}_layout.txt")
+                layouts_madrid: Path = Path("MADRID_input",tissue_name,"layouts",study,f"{name}_layout.txt")
+                layouts_root.parent.mkdir(parents=True, exist_ok=True)
+                layouts_madrid.parent.mkdir(parents=True, exist_ok=True)
+                end_type_write_root = open(layouts_root,"w")
+                end_type_write_madrid = open(layouts_madrid,"w")
                 end_type = line[2].upper()  # PE, SE, or SLC
                 match EndType[end_type]:
                     case EndType.PE:
@@ -259,18 +263,22 @@ rule preroundup:
                 end_type_write_madrid.close()
 
                 # Write mrna/total to the appropriate location
-                prep_method_root = open(Path(config["ROOTDIR"],"data",tissue_name,"prepMethods",f"{name}_prep_method.txt"),"w")
-                prep_method_madrid = open(Path("MADRID_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt"),"w")
+                prep_root = Path(config["ROOTDIR"],"data",tissue_name,"prepMethods",f"{name}_prep_method.txt")
+                prep_madrid = Path("MADRID_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt")
+                prep_root.parent.mkdir(parents=True, exist_ok=True)
+                prep_madrid.parent.mkdir(parents=True, exist_ok=True)
+                write_prep_root = open(str(prep_root),"w")
+                write_prep_madrid = open(str(prep_madrid),"w")
                 prep_method = line[3].lower()  # total or mrna
                 match PrepMethod[prep_method]:
                     case PrepMethod.total:
-                        prep_method_root.write("total")
-                        prep_method_madrid.write("total")
+                        write_prep_root.write("total")
+                        write_prep_madrid.write("total")
                     case PrepMethod.mrna:
-                        prep_method_root.write("mrna")
-                        prep_method_madrid.write("mrna")
-                prep_method_root.close()
-                prep_method_madrid.close()
+                        write_prep_root.write("mrna")
+                        write_prep_madrid.write("mrna")
+                write_prep_root.close()
+                write_prep_madrid.close()
 
                 # Make the required directories
                 directories: list[str] = [
