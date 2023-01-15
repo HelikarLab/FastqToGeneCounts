@@ -277,6 +277,11 @@ rule preroundup:
                     case PrepMethod.mrna:
                         write_prep_root.write("mrna")
                         write_prep_madrid.write("mrna")
+                    case PrepMethod.polya:
+                        write_prep_root.write("mrna")
+                        write_prep_madrid.write("mrna")
+                    case _:
+                        raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
                 write_prep_root.close()
                 write_prep_madrid.close()
 

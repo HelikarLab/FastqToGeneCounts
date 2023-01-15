@@ -8,3 +8,4 @@ class EndType(Enum):
 class PrepMethod(Enum):
     total = "total"
     mrna = "mrna"
+    polya = "mrna"  # Write mrna if polya OR mrna
