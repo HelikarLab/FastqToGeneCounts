@@ -32,10 +32,12 @@ class _GenomeData:
         if not gtf_file.exists():
             genome_valid = False
             print("The GTF_FILE file was not found")
-    
+            
         if not genome_valid:
-            print(f"Searching config file: {config}")
+            print(f"Searching config file: {config_filename}")
             raise ValueError("Unable to find one or more genome-related files")
+    
+        return genome_valid
 
 class _ControlData:
     @classmethod
@@ -115,4 +117,6 @@ def validate(config: dict) -> bool:
         if not genome:
             genome_valid = False
     
+    print(f"control_valid: {control_valid}")
+    print(f"genome_valid: {genome_valid}")
     return control_valid and genome_valid
