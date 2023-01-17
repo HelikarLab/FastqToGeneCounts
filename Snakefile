@@ -231,73 +231,78 @@ rule preroundup:
         runtime=lambda wildcards, attempt: 5 * attempt
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
+        rule_line = ""
         with open(str(input),"r") as i_stream:
             reader = csv.reader(i_stream)
             for line in reader:
-                # Collect the required data
-                srr_code: str = line[0]                         # SRR123
-                name: str = line[1]                             # naiveB_S1R1
-                tissue_name: str = name.split("_")[0]           # naiveB
-                tag: str = name.split("_")[1]                   # S1R1
-                study: str = re.match(r"S\d+", tag).group()     # S1
+                if f"{wildcards.tissue_name}_{wildcards.tag}" in line:
+                    rule_line = line
+                    break
 
-                # Write paired/single end or single cell to the appropriate location
-                layouts_root: Path = Path(config["ROOTDIR"],"data",tissue_name,"layouts",f"{name}_layout.txt")
-                layouts_madrid: Path = Path("MADRID_input",tissue_name,"layouts",study,f"{name}_layout.txt")
-                layouts_root.parent.mkdir(parents=True, exist_ok=True)
-                layouts_madrid.parent.mkdir(parents=True, exist_ok=True)
-                end_type_write_root = open(layouts_root,"w")
-                end_type_write_madrid = open(layouts_madrid,"w")
-                end_type = line[2].upper()  # PE, SE, or SLC
-                match EndType[end_type]:
-                    case EndType.PE:
-                        end_type_write_root.write("paired-end")
-                        end_type_write_madrid.write("paired-end")
-                    case EndType.SE:
-                        end_type_write_root.write("single-end")
-                        end_type_write_madrid.write("single-end")
-                    case EndType.SLC:
-                        end_type_write_root.write("single-cell")
-                        end_type_write_madrid.write("single-cell")
-                end_type_write_root.close()
-                end_type_write_madrid.close()
+        # Collect the required data
+        srr_code: str = rule_line[0]                         # SRR123
+        name: str = rule_line[1]                             # naiveB_S1R1
+        tissue_name: str = name.split("_")[0]           # naiveB
+        tag: str = name.split("_")[1]                   # S1R1
+        study: str = re.match(r"S\d+", tag).group()     # S1
 
-                # Write mrna/total to the appropriate location
-                prep_root = Path(config["ROOTDIR"],"data",tissue_name,"prepMethods",f"{name}_prep_method.txt")
-                prep_madrid = Path("MADRID_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt")
-                prep_root.parent.mkdir(parents=True, exist_ok=True)
-                prep_madrid.parent.mkdir(parents=True, exist_ok=True)
-                write_prep_root = open(str(prep_root),"w")
-                write_prep_madrid = open(str(prep_madrid),"w")
-                prep_method = line[3].lower()  # total or mrna
-                match PrepMethod[prep_method]:
-                    case PrepMethod.total:
-                        write_prep_root.write("total")
-                        write_prep_madrid.write("total")
-                    case PrepMethod.mrna:
-                        write_prep_root.write("mrna")
-                        write_prep_madrid.write("mrna")
-                    case PrepMethod.polya:
-                        write_prep_root.write("mrna")
-                        write_prep_madrid.write("mrna")
-                    case _:
-                        raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
-                write_prep_root.close()
-                write_prep_madrid.close()
+        # Write paired/single end or single cell to the appropriate location
+        layouts_root: Path = Path(config["ROOTDIR"],"data",tissue_name,"layouts",f"{name}_layout.txt")
+        layouts_madrid: Path = Path("MADRID_input",tissue_name,"layouts",study,f"{name}_layout.txt")
+        layouts_root.parent.mkdir(parents=True, exist_ok=True)
+        layouts_madrid.parent.mkdir(parents=True, exist_ok=True)
+        end_type_write_root = open(layouts_root,"w")
+        end_type_write_madrid = open(layouts_madrid,"w")
+        end_type = rule_line[2].upper()  # PE, SE, or SLC
+        match EndType[end_type]:
+            case EndType.PE:
+                end_type_write_root.write("paired-end")
+                end_type_write_madrid.write("paired-end")
+            case EndType.SE:
+                end_type_write_root.write("single-end")
+                end_type_write_madrid.write("single-end")
+            case EndType.SLC:
+                end_type_write_root.write("single-cell")
+                end_type_write_madrid.write("single-cell")
+        end_type_write_root.close()
+        end_type_write_madrid.close()
 
-                # Make the required directories
-                directories: list[str] = [
-                    os.path.join("MADRID_input", tissue_name, "geneCounts"),
-                    os.path.join("MADRID_input", tissue_name, "insertSizeMetrics"),
-                    os.path.join("MADRID_input", tissue_name, "layouts"),
-                    os.path.join("MADRID_input", tissue_name, "layouts",study),
-                    os.path.join("MADRID_input", tissue_name, "fragmentSizes"),
-                    os.path.join("MADRID_input", tissue_name, "prepMethods"),
-                    os.path.join("MADRID_input", tissue_name, "prepMethods",study),
-                    os.path.join(config["ROOTDIR"], "data", tissue_name, "layouts"),
-                    os.path.join(config["ROOTDIR"], "data", tissue_name, "prepMethods")
-                ]
-                [os.makedirs(name=i, exist_ok=True) for i in directories]
+        # Write mrna/total to the appropriate location
+        prep_root = Path(config["ROOTDIR"],"data",tissue_name,"prepMethods",f"{name}_prep_method.txt")
+        prep_madrid = Path("MADRID_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt")
+        prep_root.parent.mkdir(parents=True, exist_ok=True)
+        prep_madrid.parent.mkdir(parents=True, exist_ok=True)
+        write_prep_root = open(str(prep_root),"w")
+        write_prep_madrid = open(str(prep_madrid),"w")
+        prep_method = rule_line[3].lower()  # total or mrna
+        match PrepMethod[prep_method]:
+            case PrepMethod.total:
+                write_prep_root.write("total")
+                write_prep_madrid.write("total")
+            case PrepMethod.mrna:
+                write_prep_root.write("mrna")
+                write_prep_madrid.write("mrna")
+            case PrepMethod.polya:
+                write_prep_root.write("mrna")
+                write_prep_madrid.write("mrna")
+            case _:
+                raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
+        write_prep_root.close()
+        write_prep_madrid.close()
+
+        # Make the required directories
+        directories: list[str] = [
+            os.path.join("MADRID_input", tissue_name, "geneCounts"),
+            os.path.join("MADRID_input", tissue_name, "insertSizeMetrics"),
+            os.path.join("MADRID_input", tissue_name, "layouts"),
+            os.path.join("MADRID_input", tissue_name, "layouts", study),
+            os.path.join("MADRID_input", tissue_name, "fragmentSizes"),
+            os.path.join("MADRID_input", tissue_name, "prepMethods"),
+            os.path.join("MADRID_input", tissue_name, "prepMethods", study),
+            os.path.join(config["ROOTDIR"], "data", tissue_name, "layouts"),
+            os.path.join(config["ROOTDIR"], "data", tissue_name, "prepMethods")
+        ]
+        [os.makedirs(name=i, exist_ok=True) for i in directories]
 
 
 rule generate_genome:
