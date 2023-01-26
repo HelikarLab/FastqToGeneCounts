@@ -227,7 +227,7 @@ rule preroundup:
         preparation=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
     threads: 1
     resources:
-        mem_mb=lambda wildcards, attempt: 200 * attempt,
+        mem_mb=lambda wildcards, attempt: 1024 * attempt,
         runtime=lambda wildcards, attempt: 5 * attempt
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
@@ -647,7 +647,7 @@ if perform.trim(config=config):
         threads: 16
         conda: "envs/trim.yaml"
         resources:
-            mem_mb=lambda wildcards, attempt: 10000 * attempt,# 10 GB
+            mem_mb=lambda wildcards, attempt: 10000 * attempt,  # 10 GB
             runtime=lambda wildcards, attempt: 120 * attempt
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","trim","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
