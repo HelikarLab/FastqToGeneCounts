@@ -67,10 +67,10 @@ module load mamba
 ```
 
 ## Installing software
-### Install Snakemake
-Snakemake is required to run the pipeline. Execute the following command in a terminal:
+### Install Snakemake and Benchmarking Requirements
+Snakemake is required to run the pipeline.
 ```bash
-mamba install --name snakemake --channel bioconda snakemake==6.15.5 tabulate==0.8.10
+mamba install --name snakemake --channel bioconda --channel plotly snakemake==6.15.5 tabulate==0.8.10 plotly==5.11.0
 ```
 
 We must install tabulate version `0.8.10` as anything under the `0.9.*` release causes issues for our current version of Snakemake
@@ -81,8 +81,10 @@ We must install tabulate version `0.8.10` as anything under the `0.9.*` release 
 |      `install`       |         The mamba command to install software         |
 |  `--name snakemake`  |       The environment to install software into        |
 | `--channel bioconda` |         The channel to install software from          |
+|  `--channel plotly`  |            Install from the plotly channel            |
 | `snakemake==6.15.5`  |          The software and version to install          |
-| `tabulate==0.8.10`   |          The software and version to install          |
+|  `tabulate==0.8.10`  |          The software and version to install          |
+|   `plotly==5.11.0`   |           Install plotly for graph creation           |
 
 ### Install CookieCutter
 CookieCutter is used to install Snakemake profiles, which makes it much easier for us to submit our jobs to a cluster. Execute the following in a terminal:

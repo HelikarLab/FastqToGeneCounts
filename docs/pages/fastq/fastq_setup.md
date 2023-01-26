@@ -11,7 +11,7 @@ Following the overview is a step-by-step guide on how to set up the pipeline. A 
 
 1. Create a conda environment containing:
     1. Mamba
-    2. Snakemake ([version 6.15.5](https://snakemake.readthedocs.io/en/stable/project_info/history.html#id112))
+    2. Snakemake ([version 7.19.1](https://snakemake.readthedocs.io/en/stable/project_info/history.html#id2))
 2. Create a CookieCutter template/profile based on the [Slurm profile](https://github.com/Snakemake-Profiles/slurm)
 3. Modification of configuration variables
 
@@ -51,7 +51,7 @@ conda install -n snakemake -c conda-forge mamba
 ### 4. Install Snakemake
 After installing Mamba, we can install Snakemake. This will take a while, as Snakemake has a lot of dependencies. We have specified version `6.15.5`, as version 7 includes breaking changes not yet resolved.
 ```bash
-mamba install -n snakemake -c conda-forge -c bioconda snakemake=6.15.5
+mamba install -n snakemake -c conda-forge -c bioconda snakemake=7.19.1 pydantic=1.10.3
 ```
 
 |          Component           |                          Description                          |
@@ -61,6 +61,7 @@ mamba install -n snakemake -c conda-forge -c bioconda snakemake=6.15.5
 |        `-n snakemake`        | The name of the conda environment to install into (snakemake) |
 | `-c conda-forge -c bioconda` |    The channels to install from (Conda Forge and Bioconda)    |
 |      `snakemake=6.15.5`      |                    The package to install                     |
+|       `pydantic=10.3`        |             Install pydantic for dataclass usage              |
 
 ### 5. Install CookieCutter
 ```bash
@@ -80,7 +81,7 @@ You should receive no errors at this point, and the output should follow the fol
 If you encounter errors, please [open an issue](https://github.com/HelikarLab/FastqToGeneCounts/issues)
 ```bash
 snakemake --version
-# Returns `6.15.5`
+# Returns `7.19.1`
 
 cookiecutter --version
 # Returns Cookiecutter VERSION from INSTALLATION_PATH (Python VERSION)

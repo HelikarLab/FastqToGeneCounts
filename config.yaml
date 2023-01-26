@@ -19,8 +19,8 @@ PERFORM_GET_RNASEQ_METRICS: True # True or False -- get more information about R
 
 # Additional options
 PERFORM_PREFETCH: True  # True or False -- prefetch sra files before writing to fastq (recommended true)
-PERFORM_GET_INSERT_SIZE: False # True or False -- insert sizes can also be used for fragment len calculation
-PERFORM_GET_FRAGMENT_SIZE: False # True or False, required for zFPKM calculation
+PERFORM_GET_INSERT_SIZE: True # True or False -- insert sizes can also be used for fragment len calculation
+PERFORM_GET_FRAGMENT_SIZE: True # True or False, required for zFPKM calculation
 
 GENERATE_GENOME:
   # The full path where the genome generation data should be saved
@@ -34,3 +34,11 @@ GENERATE_GENOME:
   GENOME_FASTA_FILE: "genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
   GTF_FILE: "genome/Homo_sapiens.GRCh38.105.gtf"
 
+# If you would like to bypass checking for single-replicates in the control file, set this to True
+BYPASS_REPLICATE_VALIDATION: False
+
+# If you would like to bypass checking that genome-related files can be found, set this to True
+BYPASS_GENOME_VALIDATION: False
+
+# If you would like to perform benchmarking more than once, increase this value
+BENCHMARK_TIMES: 1
