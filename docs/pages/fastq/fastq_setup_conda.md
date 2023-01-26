@@ -9,10 +9,10 @@ last_updated: October 11, 2022
 ## Installation
 Conda is reuired to install and use FastqToGeneCounts. To install Conda, [follow the instructions here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
 
-{% include note.html content="If you are using HCC, conda is already installed. You can skip this step." %}
+{% include note.html content="If you are using HCC, mamba is already installed. You can skip this step." %}
 
 ## Creating a Conda Environment
-In most cluster environments (i.e., HCC), you must activate the `conda` module. This can be done as follows:
+In most cluster environments (i.e., HCC), you must activate the `mamba` module. This can be done in a terminal as follows:
 ```bash
 module load mamba
 ```
@@ -21,17 +21,17 @@ module load mamba
 |:---------:|:-------------------------------------------------------------:|
 | `module`  | The module command is used to load, unload, and list modules. |
 |  `load`   |          The load command is used to load a module.           |
-|  `mamba`  |  The conda module is used to activate the conda environment.  |
+|  `mamba`  |  The mamba module is used to activate the mamba environment.  |
 
 ### Create the Environment
-Once this is done, we can create a new conda environment with the name "snakemake". This can be done as follows:
+Once this is done, we can create a new conda environment with the name "snakemake". This can be done as follows. In a terminal:
 ```bash
 mamba create --name=snakemake
 ```
 
 |     Component      |                                     Description                                     |
 |:------------------:|:-----------------------------------------------------------------------------------:|
-|      `mamba`       |     The conda command is used to create, update, and remove conda environments.     |
+|      `mamba`       |     The mamba command is used to create, update, and remove mamba environments.     |
 |      `create`      |            The create command is used to create a new conda environment.            |
 | `--name=snakemake` | The --name flag is used to specify the name of the conda environment (`snakemake`). |
 
@@ -54,6 +54,8 @@ conda config --add channels conda-forge
 conda config --add channels r
 ```
 
+----
+
 If you get an error during this part, try running the following command:
 ```bash
 module load anaconda
@@ -71,7 +73,7 @@ Snakemake is required to run the pipeline.
 mamba install --name snakemake --channel bioconda --channel plotly snakemake==6.15.5 tabulate==0.8.10 plotly==5.11.0
 ```
 
-We must lock tabulate to version `0.8.10` as anything under the `0.9.*` release causes issues for our current version of Snakemake
+We must install tabulate version `0.8.10` as anything under the `0.9.*` release causes issues for our current version of Snakemake
 
 |      Component       |                      Description                      |
 |:--------------------:|:-----------------------------------------------------:|
@@ -85,7 +87,7 @@ We must lock tabulate to version `0.8.10` as anything under the `0.9.*` release 
 |   `plotly==5.11.0`   |           Install plotly for graph creation           |
 
 ### Install CookieCutter
-CookieCutter is used to install Snakemake profiles, which makes it much easier for us to submit our jobs to a cluster.
+CookieCutter is used to install Snakemake profiles, which makes it much easier for us to submit our jobs to a cluster. Execute the following in a terminal:
 ```bash
 mamba install --name snakemake --channel conda-forge cookiecutter
 ```

@@ -2,3 +2,9 @@
 /venv
 /.idea
 /docs/_site/
+/genome
+/logs
+/results
+/controls
+/benchmarks
+/MADRID_input

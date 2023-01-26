@@ -18,7 +18,6 @@ samples: pd.DataFrame = pd.read_csv(
 )
 config_file_basename=os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
 
-
 # Validate users are using conda. This is important for temporary conda environments defined in the workflow
 if not workflow.use_conda:
     raise ValueError("\nYou are not using conda. Pass the '--use-conda' flag to snakemake.\nExample: snakemake --cores 10 --use-conda\n\n")
