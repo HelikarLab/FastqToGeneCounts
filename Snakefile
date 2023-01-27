@@ -581,22 +581,9 @@ rule fastqc_dump_fastq:
 
 
 if perform.screen(config=config):
-    def get_screen_input(wildcards):
-        """
-        aggregate filesnames of all fastqs
-        """
-        if str(wildcards.PE_SE) == "1":
-            forward_read: str = str(checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)
-            reverse_read: str = str(checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)
-            # reverse_read: str = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
-            return [forward_read, reverse_read]
-        else:
-            return checkpoints.fasterq_dump.get(**wildcards).output
-
-
     rule contaminant_screen:
         input:
-            files=get_screen_input,
+            files=lambda wildcards: str(checkpoints.fasterq_dump.get(**wildcards).output),
             genomes=rules.get_screen_genomes.output.genomes,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt")
         params:
@@ -606,7 +593,7 @@ if perform.screen(config=config):
             genomes_config=rules.get_screen_genomes.output.config,
             output_directory=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen")
         conda: "envs/screen.yaml"
-        threads: lambda wildcards: 20 if str(wildcards.PE_SE) in ["1", "S"] else 1
+        threads: 20
         resources:
             # TODO: Limit ram if on reverse read
             mem_mb=lambda wildcards, attempt: 20000 * attempt if str(wildcards.PE_SE) in ["1", "S"] else 200, # 20 GB
@@ -614,17 +601,7 @@ if perform.screen(config=config):
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","contaminant_screen","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
-            # Run fastq screen if PE_SE is 1 or S
-            if [[ "{params.PE_SE}" == "1" ]]; then
-                fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
-
-            elif [[ "{params.PE_SE}" == "S" ]]; then
-                fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
-
-            # Only touch reverse read, will be created by forward read
-            elif [[ "{params.PE_SE}" == "2" ]]; then
-                touch {output}
-            fi
+            fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {params.genomes_config} --outdir {params.output_directory} {input.files}
             """
 
 if perform.trim(config=config):
