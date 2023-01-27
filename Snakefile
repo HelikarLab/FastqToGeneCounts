@@ -595,8 +595,7 @@ if perform.screen(config=config):
         conda: "envs/screen.yaml"
         threads: 20
         resources:
-            # TODO: Limit ram if on reverse read
-            mem_mb=lambda wildcards, attempt: 20000 * attempt if str(wildcards.PE_SE) in ["1", "S"] else 200, # 20 GB
+            mem_mb=lambda wildcards, attempt: 20480 * attempt, # 20 GB
             runtime=lambda wildcards, attempt: 30 * attempt
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","contaminant_screen","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
