@@ -988,8 +988,8 @@ if perform.get_rnaseq_metrics(config=config) and \
             fragment_sizes=os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}")
         threads: 1
         resources:
-            mem_mb=lambda wildcards, attempt: 1024 * attempt,  # 1 GB
-            runtime=10  # 10 minutes
+            mem_mb=lambda wildcards, attempt: 1024 * attempt,
+            runtime=5
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","MADRID_copy","{sample}_{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
