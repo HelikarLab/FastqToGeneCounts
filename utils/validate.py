@@ -125,6 +125,4 @@ def validate(config: dict) -> bool:
         if not genome:
             genome_valid = False
     
-    print(f"control_valid: {control_valid}")
-    print(f"genome_valid: {genome_valid}")
     return control_valid and genome_valid
