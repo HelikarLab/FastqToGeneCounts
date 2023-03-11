@@ -15,20 +15,28 @@ class _GenomeData:
         bed_file: Path = Path(config["BED_FILE"])
         genome_fasta_file: Path = Path(config["GENERATE_GENOME"]["GENOME_FASTA_FILE"])
         gtf_file: Path = Path(config["GENERATE_GENOME"]["GTF_FILE"])
+        
+        should_perform_rnaseq_metrics = config["PERFORM_GET_RNASEQ_METRICS"]
+        # should_perform_insert_size = config["PERFORM_GET_INSERT_SIZE"]
+        should_perform_get_fragment_size = config["PERFORM_GET_FRAGMENT_SIZE"]
 
         genome_valid = True
-        if not reference_flat_file.exists():
+        if not reference_flat_file.exists() and should_perform_rnaseq_metrics:
             genome_valid = False
             print("The REF_FLAT_FILE file was not found")
+        
+        if not bed_file.exists() and should_perform_get_fragment_size:
+            genome_valid = False
+            print("The BED_FILE file was not found")
+        
         if not rRna_interval_list.exists():
             genome_valid = False
             print("The RRNA_INTERVAL_LIST file was not found")
-        if not bed_file.exists():
-            genome_valid = False
-            print("The BED_FILE file was not found")
+        
         if not genome_fasta_file.exists():
             genome_valid = False
             print("The GENOME_FASTA_FILE file was not found")
+        
         if not gtf_file.exists():
             genome_valid = False
             print("The GTF_FILE file was not found")
