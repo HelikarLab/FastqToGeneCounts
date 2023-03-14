@@ -5,6 +5,8 @@ import sys
 import pandas as pd
 from utils import get, perform, validate
 from utils.constants import EndType, PrepMethod
+import glob
+
 configfile: "config.yaml"
 
 # Validate file before reading with pandas
@@ -255,16 +257,15 @@ rule preroundup:
         end_type_write_root = open(layouts_root,"w")
         end_type_write_madrid = open(layouts_madrid,"w")
         end_type = rule_line[2].upper()  # PE, SE, or SLC
-        match EndType[end_type]:
-            case EndType.PE:
-                end_type_write_root.write("paired-end")
-                end_type_write_madrid.write("paired-end")
-            case EndType.SE:
-                end_type_write_root.write("single-end")
-                end_type_write_madrid.write("single-end")
-            case EndType.SLC:
-                end_type_write_root.write("single-cell")
-                end_type_write_madrid.write("single-cell")
+        if EndType[end_type] == EndType.PE:
+            end_type_write_root.write("paired-end")
+            end_type_write_madrid.write("paired-end")
+        elif EndType[end_type] == EndType.SE:
+            end_type_write_root.write("single-end")
+            end_type_write_madrid.write("single-end")
+        elif EndType[end_type] == EndType.SLC:
+            end_type_write_root.write("single-cell")
+            end_type_write_madrid.write("single-cell")
         end_type_write_root.close()
         end_type_write_madrid.close()
 
@@ -276,18 +277,17 @@ rule preroundup:
         write_prep_root = open(str(prep_root),"w")
         write_prep_madrid = open(str(prep_madrid),"w")
         prep_method = rule_line[3].lower()  # total or mrna
-        match PrepMethod[prep_method]:
-            case PrepMethod.total:
-                write_prep_root.write("total")
-                write_prep_madrid.write("total")
-            case PrepMethod.mrna:
-                write_prep_root.write("mrna")
-                write_prep_madrid.write("mrna")
-            case PrepMethod.polya:
-                write_prep_root.write("mrna")
-                write_prep_madrid.write("mrna")
-            case _:
-                raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
+        if PrepMethod[prep_method] == PrepMethod.total:
+            write_prep_root.write("total")
+            write_prep_madrid.write("total")
+        elif PrepMethod[prep_method] == PrepMethod.mrna:
+            write_prep_root.write("mrna")
+            write_prep_madrid.write("mrna")
+        elif PrepMethod[prep_method] == PrepMethod.polya:
+            write_prep_root.write("mrna")
+            write_prep_madrid.write("mrna")
+        else:
+            raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
         write_prep_root.close()
         write_prep_madrid.close()
 
@@ -943,19 +943,21 @@ rule get_fragment_size:
     output:
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt")
     params:
-        layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt")
+        layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
+
     threads: 1
     resources:
-        mem_mb=lambda wildcards, attempt: 8192 * attempt,  # 8 GB / attempt
-        runtime=lambda wildcards, attempt: 90 * attempt  # 90 minutes, should never take this long
+        mem_mb=lambda wildcards, attempt: 8192 * attempt,  # 8 GB
+        runtime=lambda wildcards, attempt: 120 * attempt  # 120 minutes
     conda: "envs/rseqc.yaml"
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_fragment_size","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-    shell:
-        """
-        # get matches of script file (should only be one, but just to be safe run it anyway)
-        file_path=$(find .snakemake/conda/*/bin/RNA_fragment_size.py)
-        python3 $file_path -r {config[BED_FILE]} -i {input.bam} > {output}
-        """
+    script: "utils/get_fragment_size.py"
+    # shell:
+    #     """
+    #     # get matches of script file (should only be one, but just to be safe run it anyway)
+    #     file_path=$(find .snakemake/conda/*/bin/RNA_fragment_size.py)
+    #     python3 $file_path -r {config[BED_FILE]} -i {input.bam} > {output}
+    #     """
 
 rule copy_gene_counts:
     input: rules.star_align.output.gene_table
