@@ -4,6 +4,7 @@ This file is responsible for validating that each CELL-TYPE_S##R## has at least 
 import csv
 from pathlib import Path
 import re
+from typing import Union
 
 
 class _GenomeData:
@@ -49,7 +50,7 @@ class _GenomeData:
 
 class _ControlData:
     @classmethod
-    def ingest(cls, control: str | Path) -> dict[str, dict[str, list[str]]]:
+    def ingest(cls, control: Union[str, Path]) -> dict[str, dict[str, list[str]]]:
         """
         This function is responsible for taking data from the control file and creating a usable data format
         :param control: The control file to read from
@@ -80,7 +81,7 @@ class _ControlData:
         return schema
 
     @classmethod
-    def is_valid(cls, schema: dict[str, dict[str, list[str]]]) -> bool | None:
+    def is_valid(cls, schema: dict[str, dict[str, list[str]]]) -> Union[bool, None]:
         """
         This function is responsible for validating that each study in the schema contains at least two replicates
         :param schema: The schema generated from the ingest() function
