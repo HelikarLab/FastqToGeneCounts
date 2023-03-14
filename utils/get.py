@@ -5,6 +5,7 @@ import snakemake
 from pathlib import Path
 from . import perform
 from .constants import EndType
+from typing import Union
 
 def from_master_config(config: dict, attribute: str) -> list[str]:
     valid_inputs = ["SRR", "tissue", "tag", "PE_SE"]
@@ -90,7 +91,7 @@ def PE_SE(config: dict) -> list[str]:
         fastq_input = snakemake.io.glob_wildcards(os.path.join(config["DUMP_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
         return fastq_input.PE_SE
 
-def tag_from_filename(file_path: str | Path) -> str:
+def tag_from_filename(file_path: Union[str, Path]) -> str:
     file_name = os.path.basename(file_path)
     purge_extension = file_name.split(".")[0]
     tag = purge_extension.split("_")[-1]
