@@ -179,20 +179,31 @@ rule_all = [
         tag=get.tags(config=config)
     ),
 
-    # get rnaseq metrics
-    expand(
-        os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
-        zip,
-        tissue_name=get.tissue_name(config=config),
-        tag=get.tags(config=config)
-    ),
-
     # MultiQC
     expand(
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", str(config_file_basename),f"{config_file_basename}_multiqc_report.html"),
         tissue_name=get.tissue_name(config=config)
     ),
 ]
+
+if perform.get_rnaseq_metrics(config=config):
+    rule_all.extend(
+        [
+            expand(
+                os.path.join("MADRID_input","{tissue_name}","strandedness","{sample}","{tissue_name}_{tag}_strandedness.txt"),
+                zip,
+                tissue_name=get.tissue_name(config=config),
+                sample=get.sample(config=config),
+                tag=get.tags(config=config),
+            ),
+            expand(
+                os.path.join(config["ROOTDIR"],"data","{tissue_name}","picard","rnaseq","{tissue_name}_{tag}_rnaseq.txt"),
+                zip,
+                tissue_name=get.tissue_name(config=config),
+                tag=get.tags(config=config)
+            ),
+        ]
+    )
 
 if perform.get_insert_size(config=config):
     rule_all.extend(
