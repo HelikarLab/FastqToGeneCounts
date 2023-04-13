@@ -41,6 +41,21 @@ Once you have created the Snakemake environment, you should activate it with the
 mamba activate snakemake
 ```
 
+#### Initializing Mamba
+
+{% include important.html content="If you get a warning saying you must run `mamba init`, follow the following steps" %}
+
+```bash
+mamba init
+source ~/.bashrc  # If you are using bash, otherwise use the appropriate shell
+```
+
+|     Component      |                                 Description                                 |
+|:------------------:|:---------------------------------------------------------------------------:|
+|      `mamba`       | The mamba command is used to create, update, and remove mamba environments. |
+|       `init`       |                The init command is used to initialize mamba.                |
+| `source ~/.bashrc` |   The `source` command is used to run the commands in the `.bashrc` file.   |
+
 ### Include Additional Channels
 From the [Conda website](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html) on channels:
 
