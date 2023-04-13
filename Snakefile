@@ -955,7 +955,6 @@ rule get_fragment_size:
         os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt")
     params:
         layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
-
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 8192 * attempt,  # 8 GB
