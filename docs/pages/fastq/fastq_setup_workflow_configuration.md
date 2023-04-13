@@ -8,11 +8,11 @@ last_updated: Oct 11, 2022
 
 ## Workflow Configuration
 
-When the workflow was first downloaded (in the [download section](#fastq_download.html)), a `snakemake_config.yaml` file was downloaded as well. Open this file and modify the values to your needs.
+When the workflow was first downloaded (in the [download section](#fastq_download.html)), a `config.yaml` file was downloaded as well. Open this file and modify the values to your needs.
 
 To make the `BED_FILE`, `RRNA_INTERVAL_LIST`, and `REF_FLAT_FILE`, see slides 3 and 4 in [this Google Slides][https://docs.google.com/presentation/d/1gxlxbIObhxitgrPLp7lByYFwrFhEdvEm4mILmygAATY/edit#slide=id.g111a3589bd3_0_0] presentation, with examples for the Human Reference Genome
 
-The most up-to-date version of this file can be found [here](https://github.com/HelikarLab/FastqToGeneCounts/blob/436b87c7f40278e918c0ea4b42180243bb84b1d7/snakemake_config.yaml).
+The most up-to-date version of this file can be found [here](https://github.com/HelikarLab/FastqToGeneCounts/blob/master/config.yaml).
 
 ### `MASTER_CONTROL`
 The master contol file (found under `controls/master_control.csv`) is a CSV file consisting of the following columns:
@@ -25,7 +25,7 @@ The master contol file (found under `controls/master_control.csv`) is a CSV file
     - `total` for total RNA seq
     - `mrna` for PolyA/mRNA RNA seq
 
-If you have `PERFORM_PREFETCH` set to `False` in the `snakemake_config.yaml` file, do not need to modify the master control file. This assumes you are providing the `sra` files yourself. An example of this file is as follows:
+If you have `PERFORM_PREFETCH` set to `False` in the `config.yaml` file, do not need to modify the master control file. This assumes you are providing the `sra` files yourself. An example of this file is as follows:
 
 {% include warning.html content="The header line should NOT be included in your file" %}
 

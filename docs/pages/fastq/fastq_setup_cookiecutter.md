@@ -26,6 +26,11 @@ profile_dir="${HOME}/.config/snakemake"
 mkdir -p "$profile_dir"
 ```
 
+|         Component         |                                               Description                                               |
+|:-------------------------:|:-------------------------------------------------------------------------------------------------------:|
+|       `profile_dir`       | The directory to hold the profile(s). `"${HOME}` is an environment variable and does not need to be set |
+| `mkdir -p "$profile_dir"` |                                   Create the `$profile_dir` directory                                   |
+
 ### Creating the Profile
 Using CookieCutter arguments, we can define what profile we would like to install, and where it should be installed. `"$profile_dir` was defined in the previous code block, which is set to our configuration directory (where SnakeMake will look for profiles).
 
@@ -35,6 +40,11 @@ When installing the profile, simply press `Enter` until setup is complete. We wi
 template="gh:Snakemake-Profiles/slurm"
 cookiecutter --output-dir "$profile_dir" "$template"
 ```
+
+|      Component       |                                     Description                                      |
+|:--------------------:|:------------------------------------------------------------------------------------:|
+|   `template=. . .`   | The template to use when creating the profile. This is the profile we will be using. |
+| `cookiecutter . . .` |                          The command to create the profile.                          |
 
 ### Modify the Profile
 Several details of the profile must be modified to work with our pipeline. THese are as follows:
@@ -84,8 +94,9 @@ conda-frontend: mamba
 
 
 #### `cluster_config.yaml`
-The `cluster_config.yaml` is located at `~/.config/snakemake/slurm/cluster_config.yaml`. This file contains default configuration values for Slurm to use when submitting jobs to the cluster.
-Open the file on the cluster, delete its contents, and paste the following:
+This file contains default configuration values for Slurm to use when submitting jobs to the cluster.  
+Create a new file under the `~/.config/snakemake/slurm` directory called `cluster_config.yaml`.  
+Paste the following contents:  
 ```yaml
 __default__ :
    job-name  : "{rule}.{wildcards}"

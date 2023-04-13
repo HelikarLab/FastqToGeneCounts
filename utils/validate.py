@@ -4,6 +4,7 @@ This file is responsible for validating that each CELL-TYPE_S##R## has at least 
 import csv
 from pathlib import Path
 import re
+from typing import Union
 
 
 class _GenomeData:
@@ -15,20 +16,28 @@ class _GenomeData:
         bed_file: Path = Path(config["BED_FILE"])
         genome_fasta_file: Path = Path(config["GENERATE_GENOME"]["GENOME_FASTA_FILE"])
         gtf_file: Path = Path(config["GENERATE_GENOME"]["GTF_FILE"])
+        
+        should_perform_rnaseq_metrics = config["PERFORM_GET_RNASEQ_METRICS"]
+        # should_perform_insert_size = config["PERFORM_GET_INSERT_SIZE"]
+        should_perform_get_fragment_size = config["PERFORM_GET_FRAGMENT_SIZE"]
 
         genome_valid = True
-        if not reference_flat_file.exists():
+        if not reference_flat_file.exists() and should_perform_rnaseq_metrics:
             genome_valid = False
             print("The REF_FLAT_FILE file was not found")
+        
+        if not bed_file.exists() and should_perform_get_fragment_size:
+            genome_valid = False
+            print("The BED_FILE file was not found")
+        
         if not rRna_interval_list.exists():
             genome_valid = False
             print("The RRNA_INTERVAL_LIST file was not found")
-        if not bed_file.exists():
-            genome_valid = False
-            print("The BED_FILE file was not found")
+        
         if not genome_fasta_file.exists():
             genome_valid = False
             print("The GENOME_FASTA_FILE file was not found")
+        
         if not gtf_file.exists():
             genome_valid = False
             print("The GTF_FILE file was not found")
@@ -41,7 +50,7 @@ class _GenomeData:
 
 class _ControlData:
     @classmethod
-    def ingest(cls, control: str | Path) -> dict[str, dict[str, list[str]]]:
+    def ingest(cls, control: Union[str, Path]) -> dict[str, dict[str, list[str]]]:
         """
         This function is responsible for taking data from the control file and creating a usable data format
         :param control: The control file to read from
@@ -72,7 +81,7 @@ class _ControlData:
         return schema
 
     @classmethod
-    def is_valid(cls, schema: dict[str, dict[str, list[str]]]) -> bool | None:
+    def is_valid(cls, schema: dict[str, dict[str, list[str]]]) -> Union[bool, None]:
         """
         This function is responsible for validating that each study in the schema contains at least two replicates
         :param schema: The schema generated from the ingest() function
@@ -117,6 +126,4 @@ def validate(config: dict) -> bool:
         if not genome:
             genome_valid = False
     
-    print(f"control_valid: {control_valid}")
-    print(f"genome_valid: {genome_valid}")
     return control_valid and genome_valid
