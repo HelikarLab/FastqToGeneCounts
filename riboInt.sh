@@ -1,53 +1,32 @@
 #!/usr/bin/env bash
-# make_rRNA.sh
-# Kamil Slowikowski
-# December 12, 2014
-#
-# Modified: Arindam Ghosh (July 24, 2019 )
-#
-#
-# Referenc Genome: GRCh38.p5 Ensembl release 84
-#
-#
+# Initially created by Kamil Slowikowski (December 12, 2014)
+# Modified by: Arindam Ghosh (July 24, 2019)
+# Modified by: Josh Loecker (April 13, 2023)
+
+# Change this variable to the location you would like to save the genome data!
+genome_dir="${PWD}/genome"
+
+# Define final output files
+primary_assembly_fa="$genome_dir/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
+primary_assembly_fai="$genome_dir/Homo_sapiens.GRCh38.dna.primary_assembly.fa.fai"
+genome_sizes="$genome_dir/sizes.genome"
+genes="$genome_dir/Homo_sapiens.GRCh38.105.gtf"
+rRNA_interval_list="$genome_dir/GRCh38.p5.rRNA.interval_list"
+
+# If primary_assembly_fa doesn't exist, show error and quit
+if [ ! -e "$primary_assembly_fa" ]; then
+  echo "The primary assembly file could not be found\nSearching for:'$primary_assembly_fa'"
+fi
+
 # 1. Prepare chromosome sizes file  from fasta sequence if needed.
-#
-#     ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 module load samtools
+samtools faidx "$primary_assembly_fa" -o "$primary_assembly_fai"
+cut -f1,2 "$primary_assembly_fai" > "$genome_sizes"
 
-samtools faidx genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa -o genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa.fai
-cut -f1,2 genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa.fai > genome/sizes.genome
-#
-# 2. Make an interval_list file suitable for CollectRnaSeqMetrics.jar.
-#
-# Ensembl genes:
-#
-#   ftp://ftp.ensembl.org/pub/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh38.84.gtf.gz
-#
-#
-#
-# Picard Tools CollectRnaSeqMetrics.jar:
-#
-#   https://broadinstitute.github.io/picard/command-line-overview.html#CollectRnaSeqMetrics
-
-
-
-chrom_sizes=genome/sizes.genome
-
-# rRNA interval_list file -------------------------------------------------
-
-# Genes from Ensembl.
-
-genes=genome/Homo_sapiens.GRCh38.105.gtf
-
-
-# Output file suitable for Picard CollectRnaSeqMetrics.jar.
-
-rRNA=genome/GRCh38.p5.rRNA.interval_list
-
-# Sequence names and lengths. (Must be tab-delimited.)
-perl -lane 'print "\@SQ\tSN:$F[0]\tLN:$F[1]\tAS:GRCh38"' $chrom_sizes | \
+# Make an interval_list file suitable for CollectRnaSeqMetrics.jar.
+perl -lane 'print "\@SQ\tSN:$F[0]\tLN:$F[1]\tAS:GRCh38"' "$genome_sizes" | \
     grep -v _ \
->> $rRNA
+>> "$rRNA_interval_list"
 
 # Intervals for rRNA transcripts.
 grep 'gene_biotype "rRNA"' $genes | \
@@ -58,4 +37,4 @@ grep 'gene_biotype "rRNA"' $genes | \
         print join "\t", (@F[0,1,2,3], $1)
     ' | \
     sort -k1V -k2n -k3n \
->> $rRNA
+>> "$rRNA_interval_list"
