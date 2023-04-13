@@ -164,7 +164,7 @@ rule_all = [
     ),
     # copy .tab
     expand(
-        os.path.join("MADRID_input","{tissue_name}","geneCounts","{sample}","{tissue_name}_{tag}.tab"),
+        os.path.join("COMO_input","{tissue_name}","geneCounts","{sample}","{tissue_name}_{tag}.tab"),
         zip,
         tissue_name=get.tissue_name(config=config),
         tag=get.tags(config=config),
@@ -190,7 +190,7 @@ if perform.get_rnaseq_metrics(config=config):
     rule_all.extend(
         [
             expand(
-                os.path.join("MADRID_input","{tissue_name}","strandedness","{sample}","{tissue_name}_{tag}_strandedness.txt"),
+                os.path.join("COMO_input","{tissue_name}","strandedness","{sample}","{tissue_name}_{tag}_strandedness.txt"),
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 sample=get.sample(config=config),
@@ -209,7 +209,7 @@ if perform.get_insert_size(config=config):
     rule_all.extend(
         [
             perform_get_insert_size_rule,
-            expand(os.path.join("MADRID_input","{tissue_name}","insertSizeMetrics","{sample}","{tissue_name}_{tag}_insert_size.txt"),
+            expand(os.path.join("COMO_input","{tissue_name}","insertSizeMetrics","{sample}","{tissue_name}_{tag}_insert_size.txt"),
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -222,7 +222,7 @@ if perform.get_fragment_size(config=config):
     rule_all.extend(
         [
             perform_get_fragment_size_rule,
-            expand(os.path.join("MADRID_input","{tissue_name}","fragmentSizes","{sample}","{tissue_name}_{tag}_fragment_size.txt"),
+            expand(os.path.join("COMO_input","{tissue_name}","fragmentSizes","{sample}","{tissue_name}_{tag}_fragment_size.txt"),
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -262,7 +262,7 @@ rule preroundup:
 
         # Write paired/single end or single cell to the appropriate location
         layouts_root: Path = Path(config["ROOTDIR"],"data",tissue_name,"layouts",f"{name}_layout.txt")
-        layouts_madrid: Path = Path("MADRID_input",tissue_name,"layouts",study,f"{name}_layout.txt")
+        layouts_madrid: Path = Path("COMO_input",tissue_name,"layouts",study,f"{name}_layout.txt")
         layouts_root.parent.mkdir(parents=True, exist_ok=True)
         layouts_madrid.parent.mkdir(parents=True, exist_ok=True)
         end_type_write_root = open(layouts_root,"w")
@@ -282,7 +282,7 @@ rule preroundup:
 
         # Write mrna/total to the appropriate location
         prep_root = Path(config["ROOTDIR"],"data",tissue_name,"prepMethods",f"{name}_prep_method.txt")
-        prep_madrid = Path("MADRID_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt")
+        prep_madrid = Path("COMO_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt")
         prep_root.parent.mkdir(parents=True, exist_ok=True)
         prep_madrid.parent.mkdir(parents=True, exist_ok=True)
         write_prep_root = open(str(prep_root),"w")
@@ -304,13 +304,13 @@ rule preroundup:
 
         # Make the required directories
         directories: list[str] = [
-            os.path.join("MADRID_input", tissue_name, "geneCounts"),
-            os.path.join("MADRID_input", tissue_name, "insertSizeMetrics"),
-            os.path.join("MADRID_input", tissue_name, "layouts"),
-            os.path.join("MADRID_input", tissue_name, "layouts", study),
-            os.path.join("MADRID_input", tissue_name, "fragmentSizes"),
-            os.path.join("MADRID_input", tissue_name, "prepMethods"),
-            os.path.join("MADRID_input", tissue_name, "prepMethods", study),
+            os.path.join("COMO_input", tissue_name, "geneCounts"),
+            os.path.join("COMO_input", tissue_name, "insertSizeMetrics"),
+            os.path.join("COMO_input", tissue_name, "layouts"),
+            os.path.join("COMO_input", tissue_name, "layouts", study),
+            os.path.join("COMO_input", tissue_name, "fragmentSizes"),
+            os.path.join("COMO_input", tissue_name, "prepMethods"),
+            os.path.join("COMO_input", tissue_name, "prepMethods", study),
             os.path.join(config["ROOTDIR"], "data", tissue_name, "layouts"),
             os.path.join(config["ROOTDIR"], "data", tissue_name, "prepMethods")
         ]
@@ -971,7 +971,7 @@ rule get_fragment_size:
 
 rule copy_gene_counts:
     input: rules.star_align.output.gene_table
-    output: os.path.join("MADRID_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab")
+    output: os.path.join("COMO_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab")
     threads: 1
     resources:
         mem_mb=1024,
@@ -981,7 +981,7 @@ rule copy_gene_counts:
 
 rule copy_rnaseq_metrics:
     input: rules.get_rnaseq_metrics.output.strand
-    output: os.path.join("MADRID_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt")
+    output: os.path.join("COMO_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt")
     threads: 1
     resources:
         mem_mb=1024,
@@ -990,7 +990,7 @@ rule copy_rnaseq_metrics:
 
 rule copy_insert_size:
     input: rules.get_insert_size.output.txt
-    output: os.path.join("MADRID_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt")
+    output: os.path.join("COMO_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt")
     threads: 1
     resources:
         mem_mb=1024,
@@ -999,7 +999,7 @@ rule copy_insert_size:
 
 rule copy_fragment_size:
     input: rules.get_fragment_size.output
-    output: os.path.join("MADRID_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
+    output: os.path.join("COMO_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
     threads: 1
     resources:
         mem_mb=1024,
