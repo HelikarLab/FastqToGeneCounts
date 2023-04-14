@@ -59,7 +59,9 @@ class _ControlData:
         schema: dict[str, dict[str, list[str]]] = {}
     
         with open(control, "r") as i_stream:
-            reader = csv.reader(i_stream)
+            dialect = csv.Sniffer().sniff(i_stream.read(1024))
+            i_stream.seek(0)
+            reader = csv.reader(i_stream, delimiter=str(dialect.delimiter))
             for line in reader:
                 sample = line[1]  # "naiveB_S1R1"
                 cell_type = sample.split("_")[0]  # naiveB
