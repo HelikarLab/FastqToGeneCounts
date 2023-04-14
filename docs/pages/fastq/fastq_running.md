@@ -66,6 +66,9 @@ Execute the following to perform a dry run
 module load mamba
 mamba activate snakemake
 
+# Change to the FastqToGeneCounts directory
+cd /work/helikarlab/joshl/FastqToGeneCounts
+
 # Perfom a dry run
 snakemake --profile slurm --dry-run
 ```
@@ -96,6 +99,9 @@ The following steps will start the workflow:
 # Activate the snakemake environment
 module load mamba
 mamba activate snakemake
+
+# Make sure you are in the FastqToGeneCounts directory!
+cd /work/helikarlab/joshl/FastqToGeneCounts
 
 # Start the workflow
 snakemake --profile slurm

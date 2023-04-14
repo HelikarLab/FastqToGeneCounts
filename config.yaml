@@ -10,7 +10,7 @@ ROOTDIR: "results" # redirect output root directory
 DUMP_FASTQ_FILES: "results/dump_fastq_input" # downloaded fastq output file location
 REF_FLAT_FILE: "genome/refFlat_GRCh38.105.txt"  # reflat file location built from gtf, for RNAseq metrics option
 RRNA_INTERVAL_LIST: "genome/GRCh38.p5.rRNA.interval_list"  # rrna interval list file location, for RNAseq metrics
-BED_FILE: "genome/Homo_sapiens.GRCh38.105.bed"  # reference bedfile build from GTF for RSEQC option
+BED_FILE: "genome/hg38_GENCODE.v38.bed"  # reference bedfile build from GTF for RSEQC option
 
 # Quality Control Options
 PERFORM_TRIM: True  # True or False -- trim adapters prior to aligning
