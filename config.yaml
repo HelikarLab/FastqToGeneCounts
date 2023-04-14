@@ -5,6 +5,7 @@
 
 # Modify these settings to reflect your paths
 # Only change values after the colon (':')
+SCRATCH_DIR: "/tmp"
 MASTER_CONTROL: "controls/master_control.csv"  # csv with srr, rename, layout
 ROOTDIR: "results" # redirect output root directory
 DUMP_FASTQ_FILES: "results/dump_fastq_input" # downloaded fastq output file location
