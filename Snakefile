@@ -14,8 +14,12 @@ if validate.validate(config=config):
     print("Control file valid! Continuing...")
 
 os.makedirs(config["ROOTDIR"], exist_ok=True)
+
+# Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
+dialect = csv.Sniffer().sniff(open(config["MASTER_CONTROL"]).read(1024))
 samples: pd.DataFrame = pd.read_csv(
     config["MASTER_CONTROL"],
+    delimiter=str(dialect.delimiter),
     names=["srr", "sample", "endtype", "prep_method"]
 )
 config_file_basename=os.path.basename(config["MASTER_CONTROL"]).split(".")[0]

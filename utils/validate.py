@@ -129,3 +129,15 @@ def validate(config: dict) -> bool:
             genome_valid = False
     
     return control_valid and genome_valid
+
+
+if __name__ == '__main__':
+    comma_file = "test_data/comma_sep.txt"
+    tab_file = "test_data/tab_sep.txt"
+    
+    comma_schema = _ControlData.ingest(comma_file)
+    tab_schema = _ControlData.ingest(tab_file)
+    
+    print(comma_schema)
+    print(tab_schema)
+    

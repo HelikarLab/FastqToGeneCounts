@@ -20,8 +20,10 @@ def from_master_config(config: dict, attribute: str) -> list[str]:
         if index_value >= 2:
             index_value -= 1
 
-        control_lines = open(config["MASTER_CONTROL"], "r").readlines()
-        reader = csv.reader(control_lines)
+        control_lines = open(config["MASTER_CONTROL"], "r")
+        dialect = csv.Sniffer().sniff(control_lines.read(1024))
+        control_lines.seek(0)
+        reader = csv.reader(control_lines, delimiter=str(dialect.delimiter))
 
         for line in reader:
 
@@ -57,6 +59,7 @@ def from_master_config(config: dict, attribute: str) -> list[str]:
 
             collect_attributes += target_attribute
 
+        control_lines.close()
         return collect_attributes
 
 
