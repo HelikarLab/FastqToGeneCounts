@@ -59,7 +59,9 @@ class _ControlData:
         schema: dict[str, dict[str, list[str]]] = {}
     
         with open(control, "r") as i_stream:
-            reader = csv.reader(i_stream)
+            dialect = csv.Sniffer().sniff(i_stream.read(1024))
+            i_stream.seek(0)
+            reader = csv.reader(i_stream, delimiter=str(dialect.delimiter))
             for line in reader:
                 sample = line[1]  # "naiveB_S1R1"
                 cell_type = sample.split("_")[0]  # naiveB
@@ -127,3 +129,15 @@ def validate(config: dict) -> bool:
             genome_valid = False
     
     return control_valid and genome_valid
+
+
+if __name__ == '__main__':
+    comma_file = "test_data/comma_sep.txt"
+    tab_file = "test_data/tab_sep.txt"
+    
+    comma_schema = _ControlData.ingest(comma_file)
+    tab_schema = _ControlData.ingest(tab_file)
+    
+    print(comma_schema)
+    print(tab_schema)
+    
