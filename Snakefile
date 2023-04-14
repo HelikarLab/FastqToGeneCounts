@@ -363,6 +363,7 @@ if perform.screen(config=config):
             config=os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "fastq_screen.conf")
         threads: 15
         params:
+            scratch_dir=config["SCRATCH_DIR"],
             download_paths = [
                 "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Adapters/",
                 "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Arabidopsis/",
@@ -395,9 +396,9 @@ if perform.screen(config=config):
                 if [[ ! -d "{output.genomes}/$species" ]]; then
                     # Test if working on fastq_screen.conf, we don't want to make this a directory because it is a file
                     if [[ ! $path =~ .*fastq_screen\.conf.* ]]; then
-                        mkdir -p /scratch/$species
+                        mkdir -p {params.scratch_dir}/$species
                     fi
-                    wget --quiet --recursive --no-parent --no-host-directories --cut-dirs=2 --reject="index.html*" -P /scratch $path && echo "Finished $species" &
+                    wget --quiet --recursive --no-parent --no-host-directories --cut-dirs=2 --reject="index.html*" -P {params.scratch_dir} $path && echo "Finished $species" &
                 else
                     # If the director exists, touch all the files so snakemake sees updates 
                     find "{output.genomes}/$species" -exec touch {{}} \; &
@@ -408,7 +409,7 @@ if perform.screen(config=config):
             wait
             
             # Move scratch downloads into the results directory
-            cp -r /scratch/* {output.genomes}
+            cp -r {params.scratch_dir}/* {output.genomes}
             
             # Replace "[FastQ_Screen_Genomes_Path]" with the sed_dir
             sed -i 's.\[FastQ_Screen_Genomes_Path\].{output.genomes}.g' {output.config}
@@ -424,8 +425,8 @@ if perform.prefetch(config=config):
             row=lambda wildcards: samples.loc[
                 samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}", :  # Collect everything from the row with `:`
             ].values[0].tolist(),
-            temp_directory="/scratch",
-            temp_file="/scratch/{tissue_name}_{tag}.sra",
+            scratch_dir=config["SCRATCH_DIR"],
+            temp_file="config['SCRATCH_DIR']/{tissue_name}_{tag}.sra",
             output_directory=os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}")
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,
@@ -443,7 +444,7 @@ if perform.prefetch(config=config):
                     
             # Change into the "scratch" directory so temp files do not populate in the working directory
             curr_dir=$(pwd)
-            cd {params.temp_directory}
+            cd {params.scratch_dir}
                 
             # set unlimited max size for prefetch
             prefetch --max-size u --progress --resume yes --output-file {params.temp_file} $srr
@@ -452,9 +453,9 @@ if perform.prefetch(config=config):
             cd $curr_dir
             mv {params.temp_file} {output}
             
-            # Move dependencies into the output directory, checking if files exist in "/scratch"
-            if [ -n "$(find {params.temp_directory} -prune -empty)" ]; then
-                mv {params.temp_directory}/* {params.output_directory}
+            # Move dependencies into the output directory, checking if files exist in config["SCRATCH_DIR"]
+            if [ -n "$(find {params.scratch_dir} -prune -empty)" ]; then
+                mv {params.scratch_dir}/* {params.output_directory}
             fi
             """
 
@@ -465,8 +466,7 @@ if perform.prefetch(config=config):
         threads: 40
         conda: "envs/SRAtools.yaml"
         params:
-            # split_command=lambda wildcards: "--split-files" if wildcards.PE_SE in ["1", "2"] else "--concatenate-reads",
-            temp_dir="/scratch",
+            scratch_dir=config["SCRATCH_DIR"],
             temp_filename=lambda wildcards: f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq" if wildcards.PE_SE in ["1", "2"]
                                             else f"{wildcards.tissue_name}_{wildcards.tag}.fastq",
             gzip_file=lambda wildcards: f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq.gz" if wildcards.PE_SE in ["1", "2"]
@@ -479,7 +479,7 @@ if perform.prefetch(config=config):
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fasterq_dump","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
-            command='fasterq-dump --force --progress --threads {threads} --temp {params.temp_dir} --outdir {params.temp_dir}'
+            command='fasterq-dump --force --progress --threads {threads} --temp {params.scratch_dir} --outdir {params.scratch_dir}'
             
             # Set the split/concatenate based on paired end or single end data
             if [[ "{params.split_files}" == "True" ]]; then
@@ -495,9 +495,9 @@ if perform.prefetch(config=config):
             eval $command
         
             # gzip the output
-            pigz --synchronous --processes {threads} {params.temp_dir}/{params.temp_filename}
+            pigz --synchronous --processes {threads} {params.scratch_dir}/{params.temp_filename}
         
-            mv {params.temp_dir}/{params.gzip_file} {output}
+            mv {params.scratch_dir}/{params.gzip_file} {output}
             """
 
 
@@ -629,11 +629,11 @@ if perform.trim(config=config):
     checkpoint trim:
         input: get_trim_input,
         output: os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-        params:
-            temp_dir="/scratch",
         # Trim galore call uses 4 threads for forward/single reads. Request more because Trim can use UP TO this many
         threads: 16
         conda: "envs/trim.yaml"
+        params:
+            scratch_dir=config["SCRATCH_DIR"],
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,  # 10 GB
             runtime=lambda wildcards, attempt: 120 * attempt
@@ -643,14 +643,14 @@ if perform.trim(config=config):
             output_directory="$(dirname {output})"
 
             if [[ "{wildcards.PE_SE}" == "1" ]]; then
-                file_out_1="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
-                trim_galore --paired --cores 4 -o {params.temp_dir} {input}
+                file_out_1="{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
+                trim_galore --paired --cores 4 -o {params.scratch_dir} {input}
                 mv "$file_out_1" "{output}"
 
             # Skip over reverse-reads. Create the output file so snakemake does not complain about the rule not generating output
             elif [[ "{wildcards.PE_SE}" == "2" ]]; then
-                file_out_2="{params.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
-                trim_galore --paired --cores 4 -o {params.temp_dir} {input}
+                file_out_2="{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
+                trim_galore --paired --cores 4 -o {params.scratch_dir} {input}
                 mv "$file_out_2" "{output}"
 
             # Work on single-end reads
