@@ -13,6 +13,7 @@ This will overview how to set up the `genome` folder.
 ```bash
 # Change directories into your `genome` directory
 cd FastqToGeneCounts
+
 mkdir genome
 cd genome
 
