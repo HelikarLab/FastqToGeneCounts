@@ -23,7 +23,7 @@ assembly_release=105
 wget ftp://ftp.ensembl.org/pub/release-${assembly_release}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 
 # Unzip the file
-gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+gunzip Homo_sapiens.*.dna.primary_assembly.fa.gz
 ```
 
 ## GTF File
