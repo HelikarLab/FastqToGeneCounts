@@ -430,7 +430,7 @@ if perform.prefetch(config=config):
                 samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}", :  # Collect everything from the row with `:`
             ].values[0].tolist(),
             scratch_dir=config["SCRATCH_DIR"],
-            temp_file="config['SCRATCH_DIR']/{tissue_name}_{tag}.sra",
+            temp_file=os.path.join(config['SCRATCH_DIR'], "{tissue_name}_{tag}.sra"),
             output_directory=os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}")
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,
