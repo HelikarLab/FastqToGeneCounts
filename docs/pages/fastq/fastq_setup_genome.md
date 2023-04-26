@@ -9,6 +9,15 @@ last_updated: Oct 11, 2022
 ## Overview
 This will overview how to set up the `genome` folder.
 
+## Variable Definition
+{% include warning.html content="The following variables are used throughout this page. Please set them to the appropriate values for your setup." %}
+```bash
+assembly_release=109
+grch_version=38
+```
+
+```bash
+
 ## Genome FASTA File
 ```bash
 # Change directories into your `genome` directory
@@ -18,12 +27,10 @@ mkdir genome
 cd genome
 
 # Download the assembly
-# To set the release number, set the following variable
-assembly_release=105
-wget ftp://ftp.ensembl.org/pub/release-${assembly_release}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+wget ftp://ftp.ensembl.org/pub/release-${assembly_release}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh${grch_version}.dna.primary_assembly.fa.gz
 
 # Unzip the file
-gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+gunzip Homo_sapiens.GRCh${grch_version}.dna.primary_assembly.fa.gz
 ```
 
 ## GTF File
@@ -32,9 +39,8 @@ gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 
 # Download the annotations
 # To set releases, modify the following variable to the release number
-annotation_release=105
-wget ftp://ftp.ensembl.org/pub/release-${annotation_release}/gtf/homo_sapiens/Homo_sapiens.GRCh38.${annotation_release}.gtf.gz
-gunzip Homo_sapiens.GRCh38.${annotation_release}.gtf.gz
+wget ftp://ftp.ensembl.org/pub/release-${annotation_release}/gtf/homo_sapiens/Homo_sapiens.GRCh${grch_version}.${annotation_release}.gtf.gz
+gunzip Homo_sapiens.GRCh${grch_version}.${annotation_release}.gtf.gz
 ```
 
 ## Ref Flat File
@@ -49,12 +55,12 @@ chmod +x ./gtfToGenePred
 
 # Execute the gtf to refFlat converter
 # The last argument, `refFlat.tmp.txt` is the output filename
-./gtfToGenePred -genePredExt -geneNameAsName2 Homo_sapiens.GRCh38.105.gtf refFlat.tmp.txt
+./gtfToGenePred -genePredExt -geneNameAsName2 Homo_sapiens.GRCh.${assembly_release}.gtf refFlat.tmp.txt
 
 # Modify values so Picard is able to parse the refFlat file correctly
 # `refFlat.tmp.txt` is the output of the previous command
 # `refFlat_GRCh38.105.txt` is the final output filename
-paste <(cut -f 12 refFlat.tmp.txt) <(cut -f 1-10 refFlat.tmp.txt) > refFlat_GRCh38.105.txt
+paste <(cut -f 12 refFlat.tmp.txt) <(cut -f 1-10 refFlat.tmp.txt) > refFlat_GRCh${grch_version}.${assembly_release}.txt
 
 # Remove the temporary refFlat file
 rm refFlat.tmp.txt
@@ -65,15 +71,15 @@ rm refFlat.tmp.txt
 # Execute this in the `genome` directory!
 
 # Download the BED file, then set the file name
-wget https://sourceforge.net/projects/rseqc/files/BED/Human_Homo_sapiens/hg38_GENCODE.v38.bed.gz/download
-mv download hg38_GENCODE.v38.bed.gz
+wget https://sourceforge.net/projects/rseqc/files/BED/Human_Homo_sapiens/hg38_GENCODE.v${grch_version}.bed.gz/download
+mv download hg38_GENCODE.v${grch_version}.bed.gz
 
 # Unzip the file
-gunzip hg38_GENCODE.v38.bed.gz
+gunzip hg38_GENCODE.v${grch_version}.bed.gz
 
 # remove (1) quotation marks from exon positions and (2) “chr” from chromosome indices
-sed -i 's/"//g' hg38_GENCODE.v38.bed
-sed -i 's/chr//g' hg38_GENCODE.v38.bed
+sed -i 's/"//g' hg38_GENCODE.v${grch_version}.bed
+sed -i 's/chr//g' hg38_GENCODE.v${grch_version}.bed
 ```
 
 ## rRNA Interval List
