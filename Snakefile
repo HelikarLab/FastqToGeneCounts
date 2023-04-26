@@ -326,11 +326,11 @@ rule generate_genome:
         genome_fasta_file=config["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
         gtf_file=config["GENERATE_GENOME"]["GTF_FILE"]
     output:
-        genome_dir=directory(os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"])),
+        genome_dir=directory(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
         rule_complete=touch(os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],"generate_genome.complete"))
     threads: 40
     resources:
-        mem_mb=50000,# 50 GB
+        mem_mb=50000,  # 50 GB
         runtime=lambda wildcards, attempt: 120 * attempt
     conda: "envs/star.yaml"
     shell:

@@ -70,7 +70,7 @@ rm refFlat.tmp.txt
 ```bash
 # Execute this in the `genome` directory!
 
-# Download the BED file, then set the file name
+ -# Download the BED file, then set the file name
 wget https://sourceforge.net/projects/rseqc/files/BED/Human_Homo_sapiens/hg38_GENCODE.v${grch_version}.bed.gz/download
 mv download hg38_GENCODE.v${grch_version}.bed.gz
 

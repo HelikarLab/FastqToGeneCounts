@@ -94,18 +94,29 @@ conda-frontend: mamba
 
 
 #### `cluster_config.yaml`
-This file contains default configuration values for Slurm to use when submitting jobs to the cluster.  
-Create a new file under the `~/.config/snakemake/slurm` directory called `cluster_config.yaml`.  
+This file contains default configuration values for Slurm to use when submitting jobs to the cluster. We have set two rules to have specific values, and all other rules to use `__default__` values. `get_screen_genomes` and `generate_genome` use specific values because they do not contain wildcards in their output files, and as a result, using `__default__` values will cause an error. To set up these values, create a new file under the `~/.config/snakemake/slurm` directory called `cluster_config.yaml`.
+
 Paste the following contents:  
 ```yaml
+get_screen_genomes:
+  job-name: "get_screen_genomes"
+  output: "logs/{rule}/{rule}.output"
+  error: "logs/{rule}/{rule}.output"
+
+generate_genome:
+  job-name: "generate_genome"
+  output: "logs/{rule}/{rule}.output"
+  error: "logs/{rule}/{rule}.output"
+
 __default__ :
-   job-name  : "{rule}.{wildcards}"
-   ntasks    : "1"
-   cpus-per-task : "{threads}"
-   nodes     : "1"
-   output : "logs/{rule}/{rule}.{wildcards.tissue_name}.{wildcards.tag}.output"
-   error  : "logs/{rule}/{rule}.{wildcards.tissue_name}.{wildcards.tag}.output"
+   job-name: "{rule}.{wildcards}"
+   ntasks: "1"
+   cpus-per-task: "{threads}"
+   nodes: "1"
+   output: "logs/{rule}/{rule}.{wildcards.tissue_name}.{wildcards.tag}.output"
+   error: "logs/{rule}/{rule}.{wildcards.tissue_name}.{wildcards.tag}.output"
 ```
+
 
 {% include note.html content="Again, if on the command line, use `nano` for its ease of use" %}
 
