@@ -246,7 +246,7 @@ rule preroundup:
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
-        runtime=lambda wildcards, attempt: 5 * attempt
+        runtime=10
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
         rule_line = ""
@@ -331,7 +331,7 @@ rule generate_genome:
     threads: 40
     resources:
         mem_mb=50000,  # 50 GB
-        runtime=lambda wildcards, attempt: 120 * attempt
+        runtime=150  # 2.5 hours
     conda: "envs/star.yaml"
     shell:
         """
@@ -387,7 +387,7 @@ if perform.screen(config=config):
             ]
         resources:
             mem_mb=lambda wildcards, attempt: 10240 * attempt, # 10 GB * attempt
-            runtime=lambda wildcards, attempt: 240 * attempt  # 240 minutes * attempt (4 hours)
+            runtime=240  # 4 hours
         shell:
             """
             for path in {params.download_paths}; do
@@ -434,7 +434,7 @@ if perform.prefetch(config=config):
             output_directory=os.path.join(config["ROOTDIR"],"temp","prefetch","{tissue_name}_{tag}")
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,
-            runtime=lambda wildcards, attempt: 30 * attempt,
+            runtime=30  # 30 minutes
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","prefetch","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
@@ -478,8 +478,7 @@ if perform.prefetch(config=config):
             split_files=lambda wildcards: True if wildcards.PE_SE in ["1", "2"] else False
         resources:
             mem_mb=lambda wildcards, attempt: 25600 * attempt,  # 25 GB
-            time_min=lambda wildcards, attempt: 45 * attempt,
-            disk_mb=lambda wildcards, attempt: 256000 * attempt,  # 250 GB
+            runtime=45  # 45 minutes
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fasterq_dump","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
@@ -568,7 +567,7 @@ rule fastqc_dump_fastq:
     conda: "envs/fastqc.yaml"
     resources:
         mem_mb=lambda wildcards, attempt: 15000 * attempt, # 15 GB * attempt number
-        runtime=lambda wildcards, attempt: 150 * attempt  # 150 minutes * attempt number
+        runtime=150  # 2.5 hours
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fastqc_dump_fastq","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
@@ -613,7 +612,7 @@ if perform.screen(config=config):
         threads: 20
         resources:
             mem_mb=lambda wildcards, attempt: 20480 * attempt, # 20 GB
-            runtime=lambda wildcards, attempt: 30 * attempt
+            runtime=30  # 30 minutes
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","contaminant_screen","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
@@ -640,7 +639,7 @@ if perform.trim(config=config):
             scratch_dir=config["SCRATCH_DIR"],
         resources:
             mem_mb=lambda wildcards, attempt: 10000 * attempt,  # 10 GB
-            runtime=lambda wildcards, attempt: 120 * attempt
+            runtime=120  # 2 hours
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","trim","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """            
@@ -684,7 +683,7 @@ if perform.trim(config=config):
             # Allocate 250MB per thread, plus extra to be safe
             # threads * 250 * 2 ~= 500 to 1000 GB
             mem_mb=lambda wildcards, attempt, threads: attempt * threads * 1000,
-            runtime=lambda wildcards, attempt: 150 * attempt  # 2.5 hours * attempt
+            runtime=150  # 2.5 hours
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fastqc_trim","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
             """
@@ -857,7 +856,7 @@ rule index_bam_file:
     threads: 10
     resources:
         mem_mb=lambda wildcards, attempt: 2000 * attempt, # 2 GB per attempt
-        runtime=lambda wildcards, attempt: 5 * attempt  # 5 minutes per attempt
+        runtime=10  # 10 minutes
     conda: "envs/samtools.yaml"
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","index_bam_file","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
@@ -879,7 +878,7 @@ rule get_rnaseq_metrics:
     threads: 4
     resources:
         mem_mb=lambda wildcards, attempt: 2500 * 5 * attempt, # 5 GB / attempt
-        runtime=lambda wildcards, attempt: 120 * attempt
+        runtime=120  # 2 hours
     conda: "envs/picard.yaml"
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_rnaseq_metrics","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
@@ -930,7 +929,7 @@ rule get_insert_size:
     threads: 4
     resources:
         mem_mb=lambda wildcards, attempt: 1000 * 5 * attempt,# 5 GB / attempt
-        runtime=lambda wildcards, attempt: 60 * attempt
+        runtime=60  # 1 hour
     conda: "envs/picard.yaml"
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_insert_size","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
@@ -961,8 +960,9 @@ rule get_fragment_size:
         layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
     threads: 1
     resources:
+        partition="batch",
         mem_mb=lambda wildcards, attempt: 8192 * attempt,  # 8 GB
-        runtime=lambda wildcards, attempt: 120 * attempt  # 120 minutes
+        runtime=120  # 2 hours
     conda: "envs/rseqc.yaml"
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_fragment_size","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     script: "utils/get_fragment_size.py"
@@ -979,7 +979,7 @@ rule copy_gene_counts:
     threads: 1
     resources:
         mem_mb=1024,
-        runtime=5
+        runtime=5  # 5 minutes
     shell: """cp {input} {output}"""
 
 
@@ -989,7 +989,7 @@ rule copy_rnaseq_metrics:
     threads: 1
     resources:
         mem_mb=1024,
-        runtime=5
+        runtime=5  # 5 minutes
     shell: """cp {input} {output}"""
 
 rule copy_insert_size:
@@ -998,7 +998,7 @@ rule copy_insert_size:
     threads: 1
     resources:
         mem_mb=1024,
-        runtime=5
+        runtime=5  # 5 minutes
     shell: """cp {input} {output}"""
 
 rule copy_fragment_size:
@@ -1007,7 +1007,7 @@ rule copy_fragment_size:
     threads: 1
     resources:
         mem_mb=1024,
-        runtime=5
+        runtime=5  # 5 minutes
     shell: """cp {input} {output}"""
 
 def multiqc_get_dump_fastq_data(wildcards):
@@ -1152,7 +1152,7 @@ rule multiqc:
     conda: "envs/multiqc.yaml"
     resources:
         mem_mb=lambda wildcards, attempt: 10240 * attempt,# 10 GB * attempt
-        runtime=lambda wildcards, attempt: int(30 * (attempt * 0.75))  # 30 minutes, don't need much more time than this if it fails
+        runtime=60  # 1 hour
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","multiqc","{tissue_name}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """

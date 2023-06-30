@@ -1,0 +1,20 @@
+# This file configures various settings for snakemake to execute jobs to a SLURM cluster.
+
+slurm: True
+default-resources:
+  - slurm_account=helikarlab
+  - job-name=smk-{rule}-{wildcards}
+
+# Job submittion
+restart-times: 0
+max-jobs-per-second: 10
+max-status-checks-per-second: 1
+local-cores: 1
+latency-wait: 60
+jobs: 100
+
+# Other settings
+printshellcmds: True
+scheduler: greedy
+use-conda: True
+conda-frontend: mamba
