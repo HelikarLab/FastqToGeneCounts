@@ -14,7 +14,7 @@ The following topics will be covered:
 3. Executing the workflow
 
 ## (Optional) Using Screen
-Unfortunately, Snakemake does not offer a method of closing the terminal while keeping the jobs running. This makes sense, as the main `snakemake --profile slurm` command is tied directly to the main terminal process. To overcome this, we will simply start a Screen session. This allows us to close the main terminal window, while keeping our SSH connection/instance alive.
+Unfortunately, Snakemake does not offer a method of closing the terminal while keeping the jobs running. This makes sense, as the main `snakemake --profile cluster` command is tied directly to the main terminal process. To overcome this, we will simply start a Screen session. This allows us to close the main terminal window, while keeping our SSH connection/instance alive.
 
 [Read more about Screen here](https://stackoverflow.com/questions/40527629/)
 
@@ -70,11 +70,11 @@ mamba activate snakemake
 cd /work/helikarlab/joshl/FastqToGeneCounts
 
 # Perfom a dry run
-snakemake --profile slurm --dry-run
+snakemake --profile cluster --dry-run
 ```
 
-{% include note.html content="If you did not name your CookieCutter profile `slurm`, replcae the `--profile slurm` with the name of your profile" %}
-{% include note.html content="If you receive an error when running `snakemake --profile slurm --dry-run`, replcae `slurm` with `~/.config/snakemake/slurm`" %}
+{% include note.html content="If you did renamed the `cluster` directory to something else, replace the `--profile cluster` with the name of your directory" %}
+{% include note.html content="If you receive an error when running `snakemake --profile cluster --dry-run`, replcae `slurm` with `./cluster`" %}
 
 After several seconds, many lines should move through the terminal.<br>
 It should end with `This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.`
@@ -104,7 +104,7 @@ mamba activate snakemake
 cd /work/helikarlab/joshl/FastqToGeneCounts
 
 # Start the workflow
-snakemake --profile slurm
+snakemake --profile cluster
 ```
 
 {% include note.html content="If you started a session with screen, exit the session with `CTRL+a`, `d`" %}
