@@ -101,25 +101,8 @@ We must install tabulate version `0.8.10` as anything under the `0.9.*` release 
 |  `tabulate==0.8.10`  |          The software and version to install          |
 |   `plotly==5.11.0`   |           Install plotly for graph creation           |
 
-### Install CookieCutter
-CookieCutter is used to install Snakemake profiles, which makes it much easier for us to submit our jobs to a cluster. Execute the following in a terminal:
-```bash
-mamba install --name snakemake --channel conda-forge cookiecutter
-```
-
-|        Component        |                      Description                      |
-|:-----------------------:|:-----------------------------------------------------:|
-|         `mamba`         | Use mamba to install additional software more quickly |
-|        `install`        |         The mamba command to install software         |
-|   `--name snakemake`    |       The environment to install software into        |
-| `--channel conda-forge` |         The channel to install software from          |
-|     `cookiecutter`      |                The software to install                |
-
 ## Test Installations
 ```bash
 snakemake --version
-# Returns "6.15.5"
-
-cookiecutter --version
-# Returns Cookiecutter `VERSION` from `INSTALLATION_PATH` (Python `VERSION`)
+# Returns "7.25.0"
 ```

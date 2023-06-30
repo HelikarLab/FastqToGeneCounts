@@ -1,8 +1,8 @@
 ---
 title: Setting up Profiles
 sidebar: sidebar
-permalink: fastq_setup_cookiecutter.html
-summary: This is how to set up the cookiecutter profile
+permalink: fastq_setup_profile.html
+summary: This is how to set up a slurm profile
 last_updated: Oct 11, 2022
 ---
 

@@ -12,7 +12,7 @@ Following the overview is a step-by-step guide on how to set up the pipeline. A 
 1. Create a conda environment containing:
     1. Mamba
     2. Snakemake ([version 7.19.1](https://snakemake.readthedocs.io/en/stable/project_info/history.html#id2))
-2. Create a CookieCutter template/profile based on the [Slurm profile](https://github.com/Snakemake-Profiles/slurm)
+2. Create a Profile based on the [Simple Slurm profile](https://github.com/jdblischak/smk-simple-slurm)
 3. Modification of configuration variables
 
 ## Conda Environment
