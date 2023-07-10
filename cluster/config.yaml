@@ -3,7 +3,7 @@
 slurm: True
 default-resources:
   - slurm_account=helikarlab
-  - job-name=smk-{rule}-{wildcards}
+  - job_name=smk-{rule}-{wildcards}
 
 # Job submittion
 restart-times: 0
