@@ -246,7 +246,7 @@ rule preroundup:
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
-        runtime=10
+        runtime=5
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
         rule_line = ""

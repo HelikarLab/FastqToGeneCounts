@@ -1,9 +1,16 @@
 # This file configures various settings for snakemake to execute jobs to a SLURM cluster.
+# FROM: https://github.com/jdblischak/smk-simple-slurm
 
-slurm: True
-default-resources:
-  - slurm_account=helikarlab
-  - job_name=smk-{rule}-{wildcards}
+cluster:
+  mkdir -p logs/{rule} &&
+  sbatch
+    --job-name=smk-{rule}-{wildcards}
+    --account=helikarlab
+    --threads={threads}
+    --mem={resources.mem_mb}
+    --output=logs/{rule}/{rule}-{wildcards}-%j.out
+    --time={resources.runtime}
+    --parsable
 
 # Job submittion
 restart-times: 0
@@ -16,5 +23,8 @@ jobs: 100
 # Other settings
 printshellcmds: True
 scheduler: greedy
+
+
+# Do not change these settings. This pipeline will fail to execute if they are changed
 use-conda: True
 conda-frontend: mamba
