@@ -258,8 +258,8 @@ rule preroundup:
                     break
 
         # Collect the required data
-        srr_code: str = rule_line[0]                         # SRR123
-        name: str = rule_line[1]                             # naiveB_S1R1
+        srr_code: str = rule_line[0]                    # SRR123
+        name: str = rule_line[1]                        # naiveB_S1R1
         tissue_name: str = name.split("_")[0]           # naiveB
         tag: str = name.split("_")[1]                   # S1R1
         study: str = re.match(r"S\d+", tag).group()     # S1
@@ -330,7 +330,7 @@ rule generate_genome:
         rule_complete=touch(os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],"generate_genome.complete"))
     threads: 40
     resources:
-        mem_mb=50000,  # 50 GB
+        mem_mb=51200,  # 50 GB
         runtime=150  # 2.5 hours
     conda: "envs/star.yaml"
     shell:
@@ -467,7 +467,7 @@ if perform.prefetch(config=config):
         input:
             prefetch=rules.prefetch.output
         output: fastq=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-        threads: 40
+        threads: 30
         conda: "envs/SRAtools.yaml"
         params:
             scratch_dir=config["SCRATCH_DIR"],
@@ -477,7 +477,7 @@ if perform.prefetch(config=config):
                                         else f"{wildcards.tissue_name}_{wildcards.tag}.fastq.gz",
             split_files=lambda wildcards: True if wildcards.PE_SE in ["1", "2"] else False
         resources:
-            mem_mb=lambda wildcards, attempt: 25600 * attempt,  # 25 GB
+            mem_mb=lambda wildcards: 25600,  # 25 GB
             runtime=45  # 45 minutes
         benchmark: repeat(os.path.join("benchmarks","{tissue_name}","fasterq_dump","{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
         shell:
