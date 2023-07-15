@@ -4,7 +4,7 @@ import sys
 import snakemake
 from pathlib import Path
 from . import perform
-from .constants import EndType
+from .constants import Layout
 from typing import Union
 
 def from_master_config(config: dict, attribute: str) -> list[str]:
@@ -29,7 +29,7 @@ def from_master_config(config: dict, attribute: str) -> list[str]:
 
             # Get the column from master_control we are interested in
             column_value = line[index_value]
-            PE_SE_value = EndType[line[2]]  # PE, SE, or SLC
+            PE_SE_value = Layout[line[2]]  # PE, SE, or SLC
 
             # test if we are looking for "tissue" or "tag", as these two values are located at master_control index 1
             if attribute in sub_list:
@@ -37,24 +37,24 @@ def from_master_config(config: dict, attribute: str) -> list[str]:
                 split_list = str(line[index_value]).split("_")
 
                 # We must append the target attribute twice if it is paired end, once if it is single end
-                if PE_SE_value in [EndType.PE, EndType.SLC]:
+                if PE_SE_value in [Layout.PE, Layout.SLC]:
                     target_attribute = [split_list[sub_index], split_list[sub_index]]
-                elif PE_SE_value == EndType.SE:
+                elif PE_SE_value == Layout.SE:
                     target_attribute = [split_list[sub_index]]
 
             # Test if we are gathering the ended-ness (PE, SE, SLC)
             elif attribute == "PE_SE":
                 # We must append the target attribute twice if it is paired end, once if it is single end
-                if column_value in [EndType.PE.name, EndType.SLC.name]:  # paired end or single cell
+                if column_value in [Layout.PE.name, Layout.SLC.name]:  # paired end or single cell
                     target_attribute = ["1", "2"]
-                elif column_value == EndType.SE.name:  # Single end
+                elif column_value == Layout.SE.name:  # Single end
                     target_attribute = ["S"]
 
             # If we are doing anything else, simply append the column value the appropriate number of times
             else:
-                if PE_SE_value in [EndType.PE, EndType.SLC]:
+                if PE_SE_value in [Layout.PE, Layout.SLC]:
                     target_attribute = [line[index_value], line[index_value]]
-                elif PE_SE_value == EndType.SE:
+                elif PE_SE_value == Layout.SE:
                     target_attribute = [line[index_value]]
 
             collect_attributes += target_attribute
