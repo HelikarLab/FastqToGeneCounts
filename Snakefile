@@ -1,11 +1,9 @@
 import os
 import csv
 import warnings
-import sys
 import pandas as pd
 from utils import get, perform, validate
-from utils.constants import EndType, PrepMethod
-import glob
+from utils.constants import Layout, PrepMethod
 
 configfile: "config.yaml"
 
@@ -239,6 +237,7 @@ rule all:
     input: rule_all
 
 rule preroundup:
+    # input: samples
     input: config["MASTER_CONTROL"]
     output:
         layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
@@ -246,65 +245,65 @@ rule preroundup:
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
-        runtime=5
+        runtime=1
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
-        rule_line = ""
-        with open(str(input),"r") as i_stream:
-            reader = csv.reader(i_stream)
-            for line in reader:
-                if f"{wildcards.tissue_name}_{wildcards.tag}" in line:
-                    rule_line = line
-                    break
+        sample_row: pd.DataFrame = samples.loc[
+            samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}", :  # Collect everything from the row with `:`
+        ]
 
         # Collect the required data
-        srr_code: str = rule_line[0]                    # SRR123
-        name: str = rule_line[1]                        # naiveB_S1R1
-        tissue_name: str = name.split("_")[0]           # naiveB
-        tag: str = name.split("_")[1]                   # S1R1
-        study: str = re.match(r"S\d+", tag).group()     # S1
+        srr_code: str = sample_row.at[0, "srr"]
+        name: str = sample_row.at[0, "sample"]
+        endtype: str = sample_row.at[0, "endtype"].upper()
+        prep_method: str = sample_row.at[0, "prep_method"].lower()
+        tissue_name: str = new_name.split("_")[0]
+        tag: str = new_name.split("_")[1]
+        study: str = re.match(r"S\d+", new_tag).group()
 
         # Write paired/single end or single cell to the appropriate location
         layouts_root: Path = Path(config["ROOTDIR"],"data",tissue_name,"layouts",f"{name}_layout.txt")
-        layouts_madrid: Path = Path("COMO_input",tissue_name,"layouts",study,f"{name}_layout.txt")
+        layouts_como: Path = Path("COMO_input",tissue_name,"layouts",study,f"{name}_layout.txt")
         layouts_root.parent.mkdir(parents=True, exist_ok=True)
-        layouts_madrid.parent.mkdir(parents=True, exist_ok=True)
-        end_type_write_root = open(layouts_root,"w")
-        end_type_write_madrid = open(layouts_madrid,"w")
-        end_type = rule_line[2].upper()  # PE, SE, or SLC
-        if EndType[end_type] == EndType.PE:
-            end_type_write_root.write("paired-end")
-            end_type_write_madrid.write("paired-end")
-        elif EndType[end_type] == EndType.SE:
-            end_type_write_root.write("single-end")
-            end_type_write_madrid.write("single-end")
-        elif EndType[end_type] == EndType.SLC:
-            end_type_write_root.write("single-cell")
-            end_type_write_madrid.write("single-cell")
-        end_type_write_root.close()
-        end_type_write_madrid.close()
+        layouts_como.parent.mkdir(parents=True, exist_ok=True)
+        layouts_write_root = open(layouts_root,"w")
+        layouts_write_como = open(layouts_como,"w")
+        layout: str = str(sample_row["endtype"].values[0]).upper()  # PE, SE, or SLC
+        if Layout[layout] == Layout.PE:
+            layouts_write_root.write("paired-end")
+            layouts_write_como.write("paired-end")
+        elif Layout[layout] == Layout.SE:
+            layouts_write_root.write("single-end")
+            layouts_write_como.write("single-end")
+        elif Layout[layout] == Layout.SLC:
+            layouts_write_root.write("single-cell")
+            layouts_write_como.write("single-cell")
+        else:
+            raise ValueError(f"Invalid selection {layout}. Should be one of 'PE', 'SE', or 'SLC'")
+        layouts_write_root.close()
+        layouts_write_como.close()
 
         # Write mrna/total to the appropriate location
         prep_root = Path(config["ROOTDIR"],"data",tissue_name,"prepMethods",f"{name}_prep_method.txt")
-        prep_madrid = Path("COMO_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt")
+        prep_como = Path("COMO_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt")
         prep_root.parent.mkdir(parents=True, exist_ok=True)
-        prep_madrid.parent.mkdir(parents=True, exist_ok=True)
+        prep_como.parent.mkdir(parents=True, exist_ok=True)
         write_prep_root = open(str(prep_root),"w")
-        write_prep_madrid = open(str(prep_madrid),"w")
-        prep_method = rule_line[3].lower()  # total or mrna
+        write_prep_como = open(str(prep_como),"w")
+        prep_method = str(sample_row["prep_method"].values[0]).lower()  # total or mrna
         if PrepMethod[prep_method] == PrepMethod.total:
             write_prep_root.write("total")
-            write_prep_madrid.write("total")
+            write_prep_como.write("total")
         elif PrepMethod[prep_method] == PrepMethod.mrna:
             write_prep_root.write("mrna")
-            write_prep_madrid.write("mrna")
+            write_prep_como.write("mrna")
         elif PrepMethod[prep_method] == PrepMethod.polya:
             write_prep_root.write("mrna")
-            write_prep_madrid.write("mrna")
+            write_prep_como.write("mrna")
         else:
             raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
         write_prep_root.close()
-        write_prep_madrid.close()
+        write_prep_como.close()
 
         # Make the required directories
         directories: list[str] = [
@@ -318,7 +317,8 @@ rule preroundup:
             os.path.join(config["ROOTDIR"], "data", tissue_name, "layouts"),
             os.path.join(config["ROOTDIR"], "data", tissue_name, "prepMethods")
         ]
-        [os.makedirs(name=i, exist_ok=True) for i in directories]
+        for i in directories:
+            os.makedirs(name=i, exist_ok=True)
 
 
 rule generate_genome:
@@ -441,10 +441,10 @@ if perform.prefetch(config=config):
             srr={params.row[0]}
             
             # If the SRA file lock exists, remove it
-            lock_file={output}.lock
-            if [ -f "$lock_file" ]; then
-                rm $lock_file
-            fi
+            rm -f {output}.lock
+            # if [ -f {output}.lock ]; then
+            #     rm -f {output}.lock
+            # fi
                     
             # Change into the "scratch" directory so temp files do not populate in the working directory
             curr_dir=$(pwd)
@@ -458,6 +458,7 @@ if perform.prefetch(config=config):
             mv {params.temp_file} {output}
             
             # Move dependencies into the output directory, checking if files exist in config["SCRATCH_DIR"]
+            # mv -f {params.scratch_dir}/* {params.output_directory}
             if [ -n "$(find {params.scratch_dir} -prune -empty)" ]; then
                 mv {params.scratch_dir}/* {params.output_directory}
             fi
@@ -878,7 +879,7 @@ rule get_rnaseq_metrics:
     threads: 4
     resources:
         mem_mb=lambda wildcards, attempt: 2500 * 5 * attempt, # 5 GB / attempt
-        runtime=120  # 2 hours
+        runtime=30  # 30 minutes
     conda: "envs/picard.yaml"
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_rnaseq_metrics","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
