@@ -2,13 +2,13 @@
 # FROM: https://github.com/jdblischak/smk-simple-slurm
 
 cluster:
-  mkdir -p logs/{rule} &&
+  mkdir -p logs/{rule}/{wildcards.tissue_name} &&
   sbatch
     --job-name=smk-{rule}-{wildcards}
     --account=helikarlab
     --cpus-per-task={threads}
     --mem={resources.mem_mb}
-    --output=logs/{rule}/{rule}-{wildcards}-%j.out
+    --output=logs/{rule}/{wildcards.tissue_name}/{rule}-{wildcards}.out
     --time={resources.runtime}
     --parsable
 
