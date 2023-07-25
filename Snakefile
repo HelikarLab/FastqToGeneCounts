@@ -237,8 +237,6 @@ rule all:
     input: rule_all
 
 rule preroundup:
-    # input: samples
-    input: config["MASTER_CONTROL"]
     output:
         layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
         preparation=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
