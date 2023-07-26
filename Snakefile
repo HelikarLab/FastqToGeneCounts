@@ -249,15 +249,14 @@ rule preroundup:
         sample_row: pd.DataFrame = samples.loc[
             samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}", :  # Collect everything from the row with `:`
         ]
-
         # Collect the required data
-        srr_code: str = sample_row.at[0, "srr"]
-        name: str = sample_row.at[0, "sample"]
-        endtype: str = sample_row.at[0, "endtype"].upper()
-        prep_method: str = sample_row.at[0, "prep_method"].lower()
-        tissue_name: str = new_name.split("_")[0]
-        tag: str = new_name.split("_")[1]
-        study: str = re.match(r"S\d+", new_tag).group()
+        srr_code: str = sample_row["srr"].values[0]
+        name: str = sample_row["sample"].values[0]
+        endtype: str = sample_row["endtype"].values[0].upper()
+        prep_method: str = sample_row["prep_method"].values[0].lower()
+        tissue_name: str = name.split("_")[0]
+        tag: str = name.split("_")[1]
+        study: str = re.match(r"S\d+",tag).group()
 
         # Write paired/single end or single cell to the appropriate location
         layouts_root: Path = Path(config["ROOTDIR"],"data",tissue_name,"layouts",f"{name}_layout.txt")
@@ -773,16 +772,17 @@ def collect_star_align_input(wildcards):
 
 def new_star_input(wildcards):
     # Open the control file to determine which samples are paired end or not
-    is_paired_end: bool = False
-    with open(config["MASTER_CONTROL"], "r") as i_stream:
-        for line in i_stream:
+    sample_name: str = f"{wildcards.tissue_name}_{wildcards.tag}"
+    is_paired_end: bool = samples.loc[samples["sample"] == sample_name, 'endtype'].eq("SE").any()
 
-            # If the current tissue and tag is found in the line, we can determine paired or single end
-            sample = f"{wildcards.tissue_name}_{wildcards.tag}"
-            if sample in line:
-                # Set boolean to determine if it is paired end
-                is_paired_end = "PE" in line
-                break  # No need to continue looping
+    # with open(config["MASTER_CONTROL"], "r") as i_stream:
+    #     for line in i_stream:
+    #         # If the current tissue and tag is found in the line, we can determine paired or single end
+    #         sample = f"{wildcards.tissue_name}_{wildcards.tag}"
+    #         if sample in line:
+    #             # Set boolean to determine if it is paired end
+    #             is_paired_end = "PE" in line
+    #             break  # No need to continue looping
 
     # Get the output files, using our determined paired/single ends
     if is_paired_end:
@@ -877,7 +877,7 @@ rule get_rnaseq_metrics:
     threads: 4
     resources:
         mem_mb=lambda wildcards, attempt: 2500 * 5 * attempt, # 5 GB / attempt
-        runtime=30  # 30 minutes
+        runtime=60  # 60 minutes
     conda: "envs/picard.yaml"
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_rnaseq_metrics","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
@@ -964,13 +964,13 @@ rule get_fragment_size:
         runtime=120  # 2 hours
     conda: "envs/rseqc.yaml"
     benchmark: repeat(os.path.join("benchmarks","{tissue_name}","get_fragment_size","{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
-    script: "utils/get_fragment_size.py"
-    # shell:
-    #     """
-    #     # get matches of script file (should only be one, but just to be safe run it anyway)
-    #     file_path=$(find .snakemake/conda/*/bin/RNA_fragment_size.py)
-    #     python3 $file_path -r {config[BED_FILE]} -i {input.bam} > {output}
-    #     """
+    # script: "utils/get_fragment_size.py"
+    shell:
+        """
+        # get matches of script file (should only be one, but just to be safe run it anyway)
+        file_path=$(find .snakemake/conda/*/bin/RNA_fragment_size.py)
+        python3 $file_path -r {config[BED_FILE]} -i {input.bam} > {output}
+        """
 
 rule copy_gene_counts:
     input: rules.star_align.output.gene_table
