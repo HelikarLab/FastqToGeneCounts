@@ -1,0 +1,4 @@
+channels:
+  - conda-forge
+dependencies:
+  - parallel=20230722

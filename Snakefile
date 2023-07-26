@@ -235,11 +235,13 @@ if perform.get_fragment_size(config=config):
 
 rule all:
     input: rule_all
+    localrule: True
 
 rule preroundup:
     output:
         layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
         preparation=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
+    localrule: True
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
@@ -363,6 +365,7 @@ if perform.screen(config=config):
             rRNA=directory(os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "rRNA")),
             config=os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "fastq_screen.conf")
         threads: 15
+        conda: "envs/gnu_parallel.yaml"
         params:
             scratch_dir=config["SCRATCH_DIR"],
             download_paths = [
@@ -384,7 +387,7 @@ if perform.screen(config=config):
             ]
         resources:
             mem_mb=lambda wildcards, attempt: 10240 * attempt, # 10 GB * attempt
-            runtime=240  # 4 hours
+            runtime=240,  # 4 hours
         shell:
             """
             for path in {params.download_paths}; do
