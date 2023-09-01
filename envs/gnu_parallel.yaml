@@ -1,4 +1,4 @@
 channels:
   - conda-forge
 dependencies:
-  - parallel=20230722
+  - parallel
