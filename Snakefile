@@ -233,7 +233,8 @@ if perform.get_fragment_size(config=config):
         ]
     )
 
-
+# Define local rules that will not be submitted to the cluster, they can run on the login node
+localrules: all, preroundup
 
 rule all:
     input: rule_all
@@ -242,10 +243,7 @@ rule preroundup:
     output:
         layout=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
         preparation=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
-    threads: 1
     resources:
-        mem_mb=lambda wildcards, attempt: 1024 * attempt,
-        runtime=1,
         tissue_dir=lambda wildcards: wildcards.tissue_name
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
@@ -328,7 +326,7 @@ rule generate_genome:
     output:
         genome_dir=directory(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
         rule_complete=touch(os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],"generate_genome.complete"))
-    threads: 40
+    threads: 10
     resources:
         mem_mb=51200,  # 50 GB
         runtime=150  # 2.5 hours
@@ -495,7 +493,7 @@ checkpoint fasterq_dump:
     input:
         prefetch=rules.prefetch.output
     output: fastq=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-    threads: 30
+    threads: 10
     conda: "envs/SRAtools.yaml"
     params:
         scratch_dir=config["SCRATCH_DIR"],
@@ -618,7 +616,7 @@ if perform.screen(config=config):
             genomes_config=rules.get_screen_genomes.output.config,
             output_directory=os.path.join(config["ROOTDIR"],"data", "{tissue_name}", "fq_screen")
         conda: "envs/screen.yaml"
-        threads: 20
+        threads: 10
         resources:
             mem_mb=lambda wildcards, attempt: 20480 * attempt, # 20 GB
             runtime=30  # 30 minutes
@@ -836,7 +834,7 @@ rule star_align:
         gene_table_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_ReadsPerGene.out.tab"),
         bam_output=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam"),
         prefix=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_"),
-    threads: 40
+    threads: 15
     conda: "envs/star.yaml"
     resources:
         mem_mb=51200,  # 50 GB
@@ -985,6 +983,7 @@ rule get_fragment_size:
 rule copy_gene_counts:
     input: rules.star_align.output.gene_table
     output: os.path.join("COMO_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab")
+    localrule: True
     threads: 1
     resources:
         mem_mb=1024,
@@ -995,6 +994,7 @@ rule copy_gene_counts:
 rule copy_rnaseq_metrics:
     input: rules.get_rnaseq_metrics.output.strand
     output: os.path.join("COMO_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt")
+    localrule: True
     threads: 1
     resources:
         mem_mb=1024,
@@ -1004,6 +1004,7 @@ rule copy_rnaseq_metrics:
 rule copy_insert_size:
     input: rules.get_insert_size.output.txt
     output: os.path.join("COMO_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt")
+    localrule: True
     threads: 1
     resources:
         mem_mb=1024,
@@ -1013,6 +1014,7 @@ rule copy_insert_size:
 rule copy_fragment_size:
     input: rules.get_fragment_size.output
     output: os.path.join("COMO_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt")
+    localrule: True
     threads: 1
     resources:
         mem_mb=1024,

@@ -20,14 +20,13 @@ cluster-cancel: scancel
 cluster-cancel-nargs: 50
 restart-times: 0
 max-jobs-per-second: 10
-max-status-checks-per-second: 1
+max-status-checks-per-second: 5
 local-cores: 1
 latency-wait: 60
 jobs: 100
 
 # Other settings
 printshellcmds: True
-scheduler: greedy
 
 
 # Do not change these settings. This pipeline will fail to execute if they are changed
