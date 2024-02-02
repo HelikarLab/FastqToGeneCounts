@@ -1,45 +1,77 @@
-# Navigate the following link to download the most recent version of the human assembly
-# Replace VERSION with the version you are interested in
-# GTF_FILE: http://ftp.ensembl.org/pub/release-106/gtf/homo_sapiens/
-# GENOME_FASTA_FILE: http://ftp.ensembl.org/pub/release-VERSION/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+# Instructions for gathering a reference genome can be found at the link below
+# https://helikarlab.github.io/FastqToGeneCounts/fastq_setup_genome.html
 
 # Modify these settings to reflect your paths
 # Only change values after the colon (':')
-SCRATCH_DIR: "/scratch"
-MASTER_CONTROL: "controls/master_control.csv"  # csv with srr, rename, layout
-ROOTDIR: "results" # redirect output root directory
-DUMP_FASTQ_FILES: "results/dump_fastq_input" # downloaded fastq output file location
-REF_FLAT_FILE: "genome/refFlat_GRCh38.105.txt"  # reflat file location built from gtf, for RNAseq metrics option
-RRNA_INTERVAL_LIST: "genome/GRCh38.p5.rRNA.interval_list"  # rrna interval list file location, for RNAseq metrics
-BED_FILE: "genome/hg38_GENCODE.v38.bed"  # reference bedfile build from GTF for RSEQC option
+
+# The CSV file to analyze
+# The file should have columns in the order: srr, friendly_name, layout, and method
+# For "layout", options are "PE" (paired-end sequencing) and "SE" (single-end sequencing)
+# For "method", options are "total" (total RNA sequencing) and "mrna" (mRNA/PolyA RNA sequencing)
+MASTER_CONTROL: "controls/master_control.csv"
+
+# The location where results should be saved to
+ROOTDIR: "results"
+
+# The scratch location of your computer or cluster
+SCRATCH_DIR: "/tmp/FastqToGeneCounts"
+
+# If you are processing local FastQ items, set this to the location of your items
+LOCAL_FASTQ_FILES: "results/dump_fastq_input"
 
 # Quality Control Options
-PERFORM_TRIM: True  # True or False -- trim adapters prior to aligning
-PERFORM_SCREEN: True # True or False -- screen against different genomes for contamination
-PERFORM_GET_RNASEQ_METRICS: True # True or False -- get more information about RNA reads
+# Should trimming of RNA sequencing adapters be performed before aligning? (default: True)
+PERFORM_TRIM: True
 
-# Additional options
-PERFORM_PREFETCH: True  # True or False -- prefetch sra files before writing to fastq (recommended true)
-PERFORM_GET_INSERT_SIZE: True # True or False -- insert sizes can also be used for fragment len calculation
-PERFORM_GET_FRAGMENT_SIZE: True # True or False, required for zFPKM calculation
+# Should RNA sequences be screened for contamination? (default: True)
+PERFORM_SCREEN: True
 
+# Should RNAseq metrics be collected to obtain more information about the reads? (default: True)
+PERFORM_GET_RNASEQ_METRICS: True
+
+# Prefetch SRA files before writing to FastQ (default: True)
+# If you are processing local FastQ items, set to False
+PERFORM_PREFETCH: False
+
+# Get RNA information from SRA files (default: True)
+# If you are processing local FastQ items, set to False
+PERFORM_DUMP_FASTQ: False
+
+# Determine insert sizes for fragment length calculation (default: True)
+PERFORM_GET_INSERT_SIZE: True
+
+# Determine fragment size; required for zFPKM calculation (default: True)
+PERFORM_GET_FRAGMENT_SIZE: True
+
+# If you are using this tool to generate files for COMO, single replicates are not allowed
+# For example, a "S1R1" sample will result in an error in COMO
+# If you are creating a constraint-based model with COMO, it is recommended to set this to False
+# https://github.com/HelikarLab/COMO
+BYPASS_REPLICATE_VALIDATION: False
+
+# This will check that genome-related files are able to be found before starting the pipeline (default: False)
+# It is recommended to not bypass this check, as errors will occur in the middle of the pipeline if these files are not found
+BYPASS_GENOME_VALIDATION: False
+
+# Benchmarks test the amount of time it takes to execute each rule on each file
+# By increasing this number, you will begin to execute each rule more than once per file
+# For example, if you have 1 input file, but set this to 3, that input file will go through the entire pipeline three times
+BENCHMARK_TIMES: 1
+
+# The following items dictate the location for the reference genome
 GENERATE_GENOME:
-  # The full path where the genome generation data should be saved
-  # This step will most likely not need to be performed
-  # The genome is currently generated, do not change this unless necessary
+  # The full path where the genome generation data should be saved (i.e., the output of `STAR --runMode genomeGenerate`)
   GENOME_SAVE_DIR: "genome/star"
 
   # The full input path of the genome fasta file and the GTF file
-  # These files are currently present, and any user can read from these files
-  # These values should not need to be changed unless necessary
-  GENOME_FASTA_FILE: "genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
-  GTF_FILE: "genome/Homo_sapiens.GRCh38.105.gtf"
+  GENOME_FASTA_FILE: "genome/Mus_musculus.GRCm39.dna.primary_assembly.fa"
+  GTF_FILE: "genome/Mus_musculus.GRCm39.111.gtf"
 
-# If you would like to bypass checking for single-replicates in the control file, set this to True
-BYPASS_REPLICATE_VALIDATION: False
+  # RefFlat0 file location built from the GTF file for generating RNAseq metrics option
+  REF_FLAT_FILE: "genome/refFlat_GRCh38.111.txt"
 
-# If you would like to bypass checking that genome-related files can be found, set this to True
-BYPASS_GENOME_VALIDATION: False
+  # rRNA interval list file location for generating RNAseq metrics
+  RRNA_INTERVAL_LIST: "genome/GRCh38.p5.rRNA.interval_list"
 
-# If you would like to perform benchmarking more than once, increase this value
-BENCHMARK_TIMES: 1
+  # The reference BED file built from the GTF for RSEQC option
+  BED_FILE: "genome/mm10_RefSeq.bed"
