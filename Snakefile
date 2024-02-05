@@ -624,12 +624,14 @@ def contaminant_screen_input(wildcards):
     if not perform.screen(config=config):
         return []
     
+    if perform.trim(config=config):
+        return checkpoints.trim.get(**wildcards).output
+    
     # If we have performed fasterq_dump, return its output
     if perform.dump_fastq(config=config):
         return checkpoints.fasterq_dump.get(**wildcards).output
     
     # Otherwise collect local files
-    
     fastq_files = Path(config["LOCAL_FASTQ_FILES"])
     for file in fastq_files.rglob("{tissue_name}_{tag}_{PE_SE}.fastq.gz".format(**wildcards)):
         return str(file)
