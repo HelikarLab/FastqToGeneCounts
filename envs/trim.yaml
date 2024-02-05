@@ -2,7 +2,6 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - trim-galore=0.6.7
-  - pigz=2.6
-  - cutadapt=3.7
-  - conda-forge::xopen>=1.2.0
+  - trim-galore
+  - pigz
+  - cutadapt
