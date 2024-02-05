@@ -714,13 +714,13 @@ checkpoint trim:
         cutadapt_path=$(find .snakemake/conda -type f -name "cutadapt")
         
         if [[ "{wildcards.PE_SE}" == "1" ]]; then
-            trim_galore --paired --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" "{input}"
+            trim_galore --paired --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" {input}
             mv "{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz" "{output}"
         elif [[ "{wildcards.PE_SE}" == "2" ]]; then
-            trim_galore --paired --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" "{input}"
+            trim_galore --paired --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" {input}
             mv "{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz" "{output}"
         elif [[ "{wildcards.PE_SE}" == "S" ]]; then
-            trim_galore --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" "{input}"
+            trim_galore --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" {input}
             mv "{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_S_trimmed.fq.gz" "{output}"
         fi
         """
