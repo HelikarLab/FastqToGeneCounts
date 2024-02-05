@@ -25,6 +25,7 @@ PERFORM_TRIM: True
 
 # Should RNA sequences be screened for contamination? (default: True)
 PERFORM_SCREEN: True
+CONTAMINANT_GENOME_PATH: "genome/contaminant_genomes"
 
 # Should RNAseq metrics be collected to obtain more information about the reads? (default: True)
 PERFORM_GET_RNASEQ_METRICS: True
