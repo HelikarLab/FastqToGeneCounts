@@ -683,7 +683,7 @@ def get_trim_input(wildcards):
         if str(wildcards.PE_SE) == "1":
             return file, file.replace("_1.fastq.gz","_2.fastq.gz")
         elif str(wildcards.PE_SE) == "2":
-            return file, file.replace("_2.fastq.gz","_1.fastq.gz")
+            return file.replace("_2.fastq.gz","_1.fastq.gz"), file
         else:
             return file
 
@@ -698,8 +698,8 @@ checkpoint trim:
     params:
         scratch_dir=config["SCRATCH_DIR"],
     resources:
-        mem_mb=10240,
-        runtime=120,
+        mem_mb=4096,
+        runtime=15,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(os.path.join("benchmarks","{tissue_name}","trim","{tissue_name}_{tag}_{PE_SE}.benchmark"),
@@ -708,25 +708,16 @@ checkpoint trim:
         """
         # Find the path to cutadapt, otherwise trim_galore (and it's underlying cutadapt usage) will not work
         cutadapt_path=$(find .snakemake/conda -type f -name "cutadapt")
-        output_directory="$(dirname {output})"
         
-        echo "CUTADAPT PATH: $cutadapt_path"
-
         if [[ "{wildcards.PE_SE}" == "1" ]]; then
-            file_out_1="{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
-            trim_galore --paired --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" {input}
-            mv "$file_out_1" "{output}"
-
+            trim_galore --paired --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" "{input}"
+            mv "{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz" "{output}"
         elif [[ "{wildcards.PE_SE}" == "2" ]]; then
-            file_out_2="{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
-            trim_galore --paired --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" {input}
-            mv "$file_out_2" "{output}"
-
-        # Work on single-end reads
+            trim_galore --paired --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" "{input}"
+            mv "{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz" "{output}"
         elif [[ "{wildcards.PE_SE}" == "S" ]]; then
-            file_out="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_S_trimmed.fq.gz"   # final output single end
-            trim_galore --cores 4 -o "$output_directory" --path_to_cutadapt "$cutadapt_path" {input}
-            mv "$file_out" "{output}"
+            trim_galore --cores 4 -o {params.scratch_dir} --path_to_cutadapt "$cutadapt_path" "{input}"
+            mv "{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_S_trimmed.fq.gz" "{output}"
         fi
         """
 
