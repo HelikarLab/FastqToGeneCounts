@@ -9,6 +9,8 @@ from utils import get, perform, validate
 from utils.constants import Layout, PrepMethod
 
 configfile: "config.yaml"
+conda:
+    "envs/global.yaml"
 
 # Validate file before reading with pandas
 if validate.validate(config=config):

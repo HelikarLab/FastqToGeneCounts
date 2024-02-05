@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+  - bioconda
+
+dependencies:
+  - pandas
+  - snakemake-executor-plugin-cluster-generic
