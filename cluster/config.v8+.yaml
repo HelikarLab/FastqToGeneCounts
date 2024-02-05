@@ -17,7 +17,6 @@ default-resources:
   - mem_mb=2048
 
 # Job submittion
-cores: 16  # max cores used in snakefile
 cluster-generic-cancel-cmd: scancel
 cluster-generic-cancel-nargs: 50
 restart-times: 0
