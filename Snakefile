@@ -256,6 +256,7 @@ rule preroundup:
         mem_mb=256,
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
+    group: "preroundup"
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
         sample_row: pd.DataFrame = samples.loc[
@@ -860,10 +861,8 @@ def new_star_input(wildcards):
             checkpoints.trim.get(**wildcards,PE_SE="2").output
         ])
     elif perform.dump_fastq(config=config):
-        items.extend([
-            checkpoints.fasterq_dump.get(**wildcards,PE_SE=pe_suffix).output,
-            checkpoints.fasterq_dump.get(**wildcards,PE_SE="2").output,
-        ])
+        return [checkpoints.fasterq_dump.get(**wildcards,PE_SE=pe_suffix).output,
+                checkpoints.fasterq_dump.get(**wildcards,PE_SE="2").output, ]
     else:
         for file in Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{file_pattern}"):
             if wildcards.tissue_name in str(file) and wildcards.tag in str(file):
