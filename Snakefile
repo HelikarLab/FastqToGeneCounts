@@ -24,11 +24,23 @@ samples: pd.DataFrame = pd.read_csv(
     names=["srr", "sample", "endtype", "prep_method"]
 )
 config_file_basename = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
-screen_genomes: pd.DataFrame = pd.read_csv(
-    "utils/screen_genomes.csv",
-    delimiter=",",
-    header=0
-)
+contaminant_screen_directories = [
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Adapters"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Arabidopsis"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Drosophila"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"E_coli"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Human"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Lambda"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Mitochondria"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Mouse"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"PhiX"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Rat"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Vectors"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Worm"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"Yeast"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"rRNA"),
+    os.path.join(config["CONTAMINANT_GENOME_PATH"],"fastq_screen.conf")
+]
 
 
 def rule_all_prefetch(wildcards):
@@ -140,10 +152,7 @@ def rule_all_dump_fastq(wildcards):
 def rule_all_screen_genomes(wildcards):
     if not perform.screen(config=config):
         return []
-    return expand(
-        os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","{name}"),
-        name=screen_genomes["name"].tolist()
-    )
+    return contaminant_screen_directories
 
 
 rule all:
@@ -345,25 +354,25 @@ rule generate_genome:
 
 rule get_contaminant_genomes:
     output:
-        Adapters=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Adapters")),
-        Arabidopsis=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Arabidopsis")),
-        Drosophila=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Drosophila")),
-        E_coli=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","E_coli")),
-        Human=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Human")),
-        Lambda=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Lambda")),
-        Mitochondria=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Mitochondria")),
-        Mouse=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Mouse")),
-        PhiX=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","PhiX")),
-        Rat=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Rat")),
-        Vectors=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Vectors")),
-        Worm=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Worm")),
-        Yeast=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Yeast")),
-        rRNA=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","rRNA")),
-        config=os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","fastq_screen.conf")
+        Adapters=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Adapters")),
+        Arabidopsis=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Arabidopsis")),
+        Drosophila=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Drosophila")),
+        E_coli=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"E_coli")),
+        Human=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Human")),
+        Lambda=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Lambda")),
+        Mitochondria=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Mitochondria")),
+        Mouse=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Mouse")),
+        PhiX=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"PhiX")),
+        Rat=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Rat")),
+        Vectors=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Vectors")),
+        Worm=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Worm")),
+        Yeast=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"Yeast")),
+        rRNA=directory(os.path.join(config["CONTAMINANT_GENOME_PATH"],"rRNA")),
+        config=os.path.join(config["CONTAMINANT_GENOME_PATH"],"fastq_screen.conf")
     threads: 4
     conda: "envs/gnu_parallel.yaml"
     params:
-        root_output=os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes"),
+        root_output=config["CONTAMINANT_GENOME_PATH"],
         download_urls=[
             "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/fastq_screen.conf",
             # These three are the largest genomes, start their download first
@@ -625,11 +634,16 @@ def contaminant_screen_input(wildcards):
         return str(file)
 
 
+def get_contaminant_genomes_directories(wildcards):
+    if not perform.screen(config=config):
+        return []
+    return contaminant_screen_directories
+
+
 rule contaminant_screen:
     input:
-        #files=lambda wildcards: str(checkpoints.fasterq_dump.get(**wildcards).output),
         files=contaminant_screen_input,
-        genomes=rules.get_contaminant_genomes.params.root_output
+        genomes=get_contaminant_genomes_directories
     output:
         os.path.join(
             config["ROOTDIR"],"data","{tissue_name}","fq_screen","{tissue_name}_{tag}_{PE_SE}_screen.txt")
