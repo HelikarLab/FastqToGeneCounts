@@ -758,7 +758,6 @@ rule fastqc_trim:
         mkdir -p "$output_directory"
 
         if [ "{wildcards.PE_SE}" == "1" ]; then
-            # send fastqc commands to background so we can run both at the same time
             fastqc {input} --threads {threads} -o "$output_directory"
 
         # Skip reverse reads, but create the output file so Snakemake does not complain about missing files
@@ -956,8 +955,8 @@ rule get_rnaseq_metrics:
         ribo_int_list=config["GENERATE_GENOME"]["RRNA_INTERVAL_LIST"]
     threads: 4
     resources:
-        mem_mb=6144,# 6 GB
-        runtime=90,# 60 minutes
+        mem_mb=6144,
+        runtime=90,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     conda: "envs/picard.yaml"
     benchmark:
@@ -997,7 +996,12 @@ rule get_rnaseq_metrics:
         
         echo $strand_spec > {output.strand}
         
-        picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={config[GENERATE_GENOME][REF_FLAT_FILE]} STRAND_SPECIFICITY=$strand_spec RIBOSOMAL_INTERVALS={config[GENERATE_GENOME][RRNA_INTERVAL_LIST]}
+        picard CollectRnaSeqMetrics \
+            I={input.bam} \
+            O={output.metrics} \
+            REF_FLAT={config[GENERATE_GENOME][REF_FLAT_FILE]} \
+            STRAND_SPECIFICITY=$strand_spec \
+            RIBOSOMAL_INTERVALS={config[GENERATE_GENOME][RRNA_INTERVAL_LIST]}
         """
 
 
@@ -1013,7 +1017,7 @@ rule get_insert_size:
     threads: 4
     resources:
         mem_mb=1024,
-        runtime=60,# 1 hour
+        runtime=60,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     conda: "envs/picard.yaml"
     benchmark:
@@ -1049,7 +1053,7 @@ rule get_fragment_size:
     resources:
         partition="batch",
         mem_mb=1024,
-        runtime=120,# 2 hours
+        runtime=120,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     conda: "envs/rseqc.yaml"
     benchmark:
@@ -1249,7 +1253,11 @@ rule multiqc:
         """
         mkdir -p "{output.output_directory}"
         
-        multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {params.config_file_basename}_multiqc_report.html --outdir "{output.output_directory}" "{params.input_directory}"
+        multiqc --interactive --force \
+            --title "{wildcards.tissue_name}" \
+            -filename {params.config_file_basename}_multiqc_report.html \
+            --outdir "{output.output_directory}" \
+            "{params.input_directory}"
         
         if ls ./*.txt 1> /dev/null 2>&1; then
             rm *.txt
