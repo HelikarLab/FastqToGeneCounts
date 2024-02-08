@@ -14,7 +14,7 @@ conda:
 
 # Validate file before reading with pandas
 if validate.validate(config=config):
-    print("Control file valid! Continuing...")
+    print(f"Control file ({config['MASTER_CONTROL']}) is valid! Continuing...")
 
 os.makedirs(config["ROOTDIR"],exist_ok=True)
 
