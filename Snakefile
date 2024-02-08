@@ -830,21 +830,26 @@ def new_star_input(wildcards):
     sample_name: str = f"{wildcards.tissue_name}_{wildcards.tag}"
     is_paired_end: bool = "PE" in samples[samples["sample"].str.startswith(sample_name)]["endtype"].tolist()
     file_pattern = "_1.fastq.gz" if is_paired_end else "_S.fastq.gz"
-    pe_suffix = "1" if is_paired_end else "S"
     
     if perform.trim(config=config):
-        return [checkpoints.trim.get(**wildcards,PE_SE=pe_suffix).output,
-                checkpoints.trim.get(**wildcards,PE_SE="2").output]
+        if is_paired_end:
+            files = checkpoints.trim.get(**wildcards,PE_SE="1").output + checkpoints.trim.get(**wildcards,PE_SE="2").output
+            print(f"IS PAIRED: {files}")
+            return checkpoints.trim.get(**wildcards,PE_SE="1").output + checkpoints.trim.get(**wildcards,PE_SE="2").output
+        else:
+            return checkpoints.trim.get(**wildcards).output
     elif perform.dump_fastq(config=config):
-        return [checkpoints.fasterq_dump.get(**wildcards,PE_SE=pe_suffix).output,
-                checkpoints.fasterq_dump.get(**wildcards,PE_SE="2").output, ]
+        if is_paired_end:
+            return checkpoints.fasterq_dump.get(**wildcards,PE_SE="1").output + checkpoints.fasterq_dump.get(**wildcards,PE_SE="2").output
+        else:
+            return checkpoints.fasterq_dump.get(**wildcards).output
     else:
         for file in Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{file_pattern}"):
             if wildcards.tissue_name in str(file) and wildcards.tag in str(file):
                 if is_paired_end:
-                    print(str(file),str(file).replace(file_pattern,"_2.fastq.gz"))
                     return str(file), str(file).replace(file_pattern,"_2.fastq.gz")
-                return str(file)
+                else:
+                    return str(file)
 
 
 rule star_align:
