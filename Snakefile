@@ -23,6 +23,7 @@ samples: pd.DataFrame = pd.read_csv(
     delimiter=str(dialect.delimiter),
     names=["srr", "sample", "endtype", "prep_method"]
 )
+
 config_file_basename = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
 contaminant_screen_directories = [
     os.path.join(config["CONTAMINANT_GENOME_PATH"],"Adapters"),
@@ -165,12 +166,14 @@ rule all:
         rule_all_fastq_trimmed_reads,
         expand(os.path.join(
             config["ROOTDIR"],"data","{tissue_name}","layouts","{tissue_name}_{tag}_layout.txt"),
+            zip,
             tissue_name=get.tissue_name(config=config),
             tag=get.tags(config=config)
         ),
         
         expand(os.path.join(
             config["ROOTDIR"],"data","{tissue_name}","prepMethods","{tissue_name}_{tag}_prep_method.txt"),
+            zip,
             tissue_name=get.tissue_name(config=config),
             tag=get.tags(config=config)
         ),
@@ -253,24 +256,18 @@ rule preroundup:
         preparation=os.path.join(
             config["ROOTDIR"],"data","{tissue_name}","prepMethods","{tissue_name}_{tag}_prep_method.txt"),
     resources:
-        mem_mb=256,
+        mem_mb=64,
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
-    group: "preroundup"
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
-        sample_row: pd.DataFrame = samples.loc[
-                                   samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}", :
-                                   # Collect everything from the row with `:`
-                                   ]
-        # Collect the required data
-        srr_code: str = sample_row["srr"].values[0]
+        sample_row: pd.DataFrame = samples[samples["sample"].str.contains(f"{wildcards.tissue_name}_{wildcards.tag}")]
         name: str = sample_row["sample"].values[0]
-        endtype: str = sample_row["endtype"].values[0].upper()
-        prep_method: str = sample_row["prep_method"].values[0].lower()
+        layout: str = sample_row["endtype"].values[0].upper()  # PE, SE, or SLC
+        prep_method: str = str(sample_row["prep_method"].values[0].lower())  # total or mrna
         tissue_name: str = name.split("_")[0]
-        tag: str = name.split("_")[1]
-        study: str = re.match(r"S\d+",tag).group()
+        tag: str = name.split("_")[1]  # S1R1
+        study: str = re.match(r"S\d+",tag).group()  # S1
         
         # Write paired/single end or single cell to the appropriate location
         layouts_root: Path = Path(config["ROOTDIR"],"data",tissue_name,"layouts",f"{name}_layout.txt")
@@ -279,7 +276,6 @@ rule preroundup:
         layouts_como.parent.mkdir(parents=True,exist_ok=True)
         layouts_write_root = open(layouts_root,"w")
         layouts_write_como = open(layouts_como,"w")
-        layout: str = str(sample_row["endtype"].values[0]).upper()  # PE, SE, or SLC
         if Layout[layout] == Layout.PE:
             layouts_write_root.write(Layout.PE.value)
             layouts_write_como.write(Layout.PE.value)
@@ -301,7 +297,6 @@ rule preroundup:
         prep_como.parent.mkdir(parents=True,exist_ok=True)
         write_prep_root = open(str(prep_root),"w")
         write_prep_como = open(str(prep_como),"w")
-        prep_method = str(sample_row["prep_method"].values[0]).lower()  # total or mrna
         if PrepMethod[prep_method] == PrepMethod.total:
             write_prep_root.write(PrepMethod.total.value)
             write_prep_como.write(PrepMethod.total.value)
