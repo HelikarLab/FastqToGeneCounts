@@ -29,6 +29,9 @@ jobs: 100
 # Other settings
 printshellcmds: True
 rerun-incomplete: True
+
+# Changing these values may potentially result in groups not being submitted properly to SLURM,
+# Thus causing an excess of jobs to be created and submitted to the cluster
 groups:
   - preroundup=preroundupGroup_{tissue_name}
   - copy_gene_counts=copyGeneCountsGroup_{tissue_name}
