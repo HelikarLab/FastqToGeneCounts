@@ -424,7 +424,7 @@ rule get_contaminant_genomes:
         
         # Replace "[FastQ_Screen_Genomes_Path]" with the output directory
         cat "{output.config}" | sed 's|\[FastQ_Screen_Genomes_Path\]|{params.root_output}|g' > "{output.config}.tmp"
-        mv "{output.config}.tmp" "{output.config}"
+        mv "{output.config}.tmp" "{output.config}"r
         """
 
 
@@ -619,9 +619,6 @@ def contaminant_screen_input(wildcards):
     if not perform.screen(config=config):
         return []
     
-    if perform.trim(config=config):
-        return checkpoints.trim.get(**wildcards).output
-    
     # If we have performed fasterq_dump, return its output
     if perform.dump_fastq(config=config):
         return checkpoints.fasterq_dump.get(**wildcards).output
@@ -632,19 +629,14 @@ def contaminant_screen_input(wildcards):
         return str(file)
 
 
-def get_contaminant_genomes_directories(wildcards):
-    if not perform.screen(config=config):
-        return []
-    return contaminant_screen_directories
-
-
 rule contaminant_screen:
     input:
         files=contaminant_screen_input,
-        genomes=get_contaminant_genomes_directories
+        genomes=lambda wildcards: contaminant_screen_directories if perform.screen(config=config) else []
     output:
-        os.path.join(
-            config["ROOTDIR"],"data","{tissue_name}","fq_screen","{tissue_name}_{tag}_{PE_SE}_screen.txt")
+        txt=os.path.join(config["ROOTDIR"],"data","{tissue_name}","fq_screen","{tissue_name}_{tag}_{PE_SE}_screen.txt"),
+        html=os.path.join(
+            config["ROOTDIR"],"data","{tissue_name}","fq_screen","{tissue_name}_{tag}_{PE_SE}_screen.html")
     params:
         tissue_name="{tissue_name}",
         tag="{tag}",
