@@ -682,13 +682,13 @@ checkpoint trim:
     output:
         os.path.join(
             config["ROOTDIR"],"data","{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-    threads: 16
+    threads: 15
     conda: "envs/trim.yaml"
     params:
         scratch_dir=config["SCRATCH_DIR"],
     resources:
-        mem_mb=4096,
-        runtime=15,
+        mem_mb=1024,
+        runtime=5,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(os.path.join("benchmarks","{tissue_name}","trim","{tissue_name}_{tag}_{PE_SE}.benchmark"),
