@@ -1095,7 +1095,7 @@ rule copy_fragment_size:
 
 def multiqc_get_dump_fastq_data(wildcards):
     if perform.prefetch(config=config):
-        output = expand(
+        return expand(
             os.path.join(
                 config["ROOTDIR"],
                 "data",
@@ -1152,7 +1152,7 @@ def multiqc_get_star_data(wildcards):
 def multiqc_get_screen_data(wildcards):
     if perform.screen(config=config):
         output_files = expand(
-            rules.contaminant_screen.output,
+            rules.contaminant_screen.output.txt,
             zip,
             tissue_name=get.tissue_name(config=config),
             tag=get.tags(config=config),
