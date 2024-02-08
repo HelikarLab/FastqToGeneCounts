@@ -5,7 +5,7 @@ profile=$1
 
 # If `profile` is empty, set `profile` to "slurm"
 if [ -z "$profile" ]; then
-    profile="slurm"
+    profile="cluster"
 fi
 
 
