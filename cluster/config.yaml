@@ -24,7 +24,7 @@ restart-times: 0
 max-jobs-per-second: 10
 max-status-checks-per-second: 5
 latency-wait: 60
-jobs: 100
+jobs: 500
 
 # Other settings
 printshellcmds: True
