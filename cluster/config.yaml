@@ -17,6 +17,7 @@ default-resources:
   - mem_mb=2048
 
 # Job submittion
+cores: 16  # Limit the maximum number of cores for grouped jobs
 cluster-cancel: scancel
 cluster-cancel-nargs: 50
 restart-times: 0
@@ -28,13 +29,18 @@ jobs: 100
 # Other settings
 printshellcmds: True
 rerun-incomplete: True
-
 groups:
-  - preroundup=preroundup_group
-  - copy_gene_counts=copy_group
-  - copy_rnaseq_metrics=copy_group
-  - copy_insert_size=copy_group
-  - copy_fragment_size=copy_group
+  - preroundup=preroundupGroup_{tissue_name}
+  - copy_gene_counts=copyGeneCountsGroup_{tissue_name}
+  - copy_rnaseq_metrics=copyRnaSeqMetricsGroup_{tissue_name}
+  - copy_insert_size=copyInsertSizeGroup_{tissue_name}
+  - copy_fragment_size=copyFragmentSizeGroup_{tissue_name}
+group-components:
+  - preroundupGroup_{tissue_name}=20
+  - copyGeneCountsGroup_{tissue_name}=20
+  - copyRnaSeqMetricsGroup_{tissue_name}=20
+  - copyInsertSizeGroup_{tissue_name}=20
+  - copyFragmentSizeGroup_{tissue_name}=20
 
 # Do not change these settings. This pipeline will fail to execute if they are changed
 use-conda: True
