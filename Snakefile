@@ -1056,7 +1056,7 @@ rule copy_gene_counts:
     output: os.path.join("COMO_input","{tissue_name}","geneCounts","{sample}","{tissue_name}_{tag}.tab")
     threads: 1
     resources:
-        mem_mb=256,
+        mem_mb=64,
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell: """cp {input} {output}"""
@@ -1067,7 +1067,7 @@ rule copy_rnaseq_metrics:
     output: os.path.join("COMO_input","{tissue_name}","strandedness","{sample}","{tissue_name}_{tag}_strandedness.txt")
     threads: 1
     resources:
-        mem_mb=256,
+        mem_mb=64,
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell: """cp {input} {output}"""
@@ -1077,7 +1077,7 @@ rule copy_insert_size:
     output: os.path.join("COMO_input","{tissue_name}","insertSizeMetrics","{sample}","{tissue_name}_{tag}_insert_size.txt")
     threads: 1
     resources:
-        mem_mb=256,
+        mem_mb=64,
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell: """cp {input} {output}"""
@@ -1087,7 +1087,7 @@ rule copy_fragment_size:
     output: os.path.join("COMO_input","{tissue_name}","fragmentSizes","{sample}","{tissue_name}_{tag}_fragment_size.txt")
     threads: 1
     resources:
-        mem_mb=256,
+        mem_mb=64,
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell: """cp {input} {output}"""
