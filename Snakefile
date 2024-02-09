@@ -1229,7 +1229,7 @@ rule multiqc:
     conda: "envs/multiqc.yaml"
     resources:
         mem_mb=5120,
-        runtime=30,
+        runtime=15,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(os.path.join("benchmarks","{tissue_name}","multiqc","{tissue_name}.benchmark"),
