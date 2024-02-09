@@ -1240,7 +1240,7 @@ rule multiqc:
         
         multiqc --interactive --force \
             --title "{wildcards.tissue_name}" \
-            -filename {params.config_file_basename}_multiqc_report.html \
+            --filename {params.config_file_basename}_multiqc_report.html \
             --outdir "{output.output_directory}" \
             "{params.input_directory}"
         
