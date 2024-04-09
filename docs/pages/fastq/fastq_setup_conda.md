@@ -86,6 +86,7 @@ module load mamba
 Snakemake is required to run the pipeline.
 ```bash
 mamba install --name snakemake --channel conda-forge --channel bioconda snakemake
+pip install snakemake-executor-plugin-cluster-generic
 ```
 
 We must install tabulate version `0.8.10` as anything under the `0.9.*` release causes issues for our current version of Snakemake
@@ -98,6 +99,12 @@ We must install tabulate version `0.8.10` as anything under the `0.9.*` release 
 | `--channel conda-forge` |         The channel to install software from          |
 |  `--channel bioconda`   |         The channel to install software from          |
 |       `snakemake`       |  The software to install, defaults to latest version  |
+
+|                  Component                  |                        Description                         |
+|:-------------------------------------------:|:----------------------------------------------------------:|
+|                    `pip`                    |        Use pip to install python-only dependencies         |
+|                  `install`                  |            The pip command to install software             |
+| `snakemake-executor-plugin-cluster-generic` | The package required to use profiles in `snakemake>=8.0.0` |
 
 ## Test Installations
 The following command should return a valid number, ideally greater than 7.x. If this is not the case, investigate why a lower version was installed, or [open an issue](https://github.com/HelikarLab/FastqToGeneCounts/issues/new) on our GitHub page.

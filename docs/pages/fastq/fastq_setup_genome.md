@@ -18,8 +18,6 @@ assembly_release=109
 GRCh_version=38
 ```
 
-```bash
-
 ## Genome FASTA File
 ```bash
 # Change directories into your `genome` directory
@@ -72,7 +70,7 @@ rm refFlat.tmp.txt
 ```bash
 # Execute this in the `genome` directory!
 
- -# Download the BED file, then set the file name
+# Download the BED file, then set the file name
 wget https://sourceforge.net/projects/rseqc/files/BED/Human_Homo_sapiens/hg38_GENCODE.v${GRCh_version}.bed.gz/download
 mv download hg38_GENCODE.v${GRCh_version}.bed.gz
 
@@ -95,6 +93,8 @@ To run the riboInt.sh file, perform the following:
 
 ```bash
 # Change directories to the location the pipeline was downloaded; for example:
+
+# WARNING: Change the next line to your own installation directory!
 cd /work/helikarlab/joshl/FastqToGeneCounts
 sh riboInt.sh
 ```
