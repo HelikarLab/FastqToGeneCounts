@@ -8,3 +8,5 @@
 /controls
 /benchmarks
 /COMO_input
+**/*cache*
+**/.DS_Store
