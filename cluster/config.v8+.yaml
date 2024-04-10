@@ -7,7 +7,7 @@ cluster-generic-submit-cmd:
   sbatch
     --job-name=smk-{rule}-{wildcards}
     --account=helikarlab
-    --cpus-per-task={resources.threads}
+    --cpus-per-task={threads}
     --output=logs/{rule}/{resources.tissue_name}/{rule}-{wildcards}.out
     --mem={resources.mem_mb}
     --time={resources.runtime}
