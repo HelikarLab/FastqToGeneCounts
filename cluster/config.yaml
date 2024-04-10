@@ -6,7 +6,7 @@ cluster:
   sbatch
     --job-name=smk-{rule}-{wildcards}
     --account=helikarlab
-    --cpus-per-task={threads}
+    --cpus-per-task={resources.threads}
     --output=logs/{rule}/{resources.tissue_name}/{rule}-{wildcards}.out
     --mem={resources.mem_mb}
     --time={resources.runtime}
