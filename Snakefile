@@ -360,65 +360,25 @@ rule get_contaminant_genomes:
         Yeast=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","Yeast")),
         rRNA=directory(os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","rRNA")),
         config=os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","fastq_screen.conf")
-    threads: 4
-    conda: "envs/gnu_parallel.yaml"
+    threads: 1
     params:
         root_output=os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes"),
-        download_urls=[
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/fastq_screen.conf",
-            # These three are the largest genomes, start their download first
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Human",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Mouse",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Rat",
-            # --------------------
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Adapters",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Arabidopsis",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Drosophila",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/E_coli",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Lambda",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Mitochondria",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/PhiX",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Vectors",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Worm",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/Yeast",
-            "http://ftp1.babraham.ac.uk/ftpusr46/FastQ_Screen_Genomes/rRNA",
-        ],
+        zip_url=r"https://uofnelincoln-my.sharepoint.com/:u:/g/personal/jloecker3_unl_edu/EYIChw4LO5xLqmLUBzp2fy8Ba2CpwiNQQHdHWmFMogM19A?e=fWiSfA&download=1",
     resources:
-        mem_mb=10240,
-        runtime=240,
+        mem_mb=6144,
+        runtime=30,
         tissue_name=""
     shell:
         """
-        # Cite parallel before it shows a warning
-        echo 'will cite' | parallel --citation > /dev/null 2>&1
+        wget "{params.zip_url}" -O "{params.root_output}/FastQ_Screen_Genomes.zip"
         
-        download_url() {{
-            url="$1"
-            
-            # Split the url by '/' and get the last item
-            item_name=$(echo "$url" | rev | cut -d'/' -f1 | rev)
-            
-            # Append '/' to the url if the item_name is not 'fastq_screen.conf' to download the entire directory
-            [[ "$item_name" != "fastq_screen.conf" ]] && url+="/"
-            
-            # Test if $item_name exists, only download if it doesn't exist
-            if [[ -d "{params.root_output}/$item_name" && "$item_name" != "fastq_screen.conf" ]]; then
-                find "{params.root_output}/$item_name" -type f -exec touch {{}} \;
-            else
-                wget --quiet --recursive --no-parent --no-host-directories --cut-dirs=2 --reject="index.html*" -P {params.root_output} "$url"
-            fi
-            
-            echo "Finished $item_name"
-        }}
+        # Unzip the archive
+        unzip -o "{params.root_output}/FastQ_Screen_Genomes.zip" -d "{params.root_output}"
+        rm "{params.root_output}/FastQ_Screen_Genomes.zip"
         
-        export -f download_url
-        parallel -j {threads} download_url ::: {params.download_urls}
-        
-        # Wait for all downloads to be done
-        wait
         
         # Replace "[FastQ_Screen_Genomes_Path]" with the output directory
-        cat "{output.config}" | sed 's|\[FastQ_Screen_Genomes_Path\]|{params.root_output}|g' > "{output.config}.tmp"
+        sed 's|[FastQ_Screen_Genomes_Path]|{params.root_output}|g' "{output.config}" > "{output.config}.tmp"
         mv "{output.config}.tmp" "{output.config}"
         """
 
