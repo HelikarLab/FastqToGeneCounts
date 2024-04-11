@@ -363,7 +363,7 @@ rule get_contaminant_genomes:
     threads: 1
     params:
         root_output=os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes"),
-        zip_url=r"https://uofnelincoln-my.sharepoint.com/:u:/g/personal/jloecker3_unl_edu/EYIChw4LO5xLqmLUBzp2fy8Ba2CpwiNQQHdHWmFMogM19A?e=fWiSfA&download=1",
+        zip_url=r"https://uofnelincoln-my.sharepoint.com/:u:/g/personal/jloecker3_unl_edu/EYIChw4LO5xLqmLUBzp2fy8Ba2CpwiNQQHdHWmFMogM19A?e=2H0nWb&download=1",
     resources:
         mem_mb=6144,
         runtime=30,
