@@ -53,16 +53,16 @@ rule all:
         (
             expand(
                 join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
-        zip,
+                zip,
                 tissue_name=get.tissue_name(config=config), tag=get.tags(config=config), PE_SE=get.PE_SE(config=config),
-    )
+            )
             if perform.prefetch(config=config) or perform.dump_fastq(config=config)
             else []
         ),
         (
             expand(
                 join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
-        zip,
+                zip,
                 tissue_name=get.tissue_name(config=config), tag=get.tags(config=config), PE_SE=get.PE_SE(config=config),
             )
             if perform.trim(config=config)
@@ -70,31 +70,31 @@ rule all:
         ),
         (
             expand(join(config["ROOTDIR"], "data", "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt"),
-        zip,
+                zip,
                 tissue_name=get.tissue_name(config=config), tag=get.tags(config=config),
-    )
+            )
             if perform.get_fragment_size(config=config)
             else []
         ),
         (
             expand(join(config["ROOTDIR"], "data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt"),
-        zip,
+                zip,
                 tissue_name=get.tissue_name(config=config), tag=get.tags(config=config), PE_SE=get.PE_SE(config=config),
-    )
+            )
             if perform.screen(config=config)
             else []
         ),
         (
             expand(
                 join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip",),
-        zip,
+                zip,
                 tissue_name=get.tissue_name(config=config), tag=get.tags(config=config), PE_SE=get.PE_SE(config=config),
-    )
+            )
             if perform.trim(config=config)
             else []
         ),
         (
-        expand(
+            expand(
                 join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
                 zip,
                 tissue_name=tissue_name(config), tag=tags(config)
@@ -104,29 +104,29 @@ rule all:
         ),
         expand(join("COMO_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"), zip, tissue_name=tissue_name(config), tag=tags(config), sample=sample(config)),
         (
-        expand(
+            expand(
                 join("COMO_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
-            zip,
+                zip,
                 tissue_name=tissue_name(config), sample=sample(config), tag=tags(config)
             )
             if perform.get_rnaseq_metrics(config)
             else []
         ),
         (
-        expand(
+            expand(
                 join("COMO_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
-            zip,
+                zip,
                 tissue_name=tissue_name(config), tag=tags(config), sample=sample(config)
             )
             if perform.get_insert_size(config)
             else []
         ),
         (
-        expand(
+            expand(
                 join("COMO_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt"),
-            zip,
+                zip,
                 tissue_name=tissue_name(config), tag=tags(config), sample=sample(config)
-        )
+            )
             if perform.get_fragment_size(config)
             else []
         ),
@@ -654,7 +654,7 @@ def new_star_input(wildcards):
                 items.extend([str(file), str(file).replace(file_pattern, "_2.fastq.gz")]
                     if is_paired_end
                     else str(file)
-                )
+                    )
                 break
 
     return items
