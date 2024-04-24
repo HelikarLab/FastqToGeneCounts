@@ -13,7 +13,6 @@ cluster:
     --parsable
 
 default-resources:
-  - tissue_name=""
   - mem_mb=2048
 
 # Job submittion

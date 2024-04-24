@@ -15,7 +15,6 @@ cluster-generic-submit-cmd:
 
 # Define tissue name
 default-resources:
-  - tissue_name=""
   - mem_mb=2048
 
 # Job submittion
