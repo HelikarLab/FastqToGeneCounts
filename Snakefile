@@ -461,7 +461,7 @@ rule generate_genome:
     resources:
         mem_mb=51200,
         runtime=150,
-        tissue_name="",
+        tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
     conda:
         "envs/star.yaml"
     shell:
@@ -499,7 +499,7 @@ rule get_contaminant_genomes:
     resources:
         mem_mb=6144,
         runtime=30,
-        tissue_name="",
+        tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
     shell:
         """
         wget "{params.zip_url}" -O "{params.root_output}/FastQ_Screen_Genomes.zip"
@@ -509,8 +509,8 @@ rule get_contaminant_genomes:
         rm "{params.root_output}/FastQ_Screen_Genomes.zip"
         
         
-        # Replace "[FastQ_Screen_Genomes_Path]" with the output directory
-        sed 's|[FastQ_Screen_Genomes_Path]|{params.root_output}|g' "{output.config}" > "{output.config}.tmp"
+        # Replace "[FastQ_Screen_Genomes_Path]" with the output directory, then remove any double slashes (//)
+        sed 's|\[FastQ_Screen_Genomes_Path\]|{params.root_output}|g' "{output.config}" | sed 's|//|/|g' > "{output.config}.tmp"
         mv "{output.config}.tmp" "{output.config}"
         """
 
