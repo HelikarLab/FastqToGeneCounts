@@ -145,7 +145,7 @@ rule preroundup:
         sample_row: pd.DataFrame = samples.loc[
             samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}",
             :
-            # Collect everything from the row with `:`
+            # Collect everything from the row by using `:`
         ]
         # Collect the required data
         srr_code: str = sample_row["srr"].values[0]
