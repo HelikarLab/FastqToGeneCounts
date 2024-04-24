@@ -1,21 +1,21 @@
 import os
 import csv
+from os.path import join
 import warnings
 import pandas as pd
 from pathlib import Path
 import snakemake
 from snakemake import io
 from utils import get, perform, validate
+from utils.get import tags, tissue_name, PE_SE, sample, direction_from_name
 from utils.constants import Layout, PrepMethod
-
 
 configfile: "config.yaml"
 
 
 # Validate file before reading with pandas
-if validate.validate(config=config):
+if validate.validate(config):
     print("Control file valid! Continuing...")
-
 os.makedirs(config["ROOTDIR"], exist_ok=True)
 
 # Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
@@ -25,338 +25,117 @@ samples: pd.DataFrame = pd.read_csv(
     delimiter=str(dialect.delimiter),
     names=["srr", "sample", "endtype", "prep_method"],
 )
-config_file_basename = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
-screen_genomes: pd.DataFrame = pd.read_csv(
-    "utils/screen_genomes.csv", delimiter=",", header=0
-)
-contaminant_genomes_root = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
-
-
-def rule_all_prefetch(wildcards):
-    if not perform.prefetch(config=config):
-        return []
-    return expand(
-        os.path.join(
-            config["ROOTDIR"],
-            "temp",
-            "prefetch",
-            "{tissue_name}",
-            "{tissue_name}_{tag}",
-            "{tissue_name}_{tag}.sra",
-        ),
-        zip,
-        tissue_name=get.tissue_name(config=config),
-        tag=get.tags(config=config),
-    )
-
-
-def rule_all_fastq_trimmed_reads(wildcards):
-    """
-    If we are going to trim, return output for rule fastqc_trim
-    """
-    if not perform.trim(config=config):
-        return []
-    return expand(
-        os.path.join(
-            config["ROOTDIR"],
-            "data",
-            "{tissue_name}",
-            "fastqc",
-            "trimmed_reads",
-            "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip",
-        ),
-        zip,
-        tissue_name=get.tissue_name(config=config),
-        tag=get.tags(config=config),
-        PE_SE=get.PE_SE(config=config),
-    )
-
-
-def rule_all_contaminant_screen(wildcards):
-    """
-    If screening for contamination, return fastq_screen output
-    """
-    if not perform.screen(config=config):
-        return []
-    return snakemake.io.expand(
-        os.path.join(
-            config["ROOTDIR"],
-            "data",
-            "{tissue_name}",
-            "fq_screen",
-            "{tissue_name}_{tag}_{PE_SE}_screen.txt",
-        ),
-        zip,
-        tissue_name=get.tissue_name(config=config),
-        tag=get.tags(config=config),
-        PE_SE=get.PE_SE(config=config),
-    )
-
-
-def rule_all_insert_sizes(wildcards):
-    """
-    If getting insert sizes with picard, return GetinsertSizeMetrics output
-    """
-    if not perform.get_insert_size(config=config):
-        return []
-    return snakemake.io.expand(
-        os.path.join(
-            config["ROOTDIR"],
-            "data",
-            "{tissue_name}",
-            "picard",
-            "insert",
-            "{tissue_name}_{tag}_insert_size.txt",
-        ),
-        zip,
-        tissue_name=get.tissue_name(config=config),
-        tag=get.tags(config=config),
-    )
-
-
-def rule_all_fragment_sizes(wildcards):
-    """
-    If getting fragment sizes with deeptools, return RNA_fragment_size.py output
-    """
-    if not perform.get_fragment_size(config=config):
-        return []
-    return snakemake.io.expand(
-        os.path.join(
-            config["ROOTDIR"],
-            "data",
-            "{tissue_name}",
-            "fragmentSizes",
-            "{tissue_name}_{tag}_fragment_length.txt",
-        ),
-        zip,
-        tissue_name=get.tissue_name(config=config),
-        tag=get.tags(config=config),
-    )
-
-
-def rule_all_trim(wildcards):
-    """
-    If we are performing trimming, return trim's output
-    """
-    if not perform.trim(config=config):
-        return []
-    return snakemake.io.expand(
-        os.path.join(
-            config["ROOTDIR"],
-            "data",
-            "{tissue_name}",
-            "trimmed_reads",
-            "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz",
-        ),
-        zip,
-        tissue_name=get.tissue_name(config=config),
-        tag=get.tags(config=config),
-        PE_SE=get.PE_SE(config=config),
-    )
-
-
-def rule_all_dump_fastq(wildcards):
-    if not perform.prefetch(config=config) or not perform.dump_fastq(config=config):
-        return []
-
-    return expand(
-        os.path.join(
-            config["ROOTDIR"],
-            "data",
-            "{tissue_name}",
-            "raw",
-            "{tissue_name}_{tag}_{PE_SE}.fastq.gz",
-        ),
-        zip,
-        tissue_name=get.tissue_name(config=config),
-        tag=get.tags(config=config),
-        PE_SE=get.PE_SE(config=config),
-    )
-
-
-def rule_all_screen_genomes(wildcards):
-    if not perform.screen(config=config):
-        return []
-    return expand(
-        os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "{name}"),
-        name=screen_genomes["name"].tolist(),
-    )
-
+config_file_basename: str = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
+screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv", delimiter=",", header=0)
+contaminant_genomes_root = join(config["ROOTDIR"], "FastQ_Screen_Genomes")
+root_data = join(config["ROOTDIR"], "data")
 
 rule all:
     input:
         config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],
-        rule_all_screen_genomes,
-        rule_all_prefetch,
-        rule_all_dump_fastq,
-        rule_all_trim,
-        rule_all_fastq_trimmed_reads,
-        expand(
-            os.path.join(
-                config["ROOTDIR"],
-                "data",
-                "{tissue_name}",
-                "layouts",
-                "{tissue_name}_{tag}_layout.txt",
-            ),
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
+        expand(join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"), tissue_name=tissue_name(config), tag=tags(config)),
+        expand(join(root_data, "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"), tissue_name=tissue_name(config), tag=tags(config)),
+        expand(join(root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=tissue_name(config), tag=tags(config), PE_SE=PE_SE(config)),
+        expand(join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"), zip, tissue_name=tissue_name(config), tag=tags(config)),
+        expand(join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"), zip, tissue_name=get.tissue_name(config=config), tag=get.tags(config=config)),
+        expand(join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai"), zip, tissue_name=tissue_name(config), tag=tags(config)),
+        expand(join(config["ROOTDIR"], "data", "{tissue_name}", "multiqc", config_file_basename, f"{config_file_basename}_multiqc_report.html"), tissue_name=tissue_name(config)),
+        (
+            expand(join(config["ROOTDIR"], "temp", "prefetch", "{tissue_name}", "{tissue_name}_{tag}", "{tissue_name}_{tag}.sra"), zip, tissue_name=get.tissue_name(config=config), tag=get.tags(config=config))
+            if perform.prefetch(config=config)
+            else []
         ),
-        expand(
-            os.path.join(
-                config["ROOTDIR"],
-                "data",
-                "{tissue_name}",
-                "prepMethods",
-                "{tissue_name}_{tag}_prep_method.txt",
-            ),
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
+        (
+            expand(join(config["ROOTDIR"], "FastQ_Screen_Genomes", "{name}"), name=screen_genomes["name"].values)
+            if perform.screen(config=config)
+            else []
         ),
+        (
+            expand(
+                join(config["ROOTDIR"], "data", "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
+        zip,
+                tissue_name=get.tissue_name(config=config), tag=get.tags(config=config), PE_SE=get.PE_SE(config=config),
+    )
+            if perform.prefetch(config=config) or perform.dump_fastq(config=config)
+            else []
+        ),
+        (
+            expand(
+                join(config["ROOTDIR"], "data", "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
+        zip,
+                tissue_name=get.tissue_name(config=config), tag=get.tags(config=config), PE_SE=get.PE_SE(config=config),
+            )
+            if perform.trim(config=config)
+            else []
+        ),
+        (
+            expand(join(config["ROOTDIR"], "data", "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt"),
+        zip,
+                tissue_name=get.tissue_name(config=config), tag=get.tags(config=config),
+    )
+            if perform.get_fragment_size(config=config)
+            else []
+        ),
+        (
+            expand(join(config["ROOTDIR"], "data", "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt"),
+        zip,
+                tissue_name=get.tissue_name(config=config), tag=get.tags(config=config), PE_SE=get.PE_SE(config=config),
+    )
+            if perform.screen(config=config)
+            else []
+        ),
+        (
+            expand(
+                join(config["ROOTDIR"], "data", "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip",),
+        zip,
+                tissue_name=get.tissue_name(config=config), tag=get.tags(config=config), PE_SE=get.PE_SE(config=config),
+    )
+            if perform.trim(config=config)
+            else []
+        ),
+        (
         expand(
-            os.path.join(
-                config["ROOTDIR"],
-                "data",
-                "{tissue_name}",
-                "fastqc",
-                "untrimmed_reads",
-                "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip",
-            ),
+                join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
+                zip,
+                tissue_name=tissue_name(config), tag=tags(config)
+            )
+            if perform.get_rnaseq_metrics(config)
+            else []
+        ),
+        expand(join("COMO_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"), zip, tissue_name=tissue_name(config), tag=tags(config), sample=sample(config)),
+        (
+        expand(
+                join("COMO_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
             zip,
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
-            PE_SE=get.PE_SE(config=config),
+                tissue_name=tissue_name(config), sample=sample(config), tag=tags(config)
+            )
+            if perform.get_rnaseq_metrics(config)
+            else []
         ),
+        (
         expand(
-            os.path.join(
-                config["ROOTDIR"],
-                "data",
-                "{tissue_name}",
-                "aligned_reads",
-                "{tag}",
-                "{tissue_name}_{tag}.tab",
-            ),
+                join("COMO_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
             zip,
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
+                tissue_name=tissue_name(config), tag=tags(config), sample=sample(config)
+            )
+            if perform.get_insert_size(config)
+            else []
         ),
+        (
         expand(
-            os.path.join(
-                "COMO_input",
-                "{tissue_name}",
-                "geneCounts",
-                "{sample}",
-                "{tissue_name}_{tag}.tab",
-            ),
+                join("COMO_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt"),
             zip,
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
-            sample=get.sample(config=config),
-        ),
-        expand(
-            os.path.join(
-                config["ROOTDIR"],
-                "data",
-                "{tissue_name}",
-                "aligned_reads",
-                "{tag}",
-                "{tissue_name}_{tag}.bam.bai",
-            ),
-            zip,
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
-        ),
-        expand(
-            os.path.join(
-                "COMO_input",
-                "{tissue_name}",
-                "strandedness",
-                "{sample}",
-                "{tissue_name}_{tag}_strandedness.txt",
-            ),
-            zip,
-            tissue_name=get.tissue_name(config=config),
-            sample=get.sample(config=config),
-            tag=get.tags(config=config),
+                tissue_name=tissue_name(config), tag=tags(config), sample=sample(config)
         )
-        if perform.get_rnaseq_metrics(config=config)
-        else [],
-        expand(
-            os.path.join(
-                config["ROOTDIR"],
-                "data",
-                "{tissue_name}",
-                "picard",
-                "rnaseq",
-                "{tissue_name}_{tag}_rnaseq.txt",
-            ),
-            zip,
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
-        )
-        if perform.get_rnaseq_metrics(config=config)
-        else [],
-        rule_all_insert_sizes if perform.get_insert_size(config=config) else [],
-        expand(
-            os.path.join(
-                "COMO_input",
-                "{tissue_name}",
-                "insertSizeMetrics",
-                "{sample}",
-                "{tissue_name}_{tag}_insert_size.txt",
-            ),
-            zip,
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
-            sample=get.sample(config=config),
-        )
-        if perform.get_insert_size(config=config)
-        else [],
-        rule_all_fragment_sizes if perform.get_fragment_size(config=config) else [],
-        expand(
-            os.path.join(
-                "COMO_input",
-                "{tissue_name}",
-                "fragmentSizes",
-                "{sample}",
-                "{tissue_name}_{tag}_fragment_size.txt",
-            ),
-            zip,
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
-            sample=get.sample(config=config),
-        )
-        if perform.get_fragment_size(config=config)
-        else [],
-        expand(
-            os.path.join(
-                config["ROOTDIR"],
-                "data",
-                "{tissue_name}",
-                "multiqc",
-                str(config_file_basename),
-                f"{config_file_basename}_multiqc_report.html",
-            ),
-            tissue_name=get.tissue_name(config=config),
+            if perform.get_fragment_size(config)
+            else []
         ),
 
 
 rule preroundup:
     output:
-        layout=os.path.join(
-            config["ROOTDIR"],
-            "data",
-            "{tissue_name}",
-            "layouts",
-            "{tissue_name}_{tag}_layout.txt",
-        ),
-        preparation=os.path.join(
-            config["ROOTDIR"],
-            "data",
-            "{tissue_name}",
-            "prepMethods",
-            "{tissue_name}_{tag}_prep_method.txt",
-        ),
+        layout=join(config["ROOTDIR"], "data", "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
+        preparation=join(config["ROOTDIR"], "data", "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
     resources:
         mem_mb=256,
         runtime=1,
