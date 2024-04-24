@@ -286,10 +286,7 @@ rule prefetch:
     conda: "envs/SRAtools.yaml"
     threads: 1
     params:
-        srr_value=lambda wildcards: samples.at[
-            samples["sample"].eq(f"{wildcards.tissue_name}_{wildcards.tag}").idxmax(),
-            "srr",
-        ],
+        srr_value=lambda wildcards: samples.at[samples["sample"].eq(f"{wildcards.tissue_name}_{wildcards.tag}").idxmax(), "srr"],
         scratch_dir=config["SCRATCH_DIR"],
         temp_file=join(config["SCRATCH_DIR"], "{tissue_name}_{tag}.sra"),
         output_directory=join(config["ROOTDIR"], "temp", "prefetch", "{tissue_name}_{tag}"),
@@ -301,23 +298,10 @@ rule prefetch:
         repeat(join("benchmarks", "{tissue_name}", "prefetch", "{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
-        # If the SRA file lock exists, remove it
         rm -f {output}.lock
-        
-        # Change into the "scratch" directory so temp files do not populate in the working directory
-        curr_dir=$(pwd)
-        cd {params.scratch_dir}
-        
-        prefetch --max-size u --progress --resume yes --output-file {params.temp_file} {params.srr_value}
-        
-        # Change back to the working directory before moving files
-        cd $curr_dir
-        mv {params.temp_file} {output}
-        
-        # Move dependencies into the output directory, checking if files exist in config["SCRATCH_DIR"]
-        if [ -n "$(find {params.scratch_dir} -prune -empty)" ]; then
-            mv {params.scratch_dir}/* {params.output_directory}
-        fi
+        mkdir -p {params.scratch_dir}
+        prefetch --max-size u --progress --output-file {params.temp_file} {params.srr_value}
+        mkdir -p "$(dirname {output})"; mv {params.scratch_dir}/* "$(dirname {output})/"
         """
 
 
