@@ -239,7 +239,7 @@ rule generate_genome:
 
 rule get_contaminant_genomes:
     output:
-        root_output=contaminant_genomes_root,
+        root_output=directory(contaminant_genomes_root),
         Adapters=directory(join(contaminant_genomes_root, "Adapters")),
         Arabidopsis=directory(join(contaminant_genomes_root, "Arabidopsis")),
         Drosophila=directory(join(contaminant_genomes_root, "Drosophila")),
