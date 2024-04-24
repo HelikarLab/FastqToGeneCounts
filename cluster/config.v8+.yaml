@@ -13,6 +13,7 @@ cluster-generic-submit-cmd:
     --time={resources.runtime}
     --parsable
 
+# Define tissue name
 default-resources:
   - tissue_name=""
   - mem_mb=2048
@@ -31,13 +32,6 @@ jobs: 100
 printshellcmds: True
 rerun-incomplete: True
 
-groups:
-  - preroundup=preroundup_group
-  - copy_gene_counts=copy_group
-  - copy_rnaseq_metrics=copy_group
-  - copy_insert_size=copy_group
-  - copy_fragment_size=copy_group
-
-# Do not change these settings. This pipeline will fail to execute if they are changed
+# Do not change these settings. This pipeline will fail to execute or execute extremely slowly if they are changed
 use-conda: True
 conda-frontend: mamba
