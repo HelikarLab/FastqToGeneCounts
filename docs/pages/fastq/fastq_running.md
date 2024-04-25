@@ -74,12 +74,12 @@ snakemake --profile cluster --dry-run
 ```
 
 {% include note.html content="If you did renamed the `cluster` directory to something else, replace the `--profile cluster` with the name of your directory" %}
-{% include note.html content="If you receive an error when running `snakemake --profile cluster --dry-run`, replcae `slurm` with `./cluster`" %}
+{% include note.html content="If you receive an error when running `snakemake --profile cluster --dry-run`, replcae `cluster` with `./cluster`" %}
 
 After several seconds, many lines should move through the terminal.<br>
 It should end with `This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.`
 
-If this is not the case, an error has occured, and it will need to be investigated before continuing. If you are having troubles, please [Open an Issue](https://github.com/HelikarLab/FastqToGeneCounts/issues)
+If this is not the case, an error has occured, and it will need to be investigated before continuing. If you are having troubles, please [Open an Issue](https://github.com/HelikarLab/FastqToGeneCounts/issues/new)
 
 ## Execution
 Once you have confirmed that a dry-run will execute successfully, it is time to start a real run of the workflow.<br>

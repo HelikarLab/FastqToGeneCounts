@@ -31,11 +31,11 @@ PERFORM_GET_RNASEQ_METRICS: True
 
 # Prefetch SRA files before writing to FastQ (default: True)
 # If you are processing local FastQ items, set to False
-PERFORM_PREFETCH: False
+PERFORM_PREFETCH: True
 
 # Get RNA information from SRA files (default: True)
 # If you are processing local FastQ items, set to False
-PERFORM_DUMP_FASTQ: False
+PERFORM_DUMP_FASTQ: True
 
 # Determine insert sizes for fragment length calculation (default: True)
 PERFORM_GET_INSERT_SIZE: True

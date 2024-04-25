@@ -19,7 +19,7 @@ Snakemake Profiles have multiple benefits:
 Perhaps the most important part of Profiles is Point 4. Instead of requesting, for example, 40 cores, 50GB of RAM, and multiple hours for the entire Snakemake workflow (as this is the maximum resources we require), Profiles will request small amounts of resources for rules that do not require them. This is especially important for rules that are not CPU intensive, as they take far less time to run. This means we can run more jobs at once, and our jobs will finish faster.
 
 ## Setup
-A default profile was downloaded with this repository under the `cluster` directory. If you are not a part of our wonderful Helikar Lab, you must edit the `slurm_account` line to your slurm account. This information can be found with the following command:
+A default profile was downloaded with this repository under the `cluster` directory. If you are not a part of our wonderful Helikar Lab, you must edit the `--account=` line to match your slurm account. This information can be found with the command listed below. In this example, the value listed under `Def Acct` should be included, like this: `--account=helikarlab`
 ```bash
 > sacctmgr show user $USER accounts
 
@@ -27,5 +27,3 @@ A default profile was downloaded with this repository under the `cluster` direct
 ---------- ---------- ---------- ---------
      joshl helikarlab                 None
 ```
-
-The account name is the second column; in this case, `helikarlab`. This should be entered into the `slurm_account` line in the `cluster/config.yaml` file.
