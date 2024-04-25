@@ -3,9 +3,9 @@
 execution_successful=false
 profile=$1
 
-# If `profile` is empty, set `profile` to "slurm"
+# If `profile` is empty, set `profile` to "cluster"
 if [ -z "$profile" ]; then
-    profile="slurm"
+    profile="cluster"
 fi
 
 

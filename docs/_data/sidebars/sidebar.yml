@@ -39,8 +39,8 @@ entries:
             - title: Conda Environment Installation
               url: /fastq_setup_conda.html
               output: web, pdf
-            - title: CookieCutter Templates
-              url: /fastq_setup_cookiecutter.html
+            - title: Profile Setup
+              url: /fastq_setup_profile.html
               output: web, pdf
             - title: Reference Genome
               url: /fastq_setup_genome.html

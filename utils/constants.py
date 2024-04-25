@@ -1,6 +1,6 @@
 from enum import Enum
 
-class EndType(Enum):
+class Layout(Enum):
     PE = "paired_end"
     SE = "single_end"
     SLC = "single_cell"

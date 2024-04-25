@@ -12,7 +12,7 @@ Following the overview is a step-by-step guide on how to set up the pipeline. A 
 1. Create a conda environment containing:
     1. Mamba
     2. Snakemake ([version 7.19.1](https://snakemake.readthedocs.io/en/stable/project_info/history.html#id2))
-2. Create a CookieCutter template/profile based on the [Slurm profile](https://github.com/Snakemake-Profiles/slurm)
+2. Create a Profile based on the [Simple Slurm profile](https://github.com/jdblischak/smk-simple-slurm)
 3. Modification of configuration variables
 
 ## Conda Environment
@@ -34,7 +34,7 @@ conda activate snakemake
 ```
 
 ### 3. Install Mamba
-{% include note.html content="Mamba is [recommended by SnakeMake](https://snakemake.readthedocs.io/en/stable/getting_started/installation.html), as it is much faster than Conda. Additionally, Conda can have issues installing SnakeMake dependencies." %}
+{% include note.html content="Mamba is [recommended by Snakemake](https://snakemake.readthedocs.io/en/stable/getting_started/installation.html), as it is much faster than Conda. Additionally, Conda can have issues installing Snakemake dependencies." %}
 ```bash
 conda install -n snakemake -c conda-forge mamba
 ```
@@ -63,76 +63,37 @@ mamba install -n snakemake -c conda-forge -c bioconda snakemake=7.19.1 pydantic=
 |      `snakemake=6.15.5`      |                    The package to install                     |
 |       `pydantic=10.3`        |             Install pydantic for dataclass usage              |
 
-### 5. Install CookieCutter
-```bash
-conda install -n snakemake -c conda-forge cookiecutter
-```
 
-|    Component     |                          Description                          |
-|:----------------:|:-------------------------------------------------------------:|
-|     `conda`      |                   The command to run Conda                    |
-|    `install`     |               The command to install a package                |
-|  `-n snakemake`  | The name of the conda environment to install into (snakemake) |
-| `-c conda-forge` |           The channel to install from (Conda Forge)           |
-|  `cookiecutter`  |                    The package to install                     |
-
-### 6. Test the SnakeMake and CookieCutter installation
+### 5. Test the Snakemake installation
 You should receive no errors at this point, and the output should follow the following example.<br>
 If you encounter errors, please [open an issue](https://github.com/HelikarLab/FastqToGeneCounts/issues)
 ```bash
 snakemake --version
-# Returns `7.19.1`
-
-cookiecutter --version
-# Returns Cookiecutter VERSION from INSTALLATION_PATH (Python VERSION)
+# Returns `7.25.0`
 ```
 
-## Creating a CookieCutter Template
-This section will assume you are setting up profiles for [Slurm](https://slurm.schedmd.com/documentation.html). If you are not, please reference the [SnakeMake Profile GitHub Page](https://github.com/Snakemake-Profiles/doc) and select your cluster's scheduler.
-
-### CookieCutter Profile Benefits
-SnakeMake Profiles provide multiple benefits:
+### Profile Benefits
+Snakemake Profiles provide multiple benefits:
 1. No need to write Slurm scripts
 2. Jobs are automatically submitted to the scheduler, and killed if they exceed our resources
-3. SnakeMake will automatically retry jobs that fail
-4. SnakeMake will schedule jobs independently, so that they can run in parallel
+3. Snakemake will automatically retry jobs that fail
+4. Snakemake will schedule jobs independently, so that they can run in parallel
 
-Perhaps the most important part of Profiles is Point 4. Instead of requesting, for example, 40 cores, 50GB of RAM, and multiple hours for the entire SnakeMake workflow (as this is the maximum resources we require), Profiles will request small amounts of resources for rules that do not require them. This is especially important for rules that are not CPU intensive, as they take far less time to run. This means we can run more jobs at once, and our jobs will finish faster.
+Perhaps the most important part of Profiles is Point 4. Instead of requesting, for example, 40 cores, 50GB of RAM, and multiple hours for the entire Snakemake workflow (as this is the maximum resources we require), Profiles will request small amounts of resources for rules that do not require them. This is especially important for rules that are not CPU intensive, as they take far less time to run. This means we can run more jobs at once, and our jobs will finish faster.
 
-### 1. Creating directories
-Create the snakemake directory to hold the profile(s)
+### 1. Using the Default Profile
+If you are using SLURM, a default profile was downloaded with this repository (under `cluster`). To use it, simply perform the following:
 ```bash
-# You can also specify a custom location for the profile_dir variable
-profile_dir="${HOME}/.config/snakemake"
-mkdir -p "$profile_dir"
+snakemake --profile cluster
 ```
 
-|    Component     |                Description                 |
-|:----------------:|:------------------------------------------:|
-|     `mkdir`      |     The command to create a directory      |
-|       `-p`       | Create any parent directories, if required |
-| `"$profile_dir"` |          The directory to create           |
-
-### 2. Creating the Profile
-We must first change to the directory we just created, then we can create the profile
-```bash
-template="gh:Snakemake-Profiles/slurm"
-cookiecutter --output-dir "$profile_dir" "$template"
-```
-
-|           Component           |              Description               |
-|:-----------------------------:|:--------------------------------------:|
-|        `cookiecutter`         |    The command to create a profile     |
-| `--output-dir "$profile_dir"` | The directory to create the profile in |
-|         `"$template"`         |  The template to use, specified above  |
+This will use the information provided within the `cluster/config.yaml` file to submit jobs to the scheduler.
 
 
-During this section, no details are required. Simply press `Enter` until the profile is created.
-
-### 3. Modifying the Profile
-Several details of the profile must be modified to work with our pipeline. These are as follows:
-1. `config.yaml` - The configuration file for the profile
-2. `cluster_config.yaml` - The configuration file for the cluster
+### 2. Modifying the Profile
+Several details of the profile can be modified. Details of the profile are as follows:
+- `slurm_account=helikarlab`: If you are not a part of our amazing HelikarLab team, you must change this to your account name. Your account name can be identified by executing the following command on the cluster: `sacctmgr show user $USER accounts`. The account name is the second column of output.
+- `restart-times: 0`: This defines the number of times Snakemake shoul
 
 #### 3.1. `config.yaml`
 The `config.yaml` is located at `~/.config/snakemake/slurm/config.yaml`. This file contains the configuration for the profile.
@@ -170,8 +131,8 @@ conda-frontend: mamba
 |             `jobs: 100`             |                                                            The maximum number of jobs to run at once                                                             |
 |       `printshellcmds: True`        |                                                            Whether or not to print the shell commands                                                            |
 |      `max-jobs-per-second: 10`      |                                                         The maximum number of jobs to submit per second                                                          |
-|          `use-conda: True`          |        <span style="color: blue">DO NOT MODIFY</span><br>Whether or not to use Conda to manage dependencies.<br>Modifying this value will break SnakeMake        |
-|       `conda-frontend: mamba`       | <span style="color: blue">DO NOT MODIFY</span><br>Use mamba when SnakeMake installs environments.<br>Modifying this value will significantly slow down SnakeMake |
+|          `use-conda: True`          |        <span style="color: blue">DO NOT MODIFY</span><br>Whether or not to use Conda to manage dependencies.<br>Modifying this value will break Snakemake        |
+|       `conda-frontend: mamba`       | <span style="color: blue">DO NOT MODIFY</span><br>Use mamba when Snakemake installs environments.<br>Modifying this value will significantly slow down Snakemake |
 
 
 #### 3.2. `cluster_config.yaml`
@@ -191,7 +152,7 @@ __default__ :
 |:---------------:|:------------------------------------------------------------------------------------:|
 |   `job-name`    |                             The default name of the job                              |
 |    `ntasks`     |                          The default number of tasks to run                          |
-| `cpus-per-task` |       The default number of cores to use.<br>It is set by each SnakeMake rule        |
+| `cpus-per-task` |       The default number of cores to use.<br>It is set by each Snakemake rule        |
 |     `nodes`     | The number of cluster nodes to request.<br>This should most likely never be changed. |
 |    `output`     |                         How (and where) to save output logs                          |
 |     `error`     |                          How (and where) to save error logs                          |
@@ -365,7 +326,7 @@ wget ftp://ftp.ensembl.org/pub/release-${annotation_release}/gtf/homo_sapiens/Ho
 ```
 
 
-You do not need to make any further changes. SnakeMake will extract the configuration values you have set up
+You do not need to make any further changes. Snakemake will extract the configuration values you have set up
 
 Once these steps are complete, the workflow should be prepared to execute.<br>
 Continue to the next page to execute the workflow
