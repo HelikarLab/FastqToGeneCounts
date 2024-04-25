@@ -476,8 +476,8 @@ def get_trim_input(wildcards):
     if perform.dump_fastq(config):
         if str(wildcards.PE_SE) in ["1", "2"]:
             return [
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
             ]
         return checkpoints.fasterq_dump.get(**wildcards).output
     else:
@@ -629,9 +629,9 @@ def new_star_input(wildcards):
     pe_suffix = "1" if is_paired_end else "S"
 
     if perform.trim(config):
-        items.extend([checkpoints.trim.get(**wildcards, PE_SE=pe_suffix).output, checkpoints.trim.get(**wildcards, PE_SE="2").output])
+        items.extend([*checkpoints.trim.get(**wildcards, PE_SE=pe_suffix).output, *checkpoints.trim.get(**wildcards, PE_SE="2").output])
     elif perform.dump_fastq(config):
-        items.extend([checkpoints.fasterq_dump.get(**wildcards, PE_SE=pe_suffix).output, checkpoints.fasterq_dump.get(**wildcards, PE_SE="2").output])
+        items.extend([*checkpoints.fasterq_dump.get(**wildcards, PE_SE=pe_suffix).output, *checkpoints.fasterq_dump.get(**wildcards, PE_SE="2").output])
     else:
         for file in Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{file_pattern}"):
             if wildcards.tissue_name in str(file) and wildcards.tag in str(file):
