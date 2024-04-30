@@ -25,7 +25,7 @@ class Utilities:
     @staticmethod
     def get_latest_release() -> int:
         """
-        This function will identify the latest `release-###` from the ensembl_base_url
+        This function will identify the latest `release-###` from ensembl
 
         Returns:
             int: An integer matching the release number. For example, if the latest release is `release-112`, this function returns `112`
