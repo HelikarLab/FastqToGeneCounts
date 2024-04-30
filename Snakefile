@@ -234,12 +234,12 @@ rule preroundup:
 rule generate_genome:
     output:
         bed_file=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}.bed"),
+        ref_flat=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_ref_flat.txt"),
         genome_sizes=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_genome_sizes.txt"),
         gtf_file=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_{ensembl_release_number}.gtf"),
         rrna_interval_list=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_rrna.interval_list"),
         primary_assembly=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
         primary_assembly_index=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai"),
-        ref_flat=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_ref_flat.txt"),
     conda: "envs/generate_genome.yaml"
     threads: 1
     resources:
