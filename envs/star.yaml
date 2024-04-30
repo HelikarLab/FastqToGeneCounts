@@ -2,3 +2,5 @@ channels:
   - bioconda
 dependencies:
   - star=2.7.9a
+  - httpx<1.0.0
+  - rich<14.0.0
