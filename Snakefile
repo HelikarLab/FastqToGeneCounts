@@ -1,21 +1,26 @@
-import os
 import csv
-from os.path import join
-import warnings
+import os
 import pandas as pd
+import warnings
+from os.path import join
 from pathlib import Path
+
+import rich
 import snakemake
 from snakemake import io
+
 from utils import get, perform, validate
-from utils.get import tags, tissue_name, PE_SE, sample, direction_from_name
 from utils.constants import Layout, PrepMethod
+from utils.genome_generation import Utilities
+from utils.get import tags, tissue_name, PE_SE, sample, direction_from_name
 
 configfile: "config.yaml"
 
 
+
 # Validate file before reading with pandas
-if validate.validate(config):
-    print("Control file valid! Continuing...")
+#if validate.validate(config):
+#    print("Control file valid! Continuing...")
 os.makedirs(config["ROOTDIR"], exist_ok=True)
 
 # Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
@@ -29,10 +34,29 @@ config_file_basename: str = os.path.basename(config["MASTER_CONTROL"]).split("."
 screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv", delimiter=",", header=0)
 contaminant_genomes_root = join(config["ROOTDIR"], "FastQ_Screen_Genomes")
 root_data = join(config["ROOTDIR"], "data")
+species_name = Utilities.get_species_from_taxon(taxon_id=config["GENERATE_GENOME"]["TAXONOMY_ID"])
+
+if config["GENERATE_GENOME"]["GENOME_VERSION"] == "latest":
+    ensembl_release_number = f"release-{Utilities.get_latest_release()}"
+elif config["GENERATE_GENOME"]["GENOME_VERSION"].startswith("release"):
+    ensembl_release_number = config["GENERATE_GENOME"]["GENOME_VERSION"]
+elif config["GENERATE_GENOME"]["GENOME_VERSION"].isdigit():
+    ensembl_release_number = f"release-{config['GENERATE_GENOME']['GENOME_VERSION']}"
+else:
+    raise ValueError("Invalid GENOME_VERSION in config.yaml file. Valid options are: 'latest', 'release-###' (i.e., 'release-112'), or an integer (i.e., 112)")
 
 rule all:
     input:
-        config["GENERATE_GENOME"]["GENOME_SAVE_DIR"],
+        # Genome generation items + star genome index
+        os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}.bed"),
+        os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_genome_sizes.txt"),
+        os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_{ensembl_release_number}.gtf"),
+        os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_rrna.interval_list"),
+        os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
+        os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai"),
+        os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_ref_flat.txt"),
+        os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "job_complete.txt"),
+        
         expand(join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"), tissue_name=tissue_name(config), tag=tags(config)),
         expand(join(root_data, "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"), tissue_name=tissue_name(config), tag=tags(config)),
         expand(join(root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"), zip, tissue_name=tissue_name(config), tag=tags(config), PE_SE=PE_SE(config)),
@@ -214,28 +238,59 @@ rule preroundup:
 
 
 rule generate_genome:
-    input:
-        genome_fasta_file=config["GENERATE_GENOME"]["GENOME_FASTA_FILE"],
-        gtf_file=config["GENERATE_GENOME"]["GTF_FILE"],
     output:
-        genome_dir=directory(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"]),
-        rule_complete=touch(join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "generate_genome.complete")),
+        bed_file=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}.bed"),
+        genome_sizes=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_genome_sizes.txt"),
+        gtf_file=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_{ensembl_release_number}.gtf"),
+        rrna_interval_list=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_rrna.interval_list"),
+        primary_assembly=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
+        primary_assembly_index=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai"),
+        ref_flat=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_ref_flat.txt"),
+    threads: 1
+    resources:
+        mem_mb=8096,
+        runtime=30,
+        tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
+    shell:
+        """
+        python3 utils/genome_generation.py \
+            --taxon-id {config[GENERATE_GENOME][TAXONOMY_ID]} \
+            --release-number {config[GENERATE_GENOME][GENOME_VERSION]} \
+            --root-save-dir {config[GENERATE_GENOME][GENOME_SAVE_DIR]}
+        """
+
+rule star_index_genome:
+    input:
+        primary_assembly=rules.generate_genome.output.primary_assembly,
+        gtf_file=rules.generate_genome.output.gtf_file
+    output:
+        genome_dir=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star"),
+        chromosome_length=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "chrLength.txt"),
+        chromosome_name=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "chrName.txt"),
+        chromosome_start=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "chrStart.txt"),
+        exon_gene_info=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "exonGeTrInfo.tab"),
+        gene_info=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "geneInfo.tab"),
+        genome=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "Genome"),
+        genome_parameters=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "genomeParameters.txt"),
+        sa=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "SA"),
+        sa_index=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "SAindex"),
+        sjdb_info=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "sjdbInfo.txt"),
+        job_complete=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], "star", "job_complete.txt"),
+    conda: "envs/star.yaml"
     threads: 10
     resources:
         mem_mb=51200,
         runtime=150,
         tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
-    conda: "envs/star.yaml"
     shell:
         """
         STAR --runMode genomeGenerate \
         --runThreadN {threads} \
-        --genomeDir {output.genome_dir} \
-        --genomeFastaFiles {input.genome_fasta_file} \
+        --genomeDir {config[GENERATE_GENOME][GENOME_SAVE_DIR]} \
+        --genomeFastaFiles {input.primary_assembly} \
         --sjdbGTFfile {input.gtf_file} \
         --sjdbOverhang 99
         """
-
 
 rule get_contaminant_genomes:
     output:
@@ -648,8 +703,8 @@ rule star_align:
     input:
         # reads=collect_star_align_input,
         reads=new_star_input,
-        genome_dir=rules.generate_genome.output.genome_dir,
-        generate_genome_complete=rules.generate_genome.output.rule_complete,
+        genome_dir=rules.star_index_genome.output.genome_dir,
+        generate_genome_complete=rules.star_index_genome.output.job_complete,
     output:
         gene_table=join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
         bam_file=join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
@@ -708,12 +763,14 @@ rule get_rnaseq_metrics:
     input:
         bam=rules.star_align.output.bam_file,
         tab=rules.star_align.output.gene_table,
+        ref_flat=rules.generate_genome.output.ref_flat,
+        rrna_interval_list=rules.generate_genome.output.rrna_interval_list
     output:
         metrics=join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
         strand=join(config["ROOTDIR"], "data", "{tissue_name}", "strand", "{tissue_name}_{tag}_strand.txt"),
     params:
-        ref_flat=config["GENERATE_GENOME"]["REF_FLAT_FILE"],
-        ribo_int_list=config["GENERATE_GENOME"]["RRNA_INTERVAL_LIST"],
+        # ref_flat=config["GENERATE_GENOME"]["REF_FLAT_FILE"],
+        # ribo_int_list=config["GENERATE_GENOME"]["RRNA_INTERVAL_LIST"],
     threads: 4
     resources:
         mem_mb=6144,
@@ -756,7 +813,7 @@ rule get_rnaseq_metrics:
         
         echo $strand_spec > {output.strand}
         
-        picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={config[GENERATE_GENOME][REF_FLAT_FILE]} STRAND_SPECIFICITY=$strand_spec RIBOSOMAL_INTERVALS={config[GENERATE_GENOME][RRNA_INTERVAL_LIST]}
+        picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={input.ref_flat} STRAND_SPECIFICITY=$strand_spec RIBOSOMAL_INTERVALS={input.rrna_interval_list}
         """
 
 
@@ -791,6 +848,7 @@ rule get_fragment_size:
     input:
         bam=rules.star_align.output.bam_file,
         bai=rules.index_bam_file.output,
+        bed_file=rules.generate_genome.output.bed_file,
     output:
         join(config["ROOTDIR"], "data", "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt"),
     params:
@@ -808,7 +866,7 @@ rule get_fragment_size:
         """
         # get matches of script file
         file_path=$(find .snakemake/conda/*/bin/RNA_fragment_size.py)
-        python3 $file_path -r {config[GENERATE_GENOME][BED_FILE]} -i {input.bam} > {output}
+        python3 $file_path -r {input.bed_file} -i {input.bam} > {output}
         """
 
 
