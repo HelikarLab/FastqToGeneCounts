@@ -5,10 +5,6 @@ import warnings
 from os.path import join
 from pathlib import Path
 
-import rich
-import snakemake
-from snakemake import io
-
 from utils import get, perform, validate
 from utils.constants import Layout, PrepMethod
 from utils.genome_generation import Utilities
