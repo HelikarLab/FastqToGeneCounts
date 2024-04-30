@@ -12,11 +12,11 @@ import urllib.request
 from functools import cache
 from http.client import HTTPResponse
 
-ncbi_url = "https://api.ncbi.nlm.nih.gov/datasets/v2alpha"
-ensembl_url = "ftp.ensembl.org"
+_ncbi_url = "https://api.ncbi.nlm.nih.gov/datasets/v2alpha"
+_ensembl_url = "ftp.ensembl.org"
 
-ucsc_url = "https://api.genome.ucsc.edu"
-ref_flat_url = "https://hgdownload.soe.ucsc.edu/goldenPath/{final_genome}/database/refFlat.txt.gz"  # fmt: skip
+_ucsc_url = "https://api.genome.ucsc.edu"
+_ref_flat_url = "https://hgdownload.soe.ucsc.edu/goldenPath/{final_genome}/database/refFlat.txt.gz"  # fmt: skip
 
 
 class Utilities:
@@ -33,7 +33,7 @@ class Utilities:
         if Utilities._latest_release != -1:
             return Utilities._latest_release
 
-        pub_root: ftplib.FTP = ftplib.FTP(ensembl_url)
+        pub_root: ftplib.FTP = ftplib.FTP(_ensembl_url)
         pub_root.login()
 
         latest_release: int = -1
@@ -84,7 +84,7 @@ class Utilities:
             bool: True if the species is valid, False otherwise
         """
         invalid_taxon_error = f"The taxonomy name you specified ({taxon_id}) is not a recognized NCBI Taxonomy name."
-        response: HTTPResponse = urllib.request.urlopen(f"{ncbi_url}/taxonomy/taxon/{taxon_id}/name_report")
+        response: HTTPResponse = urllib.request.urlopen(f"{_ncbi_url}/taxonomy/taxon/{taxon_id}/name_report")
         as_json: dict = json.loads(response.read())
 
         is_valid = True
@@ -120,7 +120,7 @@ class Utilities:
         Returns:
             str: The species name that corresponds to the ensembl species. For example: 9606 -> homo_sapiens
         """
-        response: HTTPResponse = urllib.request.urlopen(f"{ncbi_url}/taxonomy/taxon/{taxon_id}/name_report")
+        response: HTTPResponse = urllib.request.urlopen(f"{_ncbi_url}/taxonomy/taxon/{taxon_id}/name_report")
         as_json = json.loads(response.read())
         species = as_json["reports"][0]["taxonomy"]["current_scientific_name"]["name"]
 
@@ -156,7 +156,7 @@ class NCBI:
         if self._release_number == "latest":
             self._release_number = f"release-{Utilities.get_latest_release()}"
 
-        self._ftp = ftplib.FTP(ensembl_url)
+        self._ftp = ftplib.FTP(_ensembl_url)
         self._ftp.login()
 
     def download_fasta_file(self, save_directory: str) -> None:
@@ -288,7 +288,7 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str, show_progress: bo
     print(f"ref flat file save directory: {save_directory}")
 
     # Get a list of genomes
-    response: HTTPResponse = urllib.request.urlopen(f"{ucsc_url}/list/ucscGenomes")
+    response: HTTPResponse = urllib.request.urlopen(f"{_ucsc_url}/list/ucscGenomes")
     as_json = json.loads(response.read())
 
     genome_prefix: str = ""
@@ -310,7 +310,7 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str, show_progress: bo
 
     # Download `ref_flat_url` and save it as a file without creating an intermeidate gzip file
     final_genome: str = f"{genome_prefix}{genome_version}"
-    download_url = ref_flat_url.format(final_genome=final_genome)
+    download_url = _ref_flat_url.format(final_genome=final_genome)
     txt_file = f"{save_directory}/ref_flat_{final_genome}.txt"
 
     # TODO: add a progress bar for this download
