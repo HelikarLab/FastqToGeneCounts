@@ -60,18 +60,31 @@ BENCHMARK_TIMES: 1
 
 # The following items dictate the location for the reference genome
 GENERATE_GENOME:
-  # The full path where the genome generation data should be saved (i.e., the output of `STAR --runMode genomeGenerate`)
-  GENOME_SAVE_DIR: "genome/star"
+  # The following files will be downloaded or created
+  #   - Genome FASTA file (i.e., primary assembly, downloaded from Ensembl)
+  #   - GTF file (i.e., gene annotation, downloaded from Ensembl)
+  #   - UCSC-style refFlat file (downloaded from UCSC)
+  #   - BED file (created from refFlat file)
+  #   - rRNA Interval List (created from GTF file)
+  #   - STAR index (created from FASTA file)
 
-  # The full input path of the genome fasta file and the GTF file
-  GENOME_FASTA_FILE: "genome/Mus_musculus.GRCm39.dna.primary_assembly.fa"
-  GTF_FILE: "genome/Mus_musculus.GRCm39.111.gtf"
-
-  # RefFlat0 file location built from the GTF file for generating RNAseq metrics option
-  REF_FLAT_FILE: "genome/refFlat_GRCh38.111.txt"
-
-  # rRNA interval list file location for generating RNAseq metrics
-  RRNA_INTERVAL_LIST: "genome/GRCh38.p5.rRNA.interval_list"
-
-  # The reference BED file built from the GTF for RSEQC option
-  BED_FILE: "genome/mm10_RefSeq.bed"
+  # The full path where the genome generation data should be saved
+  GENOME_SAVE_DIR: "genome"
+  
+  # The species of the genome to download
+  # Get your species from https://www.ncbi.nlm.nih.gov/Taxonomy
+  # Examples are:
+  #   Homo Sapiens: 9606
+  #   Mus Musculus: 10090
+  #   Macaca Mulatta: 9544
+  TAXONOMY_ID: 9606
+  
+  # The version of the genome to download
+  # "latest" will get the most recent version
+  # If you want to use a specific version, find it from: https://ftp.ensembl.org/pub/
+  # Examples are: "latest", "release-112", "release-111", etc.
+  GENOME_VERSION: "latest"
+  
+  # Should the download progress be shown?
+  # If False, no progress is shown.
+  SHOW_PROGRESS: True
