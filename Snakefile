@@ -246,6 +246,7 @@ rule generate_genome:
         primary_assembly=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
         primary_assembly_index=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai"),
         ref_flat=os.path.join(config["GENERATE_GENOME"]["GENOME_SAVE_DIR"], f"{species_name}_ref_flat.txt"),
+    conda: "envs/generate_genome.yaml"
     threads: 1
     resources:
         mem_mb=8096,
