@@ -3,4 +3,5 @@ channels:
   - bioconda
 dependencies:
   - conda-forge::python
+  - conda-forge::rich<14.0.0
   - bioconda::samtools<2.0
