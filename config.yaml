@@ -59,7 +59,7 @@ BYPASS_GENOME_VALIDATION: False
 BENCHMARK_TIMES: 1
 
 # The following items dictate the location for the reference genome
-GENERATE_GENOME:
+GENOME:
   # The following files will be downloaded or created
   #   - Genome FASTA file (i.e., primary assembly, downloaded from Ensembl)
   #   - GTF file (i.e., gene annotation, downloaded from Ensembl)
@@ -69,7 +69,7 @@ GENERATE_GENOME:
   #   - STAR index (created from FASTA file)
 
   # The full path where the genome generation data should be saved
-  GENOME_SAVE_DIR: "genome"
+  SAVE_DIR: "genome"
   
   # The species of the genome to download
   # Get your species from https://www.ncbi.nlm.nih.gov/Taxonomy
@@ -83,7 +83,7 @@ GENERATE_GENOME:
   # "latest" will get the most recent version
   # If you want to use a specific version, find it from: https://ftp.ensembl.org/pub/
   # Examples are: "latest", "release-112", "release-111", etc.
-  GENOME_VERSION: "latest"
+  VERSION: "latest"
   
   # Should the download progress be shown?
   # If False, no progress is shown.
