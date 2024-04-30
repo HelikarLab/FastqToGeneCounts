@@ -457,7 +457,7 @@ rule fastqc_dump_fastq:
         repeat(os.path.join("benchmarks", "{tissue_name}", "fastqc_dump_fastq",  "{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
-        output_directory="$(dirname {output})"
+        output_directory="$(dirname {output.file_one_zip_rename})"
         mkdir -p "$output_directory"
 
         if [ "{wildcards.PE_SE}" == "1" ]; then
