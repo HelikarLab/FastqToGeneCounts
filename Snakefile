@@ -42,14 +42,14 @@ else:
 rule all:
     input:
         # Genome generation items + star genome index
-        os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}.bed"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_genome_sizes.txt"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_{ensembl_release_number}.gtf"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_rrna.interval_list"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_ref_flat.txt"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], "star", "job_complete.txt"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}.bed"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_genome_sizes.txt"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}.gtf"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_rrna.interval_list"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_ref_flat.txt"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
         
         expand(join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"), tissue_name=tissue_name(config), tag=tags(config)),
         expand(join(root_data, "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"), tissue_name=tissue_name(config), tag=tags(config)),
@@ -233,13 +233,13 @@ rule preroundup:
 
 rule generate_genome:
     output:
-        bed_file=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}.bed"),
-        ref_flat=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_ref_flat.txt"),
-        genome_sizes=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_genome_sizes.txt"),
-        gtf_file=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_{ensembl_release_number}.gtf"),
-        rrna_interval_list=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_rrna.interval_list"),
-        primary_assembly=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
-        primary_assembly_index=os.path.join(config["GENOME"]["SAVE_DIR"], f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai"),
+        bed_file=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}.bed"),
+        ref_flat=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_ref_flat.txt"),
+        genome_sizes=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_genome_sizes.txt"),
+        gtf_file=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}.gtf"),
+        rrna_interval_list=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_rrna.interval_list"),
+        primary_assembly=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
+        primary_assembly_index=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai"),
     conda: "envs/generate_genome.yaml"
     threads: 1
     resources:
@@ -259,18 +259,18 @@ rule star_index_genome:
         primary_assembly=rules.generate_genome.output.primary_assembly,
         gtf_file=rules.generate_genome.output.gtf_file
     output:
-        genome_dir=os.path.join(config["GENOME"]["SAVE_DIR"], "star"),
-        chromosome_length=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "chrLength.txt"),
-        chromosome_name=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "chrName.txt"),
-        chromosome_start=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "chrStart.txt"),
-        exon_gene_info=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "exonGeTrInfo.tab"),
-        gene_info=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "geneInfo.tab"),
-        genome=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "Genome"),
-        genome_parameters=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "genomeParameters.txt"),
-        sa=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "SA"),
-        sa_index=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "SAindex"),
-        sjdb_info=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "sjdbInfo.txt"),
-        job_complete=os.path.join(config["GENOME"]["SAVE_DIR"], "star", "job_complete.txt"),
+        genome_dir=os.path.join(config["GENOME"]["SAVE_DIR"], species_name,  "star"),
+        chromosome_length=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrLength.txt"),
+        chromosome_name=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrName.txt"),
+        chromosome_start=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrStart.txt"),
+        exon_gene_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "exonGeTrInfo.tab"),
+        gene_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "geneInfo.tab"),
+        genome=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "Genome"),
+        genome_parameters=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "genomeParameters.txt"),
+        sa=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "SA"),
+        sa_index=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "SAindex"),
+        sjdb_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbInfo.txt"),
+        job_complete=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
     conda: "envs/star.yaml"
     threads: 10
     resources:
@@ -452,7 +452,7 @@ rule fastqc_dump_fastq:
         runtime=150,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
-        repeat(join("benchmarks", "{tissue_name}", "fastqc_dump_fastq", "{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
+        repeat(join("benchmarks", "{tissue_name}", "fastqc_dump_fastq",  "{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
         output_directory="$(dirname {output})"
@@ -763,9 +763,6 @@ rule get_rnaseq_metrics:
     output:
         metrics=join(config["ROOTDIR"], "data", "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
         strand=join(config["ROOTDIR"], "data", "{tissue_name}", "strand", "{tissue_name}_{tag}_strand.txt"),
-    params:
-        # ref_flat=config["GENOME"]["REF_FLAT_FILE"],
-        # ribo_int_list=config["GENOME"]["RRNA_INTERVAL_LIST"],
     threads: 4
     resources:
         mem_mb=6144,
