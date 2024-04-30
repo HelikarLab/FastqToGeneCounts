@@ -20,7 +20,8 @@ ref_flat_url = "https://hgdownload.soe.ucsc.edu/goldenPath/{final_genome}/databa
 
 
 class Utilities:
-    @cache
+    _latest_release: int = -1
+
     @staticmethod
     def get_latest_release() -> int:
         """
@@ -29,6 +30,9 @@ class Utilities:
         Returns:
             int: An integer matching the release number. For example, if the latest release is `release-112`, this function returns `112`
         """
+        if Utilities._latest_release != -1:
+            return Utilities._latest_release
+
         pub_root: ftplib.FTP = ftplib.FTP(ensembl_url)
         pub_root.login()
 
@@ -40,6 +44,7 @@ class Utilities:
                 if release_number > latest_release:
                     latest_release = release_number
 
+        Utilities._latest_release = latest_release
         return latest_release
 
     @cache
@@ -54,13 +59,14 @@ class Utilities:
         Returns:
             bool: True if the release number is valid, False otherwise
         """
-        if isinstance(release_number, str):
-            if release_number.startswith("release-"):
-                release_number = int(release_number.split("-")[-1])
-            elif release_number.isdigit():
-                release_number = int(release_number)
-            else:
-                return False
+        try:
+            if isinstance(release_number, str):
+                if release_number.startswith("release-"):
+                    release_number = int(release_number.split("-")[-1])
+                else:
+                    release_number = int(release_number)
+        except ValueError:  # Unable to convert to an integer
+            return False
 
         latest_release = Utilities.get_latest_release()
         return 19 <= release_number <= latest_release  # 19 is the earliest release number
