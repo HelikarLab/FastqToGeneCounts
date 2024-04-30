@@ -347,7 +347,7 @@ def rRNA_interval_list_creation(taxon_id: int, save_directory: str) -> None:
 
     print(f"rRNA interval list save directory: {save_directory}")
 
-    genome_sizes = f"{save_directory}/sizes.genome"
+    genome_sizes = f"{save_directory}/{species_name}_genome_sizes.txt"
     genes = [file for file in os.listdir(save_directory) if file.endswith(".gtf")][0]  # fmt: skip
     primary_assembly_fa = [file for file in os.listdir(save_directory) if file.endswith(".fa")][0]  # fmt: skip
     primary_assembly_fai = f"{primary_assembly_fa}.fai"
