@@ -85,7 +85,7 @@ module load mamba
 ### Install Snakemake and Benchmarking Requirements
 Snakemake is required to run the pipeline.
 ```bash
-mamba install --name snakemake --channel conda-forge --channel bioconda snakemake
+mamba install --name snakemake --channel conda-forge --channel bioconda snakemake python
 pip install snakemake-executor-plugin-cluster-generic
 ```
 
@@ -99,6 +99,7 @@ We must install tabulate version `0.8.10` as anything under the `0.9.*` release 
 | `--channel conda-forge` |         The channel to install software from          |
 |  `--channel bioconda`   |         The channel to install software from          |
 |       `snakemake`       |  The software to install, defaults to latest version  |
+|        `python`         |             The latest version of python              |
 
 |                  Component                  |                        Description                         |
 |:-------------------------------------------:|:----------------------------------------------------------:|
