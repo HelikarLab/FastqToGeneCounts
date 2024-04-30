@@ -15,12 +15,6 @@ from utils.genome_generation import Utilities
 from utils.get import tags, tissue_name, PE_SE, sample, direction_from_name
 
 configfile: "config.yaml"
-
-
-
-# Validate file before reading with pandas
-#if validate.validate(config):
-#    print("Control file valid! Continuing...")
 os.makedirs(config["ROOTDIR"], exist_ok=True)
 
 # Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
