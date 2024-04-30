@@ -452,7 +452,7 @@ rule fastqc_dump_fastq:
         runtime=150,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
-        repeat(join("benchmarks" "{tissue_name}" "fastqc_dump_fastq" "{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
+        repeat(join("benchmarks", "{tissue_name}", "fastqc_dump_fastq", "{tissue_name}_{tag}_{PE_SE}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
         output_directory="$(dirname {output})"
