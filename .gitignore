@@ -1,17 +1,16 @@
+# Project specific items
+benchmarks
+COMO_input
+docs/_site/
+genome
+logs
+results
+controls
+
+# General files
+**/__pycache__/
 **/.DS_Store
 **/.snakemake/
-**/*cache*
-
+**/*cache/
 .vscode
 .idea
-
-/controls
-/benchmarks
-/COMO_input
-/controls
-/docs/_site/
-/genome
-/logs
-/results
-/venv
-/controls
