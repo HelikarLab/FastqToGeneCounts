@@ -268,18 +268,9 @@ rule star_index_genome:
         primary_assembly=rules.generate_genome.output.primary_assembly,
         gtf_file=rules.generate_genome.output.gtf_file
     output:
-        genome_dir=os.path.join(config["GENOME"]["SAVE_DIR"], species_name,  "star"),
-        chromosome_length=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrLength.txt"),
-        chromosome_name=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrName.txt"),
-        chromosome_start=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrStart.txt"),
-        exon_gene_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "exonGeTrInfo.tab"),
-        gene_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "geneInfo.tab"),
-        genome=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "Genome"),
-        genome_parameters=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "genomeParameters.txt"),
-        sa=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "SA"),
-        sa_index=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "SAindex"),
-        sjdb_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbInfo.txt"),
         job_complete=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
+    params:
+        species_name=species_name,
     conda: "envs/star.yaml"
     threads: 10
     resources:
@@ -288,12 +279,17 @@ rule star_index_genome:
         tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
     shell:
         """
+        genome_directory=$(dirname {output.job_complete})
+        mkdir -p "$genome_directory"
+        
         STAR --runMode genomeGenerate \
         --runThreadN {threads} \
-        --genomeDir {config[GENOME][SAVE_DIR]} \
+        --genomeDir "$genome_directory" \
         --genomeFastaFiles {input.primary_assembly} \
         --sjdbGTFfile {input.gtf_file} \
         --sjdbOverhang 99
+        
+        echo "STAR genomeGenerate for species '{params.species_name}' finished at $(date)" > {output.job_complete}
         """
 
 rule get_contaminant_genomes:
@@ -699,10 +695,8 @@ def new_star_input(wildcards):
 
 rule star_align:
     input:
-        # reads=collect_star_align_input,
         reads=new_star_input,
-        genome_dir=rules.star_index_genome.output.genome_dir,
-        generate_genome_complete=rules.star_index_genome.output.job_complete,
+        genome_index=rules.star_index_genome.output.job_complete,
     output:
         gene_table=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
         bam_file=os.path.join(config["ROOTDIR"], "data", "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
@@ -722,11 +716,13 @@ rule star_align:
         repeat(os.path.join("benchmarks", "{tissue_name}", "star_align", "{tissue_name}_{tag}.benchmark"), config["BENCHMARK_TIMES"])
     shell:
         """
+        genome_directory=$(dirname {input.genome_index})
+        
         STAR \
         --runThreadN {threads} \
         --readFilesCommand "zcat" \
         --readFilesIn {input.reads} \
-        --genomeDir {input.genome_dir} \
+        --genomeDir "$genome_directory" \
         --outFileNamePrefix {params.prefix} \
         --outSAMtype BAM SortedByCoordinate \
         --outSAMunmapped Within \
