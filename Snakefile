@@ -4,7 +4,7 @@ import pandas as pd
 import warnings
 from pathlib import Path
 
-from utils import get, perform, validate
+from utils import get, perform
 from utils.get import tags, tissue_name, PE_SE, sample, direction_from_name
 from utils.constants import Layout, PrepMethod
 from utils.genome_generation import Utilities
