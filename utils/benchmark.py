@@ -1,10 +1,11 @@
+from _datetime import datetime
+from pathlib import Path
+
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.graph_objs import Figure
-from pathlib import Path
-import typing
-import pandas as pd
-from _datetime import datetime
+
 
 def create_dataframe(files: dict[str, list[Path]]) -> pd.DataFrame:
     """
@@ -12,13 +13,12 @@ def create_dataframe(files: dict[str, list[Path]]) -> pd.DataFrame:
     :param files: A list of benchmark files as Path objects
     :return: A pandas dataframe
     """
-    
+
     dataframes: pd.DataFrame = pd.DataFrame()
     column_names: list[str] = []
     for rule_name, files in files.items():
         rule_df: pd.DataFrame = pd.DataFrame()
         for file in files:
-            
             # Only get the "time" column
             try:
                 df = pd.read_csv(file, delimiter="\t")["s"]
@@ -26,20 +26,20 @@ def create_dataframe(files: dict[str, list[Path]]) -> pd.DataFrame:
                 print(f"No columns found in file {file}")
                 exit(1)
             rule_df = pd.concat([rule_df, df], axis=0, ignore_index=True)
-        
+
         # For each rule dataframe created, concatentate it to the main dataframe
         dataframes = pd.concat([dataframes, rule_df], axis=1, ignore_index=True)
-        
+
         # Crate a title-cased rule name by splitting the rule name on underscores and joining the words with spaces, then uppercasing letters after a space
         new_column_name: str = " ".join(rule_name.split("_")).title()
         column_names.append(new_column_name)
-    
+
     # Reset the column names
     dataframes.columns = column_names
-    
+
     # Calculate the average of each rule and palce it at the bottom of the dataframe
     dataframes.loc["Average"] = dataframes.mean()
-    
+
     return dataframes
 
 
@@ -54,20 +54,16 @@ def plot_data(df: pd.DataFrame) -> Figure:
     # df: pd.DataFrame = df[df > 10]
     df: pd.DataFrame = df.sort_values(ascending=True)
     fig: px.bar = px.bar(
-        df, x=df.index, y=df.values,
+        df,
+        x=df.index,
+        y=df.values,
         labels={"x": "Rule Name", "y": "Time (seconds)"},
-        title="Average Runtime for a Single File"
+        title="Average Runtime for a Single File",
     )
-    
+
     # Add a bar that is the total of the Averages row
-    fig.add_trace(
-        go.Bar(
-            x=["Total"],
-            y=[df.sum()],
-            name="Total"
-        )
-    )
-    
+    fig.add_trace(go.Bar(x=["Total"], y=[df.sum()], name="Total"))
+
     return fig
 
 
@@ -84,7 +80,7 @@ def save_plot(fig: Figure) -> None:
 def main():
     # Get all benchmark files in the current directory
     benchmark_files: list[Path] = [file for file in Path("../benchmarks").rglob("*.benchmark")]
-    
+
     # Create a dictionary of rule names and their corresponding benchmark files
     rule_benchmark_files: dict[str, list[Path]] = {}
     for file in benchmark_files:
@@ -92,11 +88,11 @@ def main():
         if rule_name not in rule_benchmark_files:
             rule_benchmark_files[rule_name] = []
         rule_benchmark_files[rule_name].append(file)
-    
+
     benchmark_df: pd.DataFrame = create_dataframe(rule_benchmark_files)
     plotly: Figure = plot_data(benchmark_df)
     save_plot(plotly)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

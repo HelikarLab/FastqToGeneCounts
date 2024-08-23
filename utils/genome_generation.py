@@ -11,6 +11,7 @@ import subprocess
 import urllib.request
 from functools import cache
 from http.client import HTTPResponse
+from typing import Union
 
 _ncbi_url = "https://api.ncbi.nlm.nih.gov/datasets/v2alpha"
 _ensembl_url = "ftp.ensembl.org"
@@ -47,9 +48,9 @@ class Utilities:
         Utilities._latest_release = latest_release
         return latest_release
 
-    @cache
     @staticmethod
-    def is_validate_release_number(release_number: str | int) -> bool:
+    @cache
+    def is_validate_release_number(release_number: Union[str, int]) -> bool:
         """
         This function will make sure `release_number` exists in the ensembl_ftp_url
 
@@ -71,14 +72,14 @@ class Utilities:
         latest_release = Utilities.get_latest_release()
         return 19 <= release_number <= latest_release  # 19 is the earliest release number
 
-    @cache
     @staticmethod
+    @cache
     def is_valid_taxon(taxon_id: int) -> bool:
         """
         This function will make sure the species provided is correct by validating it against NCBI's Taxonomy database
 
         Args:
-            species (str): The species name
+            taxon_id (int): The NCBI Taxonomy ID
 
         Returns:
             bool: True if the species is valid, False otherwise
@@ -98,8 +99,8 @@ class Utilities:
 
         return is_valid
 
-    @cache
     @staticmethod
+    @cache
     def get_species_from_taxon(
         taxon_id: int,
         lowercase: bool = True,
@@ -114,7 +115,7 @@ class Utilities:
         Args:
             taxon_id (TaxonID): The taxon ID to convert to species name
             lowercase (bool): If True, the species name will be returned in lowercase
-            use_underscores (bool): If True, spaces will be replaced with underscores
+            replace_spaces (bool): If True, spaces will be replaced with underscores
             replace_with (str): The character to replace spaces with
 
         Returns:
@@ -146,7 +147,7 @@ class NCBI:
 
         # Validate input arguments
         if not self._release_number.startswith(("latest", "release-")):
-            raise ValueError(f"""release_number must start with 'latest' or 'release-'.\nExamples: "latest", "release-112""")  # fmt: skip
+            raise ValueError("""release_number must start with 'latest' or 'release-'.\nExamples: "latest", "release-112""")  # fmt: skip
         if not Utilities.is_valid_taxon(self._taxon_id):
             raise ValueError(f"The provided taxon_id ({self._taxon_id}) is not valid.\nPlease validate your taxon ID at https://www.ncbi.nlm.nih.gov/Taxonomy")  # fmt: skip
         if self._release_number != "latest" and not Utilities.is_validate_release_number(self._release_number):
@@ -173,7 +174,6 @@ class NCBI:
 
         print(f"fasta file save directory: {save_directory}")
 
-        total_download_size = 0
         fasta_root = f"/pub/{self._release_number}/fasta/{self._species_name}/dna"
         primary_assembly_suffix = ".dna.primary_assembly.fa.gz"
         primary_assembly_path = ""
@@ -271,7 +271,7 @@ class NCBI:
         )
 
 
-def ref_flat_file_creation(taxon_id: int, save_directory: str, show_progress: bool) -> None:
+def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
     """
     This function will download the `refFlat.txt` file from the UCSC Genome Browser and save it as a file
 
@@ -422,7 +422,7 @@ def bed_file_creation(taxon_id: int, save_directory: str) -> None:
 
     reader = csv.reader(open(ref_flat_file, "r"), delimiter="\t", quotechar=None)
     writer = csv.writer(open(bed_output_file, "w"), delimiter="\t", quotechar=None)
-    writer.writerow([f'track name="refflat"'])
+    writer.writerow(['track name="refflat"'])
 
     for row in reader:
         writer.writerow(
@@ -469,7 +469,7 @@ def main():
     ncbi.download_fasta_file(save_directory=args.root_save_directory)
     ncbi.download_gtf_file(save_directory=args.root_save_directory)
 
-    ref_flat_file_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory, show_progress=args.show_progress)
+    ref_flat_file_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
     rRNA_interval_list_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
     bed_file_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
 

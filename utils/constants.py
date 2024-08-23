@@ -1,10 +1,12 @@
 from enum import Enum
 
+
 class Layout(Enum):
     PE = "paired_end"
     SE = "single_end"
     SLC = "single_cell"
-    
+
+
 class PrepMethod(Enum):
     total = "total"
     mrna = "mrna"

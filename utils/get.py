@@ -1,23 +1,17 @@
 import csv
 import os
-import sys
 from pathlib import Path
-from typing import Union
+from typing import Literal, Optional, Union
 
-import snakemake
 from snakemake import io as snakemake_io
 
 from utils import perform
 from utils.constants import Layout
 
 
-def from_master_config(config: dict, attribute: str) -> list[str]:
+def from_master_config(config: dict, attribute: Literal["SRR", "tissue", "tag", "PE_SE"]) -> list[str]:
     valid_inputs = ["SRR", "tissue", "tag", "PE_SE"]
     sub_list = ["tissue", "tag"]
-    if attribute not in valid_inputs:
-        sys.exit(
-            f"\nInvalid attribute input. '{attribute}' is not one of: {valid_inputs}\n"
-        )
 
     collect_attributes = []
     index_value = valid_inputs.index(attribute)
@@ -72,7 +66,7 @@ def from_master_config(config: dict, attribute: str) -> list[str]:
     return collect_attributes
 
 
-def srr_code(config: dict) -> list[str] | None:
+def srr_code(config: dict) -> Optional[list[str]]:
     """
     Only should be getting SRR values if we are performing prefetch
     """
@@ -85,9 +79,7 @@ def tissue_name(config: dict) -> list[str]:
         return from_master_config(config=config, attribute="tissue")
     else:
         fastq_input = snakemake_io.glob_wildcards(
-            os.path.join(
-                config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"
-            )
+            os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         )
         return fastq_input.tissue_name
 
@@ -97,9 +89,7 @@ def tags(config: dict) -> list[str]:
         return from_master_config(config=config, attribute="tag")
     else:
         fastq_input = snakemake_io.glob_wildcards(
-            os.path.join(
-                config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"
-            )
+            os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         )
         return fastq_input.tag
 
@@ -109,9 +99,7 @@ def PE_SE(config: dict) -> list[str]:
         return from_master_config(config=config, attribute="PE_SE")
     else:
         fastq_input = snakemake_io.glob_wildcards(
-            os.path.join(
-                config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"
-            )
+            os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         )
         return fastq_input.PE_SE
 
@@ -135,9 +123,7 @@ def sample(config: dict) -> list[str]:
         tag = from_master_config(config=config, attribute="tag")
     else:
         fastq_input = snakemake_io.glob_wildcards(
-            os.path.join(
-                config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"
-            )
+            os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
         )
         tag = fastq_input.tag
 

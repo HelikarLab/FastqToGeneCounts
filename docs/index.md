@@ -9,6 +9,9 @@ last_updated: Sept 20, 2022
 
 # Welcome!
 
+[![Code style: snakefmt](https://img.shields.io/badge/code%20style-snakefmt-000000.svg)](https://github.com/snakemake/snakefmt)
+
+
 This is a [snakemake](https://snakemake.readthedocs.io/en/stable/) workflow that aims to do several things, using as much parallelization as possible.
 
 Given a CSV file containing: SRR codes, target output names, library layouts, and library preparation methods:
