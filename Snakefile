@@ -11,7 +11,8 @@ from utils.genome_generation import Utilities
 
 configfile: "config.yaml"
 
-os.makedirs(config["ROOTDIR"],exist_ok=True)
+
+os.makedirs(config["ROOTDIR"], exist_ok=True)
 
 # Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
 delimiter = csv.Sniffer().sniff(open(config["MASTER_CONTROL"]).read(1024)).delimiter
@@ -22,10 +23,10 @@ samples: pd.DataFrame = pd.read_csv(
 )
 
 config_file_basename: str = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
-screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv",delimiter=",",header=0)
-contaminant_genomes_root = os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes")
-root_data = os.path.join(config["ROOTDIR"],"data")
-root_temp = os.path.join(config["ROOTDIR"],"temp")
+screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv", delimiter=",", header=0)
+contaminant_genomes_root = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
+root_data = os.path.join(config["ROOTDIR"], "data")
+root_temp = os.path.join(config["ROOTDIR"], "temp")
 species_name = Utilities.get_species_from_taxon(taxon_id=config["GENOME"]["TAXONOMY_ID"])
 
 if config["GENOME"]["VERSION"] == "latest":
@@ -43,27 +44,27 @@ else:
 rule all:
     input:
         # Genome generation items + star genome index
-        os.path.join(config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}.bed"),
-        os.path.join(config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_genome_sizes.txt"),
-        os.path.join(config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_{ensembl_release_number}.gtf"),
-        os.path.join(config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_rrna.interval_list"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}.bed"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_genome_sizes.txt"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}.gtf"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_rrna.interval_list"),
         os.path.join(
-            config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_{ensembl_release_number}_primary_assembly.fa"
+            config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}_primary_assembly.fa"
         ),
         os.path.join(
             config["GENOME"]["SAVE_DIR"],
             species_name,
             f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai",
         ),
-        os.path.join(config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_ref_flat.txt"),
-        os.path.join(config["GENOME"]["SAVE_DIR"],species_name,"star","job_complete.txt"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_ref_flat.txt"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
         expand(
-            os.path.join(root_data,"{tissue_name}","layouts","{tissue_name}_{tag}_layout.txt"),
+            os.path.join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
         ),
         expand(
-            os.path.join(root_data,"{tissue_name}","prepMethods","{tissue_name}_{tag}_prep_method.txt"),
+            os.path.join(root_data, "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
         ),
@@ -81,19 +82,19 @@ rule all:
             PE_SE=get.PE_SE(config),
         ),
         expand(
-            os.path.join(root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"),
+            os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
         ),
         expand(
-            os.path.join(root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.bam"),
+            os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
             zip,
             tissue_name=get.tissue_name(config=config),
             tag=get.tags(config=config),
         ),
         expand(
-            os.path.join(root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.bam.bai"),
+            os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai"),
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
@@ -110,7 +111,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(root_temp,"prefetch","{tissue_name}","{tissue_name}_{tag}","{tissue_name}_{tag}.sra"),
+                os.path.join(root_temp, "prefetch", "{tissue_name}", "{tissue_name}_{tag}", "{tissue_name}_{tag}.sra"),
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -120,7 +121,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes","{name}"),
+                os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "{name}"),
                 name=screen_genomes["name"].values,
             )
             if perform.screen(config=config)
@@ -128,7 +129,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(root_data,"{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
+                os.path.join(root_data, "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -140,7 +141,7 @@ rule all:
         (
             expand(
                 os.path.join(
-                    root_data,"{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"
+                    root_data, "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"
                 ),
                 zip,
                 tissue_name=get.tissue_name(config=config),
@@ -152,7 +153,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(root_data,"{tissue_name}","fragmentSizes","{tissue_name}_{tag}_fragment_length.txt"),
+                os.path.join(root_data, "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt"),
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -162,7 +163,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(root_data,"{tissue_name}","fq_screen","{tissue_name}_{tag}_{PE_SE}_screen.txt"),
+                os.path.join(root_data, "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt"),
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -190,7 +191,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(root_data,"{tissue_name}","picard","rnaseq","{tissue_name}_{tag}_rnaseq.txt"),
+                os.path.join(root_data, "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
                 zip,
                 tissue_name=get.tissue_name(config),
                 tag=get.tags(config),
@@ -199,7 +200,7 @@ rule all:
             else []
         ),
         expand(
-            os.path.join("COMO_input","{tissue_name}","geneCounts","{sample}","{tissue_name}_{tag}.tab"),
+            os.path.join("COMO_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"),
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
@@ -208,7 +209,7 @@ rule all:
         (
             expand(
                 os.path.join(
-                    "COMO_input","{tissue_name}","strandedness","{sample}","{tissue_name}_{tag}_strandedness.txt"
+                    "COMO_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"
                 ),
                 zip,
                 tissue_name=get.tissue_name(config),
@@ -238,7 +239,7 @@ rule all:
         (
             expand(
                 os.path.join(
-                    "COMO_input","{tissue_name}","fragmentSizes","{sample}","{tissue_name}_{tag}_fragment_size.txt"
+                    "COMO_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt"
                 ),
                 zip,
                 tissue_name=get.tissue_name(config),
@@ -252,8 +253,8 @@ rule all:
 
 rule preroundup:
     output:
-        layout=os.path.join(root_data,"{tissue_name}","layouts","{tissue_name}_{tag}_layout.txt"),
-        preparation=os.path.join(root_data,"{tissue_name}","prepMethods","{tissue_name}_{tag}_prep_method.txt"),
+        layout=os.path.join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
+        preparation=os.path.join(root_data, "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
     resources:
         mem_mb=256,
         runtime=1,
@@ -261,10 +262,10 @@ rule preroundup:
     run:
         # SRR12873784,effectorcd8_S1R1,PE,total
         sample_row: pd.DataFrame = samples.loc[
-                                   samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}",
-                                   :,
-                                   # Collect everything from the row by using `:`
-                                   ]
+            samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}",
+            :,
+            # Collect everything from the row by using `:`
+        ]
         # Collect the required data
         srr_code: str = sample_row["srr"].values[0]
         name: str = sample_row["sample"].values[0]
@@ -272,15 +273,15 @@ rule preroundup:
         prep_method: str = sample_row["prep_method"].values[0].lower()
         tissue_name: str = name.split("_")[0]
         tag: str = name.split("_")[1]
-        study: str = re.match(r"S\d+",tag).group()
+        study: str = re.match(r"S\d+", tag).group()
 
         # Write paired/single end or single cell to the appropriate location
-        layouts_root: Path = Path(root_data,tissue_name,"layouts",f"{name}_layout.txt")
-        layouts_como: Path = Path("COMO_input",tissue_name,"layouts",study,f"{name}_layout.txt")
-        layouts_root.parent.mkdir(parents=True,exist_ok=True)
-        layouts_como.parent.mkdir(parents=True,exist_ok=True)
-        layouts_write_root = open(layouts_root,"w")
-        layouts_write_como = open(layouts_como,"w")
+        layouts_root: Path = Path(root_data, tissue_name, "layouts", f"{name}_layout.txt")
+        layouts_como: Path = Path("COMO_input", tissue_name, "layouts", study, f"{name}_layout.txt")
+        layouts_root.parent.mkdir(parents=True, exist_ok=True)
+        layouts_como.parent.mkdir(parents=True, exist_ok=True)
+        layouts_write_root = open(layouts_root, "w")
+        layouts_write_como = open(layouts_como, "w")
         layout: str = str(sample_row["endtype"].values[0]).upper()  # PE, SE, or SLC
 
         if Layout[layout] == Layout.PE:
@@ -298,12 +299,12 @@ rule preroundup:
         layouts_write_como.close()
 
         # Write mrna/total to the appropriate location
-        prep_root: Path = Path(root_data,tissue_name,"prepMethods",f"{name}_prep_method.txt")
-        prep_como: Path = Path("COMO_input",tissue_name,"prepMethods",study,f"{name}_prep_method.txt")
-        prep_root.parent.mkdir(parents=True,exist_ok=True)
-        prep_como.parent.mkdir(parents=True,exist_ok=True)
-        write_prep_root = open(prep_root.as_posix(),"w")
-        write_prep_como = open(prep_como.as_posix(),"w")
+        prep_root: Path = Path(root_data, tissue_name, "prepMethods", f"{name}_prep_method.txt")
+        prep_como: Path = Path("COMO_input", tissue_name, "prepMethods", study, f"{name}_prep_method.txt")
+        prep_root.parent.mkdir(parents=True, exist_ok=True)
+        prep_como.parent.mkdir(parents=True, exist_ok=True)
+        write_prep_root = open(prep_root.as_posix(), "w")
+        write_prep_como = open(prep_como.as_posix(), "w")
         prep_method = str(sample_row["prep_method"].values[0]).lower()  # total or mrna
 
         if PrepMethod[prep_method] == PrepMethod.total:
@@ -319,42 +320,42 @@ rule preroundup:
 
         # Make the required directories
         directories: list[str] = [
-            os.path.join("COMO_input",tissue_name,"geneCounts"),
-            os.path.join("COMO_input",tissue_name,"insertSizeMetrics"),
-            os.path.join("COMO_input",tissue_name,"layouts"),
-            os.path.join("COMO_input",tissue_name,"layouts",study),
-            os.path.join("COMO_input",tissue_name,"fragmentSizes"),
-            os.path.join("COMO_input",tissue_name,"prepMethods"),
-            os.path.join("COMO_input",tissue_name,"prepMethods",study),
-            os.path.join(root_data,tissue_name,"layouts"),
-            os.path.join(root_data,tissue_name,"prepMethods"),
-            os.path.join("COMO_input",tissue_name,"geneCounts"),
-            os.path.join("COMO_input",tissue_name,"insertSizeMetrics"),
-            os.path.join("COMO_input",tissue_name,"layouts"),
-            os.path.join("COMO_input",tissue_name,"layouts",study),
-            os.path.join("COMO_input",tissue_name,"fragmentSizes"),
-            os.path.join("COMO_input",tissue_name,"prepMethods"),
-            os.path.join("COMO_input",tissue_name,"prepMethods",study),
-            os.path.join(root_data,tissue_name,"layouts"),
-            os.path.join(root_data,tissue_name,"prepMethods"),
+            os.path.join("COMO_input", tissue_name, "geneCounts"),
+            os.path.join("COMO_input", tissue_name, "insertSizeMetrics"),
+            os.path.join("COMO_input", tissue_name, "layouts"),
+            os.path.join("COMO_input", tissue_name, "layouts", study),
+            os.path.join("COMO_input", tissue_name, "fragmentSizes"),
+            os.path.join("COMO_input", tissue_name, "prepMethods"),
+            os.path.join("COMO_input", tissue_name, "prepMethods", study),
+            os.path.join(root_data, tissue_name, "layouts"),
+            os.path.join(root_data, tissue_name, "prepMethods"),
+            os.path.join("COMO_input", tissue_name, "geneCounts"),
+            os.path.join("COMO_input", tissue_name, "insertSizeMetrics"),
+            os.path.join("COMO_input", tissue_name, "layouts"),
+            os.path.join("COMO_input", tissue_name, "layouts", study),
+            os.path.join("COMO_input", tissue_name, "fragmentSizes"),
+            os.path.join("COMO_input", tissue_name, "prepMethods"),
+            os.path.join("COMO_input", tissue_name, "prepMethods", study),
+            os.path.join(root_data, tissue_name, "layouts"),
+            os.path.join(root_data, tissue_name, "prepMethods"),
         ]
         for i in directories:
-            os.makedirs(name=i,exist_ok=True)
+            os.makedirs(name=i, exist_ok=True)
 
 
 rule generate_genome:
     output:
-        bed_file=os.path.join(config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}.bed"),
-        ref_flat=os.path.join(config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_ref_flat.txt"),
-        genome_sizes=os.path.join(config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_genome_sizes.txt"),
+        bed_file=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}.bed"),
+        ref_flat=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_ref_flat.txt"),
+        genome_sizes=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_genome_sizes.txt"),
         gtf_file=os.path.join(
-            config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_{ensembl_release_number}.gtf"
+            config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}.gtf"
         ),
         rrna_interval_list=os.path.join(
-            config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_rrna.interval_list"
+            config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_rrna.interval_list"
         ),
         primary_assembly=os.path.join(
-            config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_{ensembl_release_number}_primary_assembly.fa"
+            config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}_primary_assembly.fa"
         ),
         primary_assembly_index=os.path.join(
             config["GENOME"]["SAVE_DIR"],
@@ -367,7 +368,7 @@ rule generate_genome:
     resources:
         mem_mb=8096,
         runtime=30,
-        tissue_name="",# intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
+        tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
     shell:
         """
         python3 utils/genome_generation.py \
@@ -382,7 +383,7 @@ rule star_index_genome:
         primary_assembly=rules.generate_genome.output.primary_assembly,
         gtf_file=rules.generate_genome.output.gtf_file,
     output:
-        job_complete=os.path.join(config["GENOME"]["SAVE_DIR"],species_name,"star","job_complete.txt"),
+        job_complete=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
     params:
         species_name=species_name,
     conda:
@@ -391,7 +392,7 @@ rule star_index_genome:
     resources:
         mem_mb=51200,
         runtime=150,
-        tissue_name="",# intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
+        tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
     shell:
         """
         genome_directory=$(dirname {output.job_complete})
@@ -411,28 +412,28 @@ rule star_index_genome:
 rule get_contaminant_genomes:
     output:
         root_output=directory(contaminant_genomes_root),
-        Adapters=directory(os.path.join(contaminant_genomes_root,"Adapters")),
-        Arabidopsis=directory(os.path.join(contaminant_genomes_root,"Arabidopsis")),
-        Drosophila=directory(os.path.join(contaminant_genomes_root,"Drosophila")),
-        E_coli=directory(os.path.join(contaminant_genomes_root,"E_coli")),
-        Human=directory(os.path.join(contaminant_genomes_root,"Human")),
-        Lambda=directory(os.path.join(contaminant_genomes_root,"Lambda")),
-        Mitochondria=directory(os.path.join(contaminant_genomes_root,"Mitochondria")),
-        Mouse=directory(os.path.join(contaminant_genomes_root,"Mouse")),
-        PhiX=directory(os.path.join(contaminant_genomes_root,"PhiX")),
-        Rat=directory(os.path.join(contaminant_genomes_root,"Rat")),
-        Vectors=directory(os.path.join(contaminant_genomes_root,"Vectors")),
-        Worm=directory(os.path.join(contaminant_genomes_root,"Worm")),
-        Yeast=directory(os.path.join(contaminant_genomes_root,"Yeast")),
-        rRNA=directory(os.path.join(contaminant_genomes_root,"rRNA")),
-        config=os.path.join(contaminant_genomes_root,"fastq_screen.conf"),
+        Adapters=directory(os.path.join(contaminant_genomes_root, "Adapters")),
+        Arabidopsis=directory(os.path.join(contaminant_genomes_root, "Arabidopsis")),
+        Drosophila=directory(os.path.join(contaminant_genomes_root, "Drosophila")),
+        E_coli=directory(os.path.join(contaminant_genomes_root, "E_coli")),
+        Human=directory(os.path.join(contaminant_genomes_root, "Human")),
+        Lambda=directory(os.path.join(contaminant_genomes_root, "Lambda")),
+        Mitochondria=directory(os.path.join(contaminant_genomes_root, "Mitochondria")),
+        Mouse=directory(os.path.join(contaminant_genomes_root, "Mouse")),
+        PhiX=directory(os.path.join(contaminant_genomes_root, "PhiX")),
+        Rat=directory(os.path.join(contaminant_genomes_root, "Rat")),
+        Vectors=directory(os.path.join(contaminant_genomes_root, "Vectors")),
+        Worm=directory(os.path.join(contaminant_genomes_root, "Worm")),
+        Yeast=directory(os.path.join(contaminant_genomes_root, "Yeast")),
+        rRNA=directory(os.path.join(contaminant_genomes_root, "rRNA")),
+        config=os.path.join(contaminant_genomes_root, "fastq_screen.conf"),
     threads: 1
     params:
         zip_url=r"https://uofnelincoln-my.sharepoint.com/:u:/g/personal/jloecker3_unl_edu/EWO6p5t-kjZEks3pW-1RVvgBR2Q-nFI_8kXx5_NB8_kYnw?e=dp2NWX&download=1",
     resources:
         mem_mb=6144,
         runtime=30,
-        tissue_name="",# intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
+        tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
     shell:
         """
         mkdir -p {output.root_output}
@@ -453,7 +454,7 @@ rule prefetch:
     input:
         config["MASTER_CONTROL"],
     output:
-        os.path.join(root_temp,"prefetch","{tissue_name}","{tissue_name}_{tag}","{tissue_name}_{tag}.sra"),
+        os.path.join(root_temp, "prefetch", "{tissue_name}", "{tissue_name}_{tag}", "{tissue_name}_{tag}.sra"),
     conda:
         "envs/SRAtools.yaml"
     threads: 1
@@ -463,15 +464,15 @@ rule prefetch:
             "srr",
         ],
         scratch_dir=config["SCRATCH_DIR"],
-        output_directory=os.path.join(root_temp,"prefetch","{tissue_name}_{tag}"),
-        temp_file=os.path.join(config["SCRATCH_DIR"],"{tissue_name}_{tag}.sra"),
+        output_directory=os.path.join(root_temp, "prefetch", "{tissue_name}_{tag}"),
+        temp_file=os.path.join(config["SCRATCH_DIR"], "{tissue_name}_{tag}.sra"),
     resources:
         mem_mb=16384,
         runtime=20,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","prefetch","{tissue_name}_{tag}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "prefetch", "{tissue_name}_{tag}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -497,7 +498,7 @@ checkpoint fasterq_dump:
     input:
         prefetch=rules.prefetch.output,
     output:
-        fastq=os.path.join(root_data,"{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
+        fastq=os.path.join(root_data, "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
     threads: 10
     conda:
         "envs/SRAtools.yaml"
@@ -520,7 +521,7 @@ checkpoint fasterq_dump:
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","fasterq_dump","{tissue_name}_{tag}_{PE_SE}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "fasterq_dump", "{tissue_name}_{tag}_{PE_SE}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -550,19 +551,19 @@ def fastqc_dump_fastq_input(wildcards):
     if perform.prefetch(config):
         if str(wildcards.PE_SE) == "1":
             return [
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="1").output[0],
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="2").output[0],
+                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0],
+                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0],
             ]
-        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="S").output
+        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output
 
     # Make sure we are able to load local FastQ files
     if "LOCAL_FASTQ_FILES" in config.keys() and os.path.exists(config["LOCAL_FASTQ_FILES"]):
         for path, subdir, files in os.walk(config["LOCAL_FASTQ_FILES"]):
             for file in files:
                 if (wildcards.tissue_name in file) and (wildcards.tag in file) and (f"_{wildcards.PE_SE}" in file):
-                    file_one: str = str(os.path.join(path,file))
+                    file_one: str = str(os.path.join(path, file))
                     return (
-                        [file_one, file_one.replace("_1.fastq.gz","_2.fastq.gz")]
+                        [file_one, file_one.replace("_1.fastq.gz", "_2.fastq.gz")]
                         if str(wildcards.PE_SE) == "1"
                         else file_one
                     )
@@ -573,7 +574,7 @@ rule fastqc_dump_fastq:
         fastq=fastqc_dump_fastq_input,
     output:
         file_one_zip_rename=os.path.join(
-            root_data,"{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"
+            root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"
         ),
         file_one_html_rename=os.path.join(
             root_data,
@@ -584,22 +585,22 @@ rule fastqc_dump_fastq:
         ),
     params:
         file_one_zip=os.path.join(
-            root_data,"{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.zip"
+            root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.zip"
         ),
         file_one_html=os.path.join(
-            root_data,"{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_{PE_SE}_fastqc.html"
+            root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_{PE_SE}_fastqc.html"
         ),
         file_two_zip=os.path.join(
-            root_data,"{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_2_fastqc.zip"
+            root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_2_fastqc.zip"
         ),
         file_two_html=os.path.join(
-            root_data,"{tissue_name}","fastqc","untrimmed_reads","{tissue_name}_{tag}_2_fastqc.html"
+            root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_2_fastqc.html"
         ),
         file_two_zip_rename=os.path.join(
-            root_data,"{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_2_fastqc.zip"
+            root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.zip"
         ),
         file_two_html_rename=os.path.join(
-            root_data,"{tissue_name}","fastqc","untrimmed_reads","untrimmed_{tissue_name}_{tag}_2_fastqc.html"
+            root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.html"
         ),
     threads: 8
     conda:
@@ -610,7 +611,7 @@ rule fastqc_dump_fastq:
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","fastqc_dump_fastq","{tissue_name}_{tag}_{PE_SE}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "fastqc_dump_fastq", "{tissue_name}_{tag}_{PE_SE}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -661,13 +662,13 @@ rule contaminant_screen:
         files=contaminant_screen_input,
         genomes=contaminant_genomes_root,
     output:
-        os.path.join(root_data,"{tissue_name}","fq_screen","{tissue_name}_{tag}_{PE_SE}_screen.txt"),
+        os.path.join(root_data, "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt"),
     params:
         tissue_name="{tissue_name}",
         tag="{tag}",
         PE_SE="{PE_SE}",
         genomes_config=rules.get_contaminant_genomes.output.config,
-        output_directory=os.path.join(root_data,"{tissue_name}","fq_screen"),
+        output_directory=os.path.join(root_data, "{tissue_name}", "fq_screen"),
     conda:
         "envs/screen.yaml"
     threads: 10
@@ -677,7 +678,7 @@ rule contaminant_screen:
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","contaminant_screen","{tissue_name}_{tag}_{PE_SE}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "contaminant_screen", "{tissue_name}_{tag}_{PE_SE}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -690,16 +691,16 @@ def get_trim_input(wildcards):
     if perform.dump_fastq(config):
         if str(wildcards.PE_SE) in ["1", "2"]:
             return [
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="1").output,
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="2").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
             ]
-        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="S").output
+        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output
     else:
         files = list(
             Path(config["LOCAL_FASTQ_FILES"]).rglob("{tissue_name}_{tag}_{PE_SE}.fastq.gz".format(**wildcards))
         )
         if str(wildcards.PE_SE) in ["1", "2"]:
-            return [str(file) for file in files] + [str(file).replace("_1.fastq.gz","_2.fastq.gz") for file in files]
+            return [str(file) for file in files] + [str(file).replace("_1.fastq.gz", "_2.fastq.gz") for file in files]
         else:
             return [str(file) for file in files]
 
@@ -708,7 +709,7 @@ checkpoint trim:
     input:
         get_trim_input,
     output:
-        os.path.join(root_data,"{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
+        os.path.join(root_data, "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
     threads: 16
     conda:
         "envs/trim.yaml"
@@ -720,7 +721,7 @@ checkpoint trim:
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","trim","{tissue_name}_{tag}_{PE_SE}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "trim", "{tissue_name}_{tag}_{PE_SE}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -749,11 +750,11 @@ checkpoint trim:
 
 def get_fastqc_trim_input(wildcards):
     if wildcards.PE_SE == "1":
-        forward = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="1").output)
-        reverse = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="2").output)
+        forward = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)
+        reverse = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)
         return [forward, reverse]
     else:
-        return checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="S").output
+        return checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output
 
 
 rule fastqc_trim:
@@ -761,14 +762,14 @@ rule fastqc_trim:
         get_fastqc_trim_input,
     output:
         os.path.join(
-            root_data,"{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"
+            root_data, "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"
         ),
     params:
         file_two_input=os.path.join(
-            root_data,"{tissue_name}","trimmed_reads","trimmed_{tissue_name}_{tag}_2.fastq.gz"
+            root_data, "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"
         ),
         file_two_out=os.path.join(
-            root_data,"{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_2_fastqc.zip"
+            root_data, "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"
         ),
     threads: 8
     conda:
@@ -779,7 +780,7 @@ rule fastqc_trim:
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","fastqc_trim","{tissue_name}_{tag}_{PE_SE}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "fastqc_trim", "{tissue_name}_{tag}_{PE_SE}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -868,26 +869,26 @@ def new_star_input(wildcards):
     if perform.trim(config):
         items.extend(
             [
-                *checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="1").output,
-                *checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="2").output,
+                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
+                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
             ]
             if is_paired_end
-            else [*checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="S").output]
+            else [*checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]
         )
     elif perform.dump_fastq(config):
         items.extend(
             [
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="1").output,
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="2").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
             ]
             if is_paired_end
-            else [*checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="S").output]
+            else [*checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]
         )
     else:
         for file in Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{file_pattern}"):
             if wildcards.tissue_name in file.as_posix() and wildcards.tag in file.as_posix():
                 items.extend(
-                    [file.as_posix(), file.as_posix().replace(file_pattern,"_2.fastq.gz")]
+                    [file.as_posix(), file.as_posix().replace(file_pattern, "_2.fastq.gz")]
                     if is_paired_end
                     else file.as_posix()
                 )
@@ -901,18 +902,18 @@ rule star_align:
         reads=new_star_input,
         genome_index=rules.star_index_genome.output.job_complete,
     output:
-        gene_table=os.path.join(root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.tab"),
-        bam_file=os.path.join(root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.bam"),
+        gene_table=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
+        bam_file=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
     params:
         tissue_name="{tissue_name}",
         tag="{tag}",
         gene_table_output=os.path.join(
-            root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_ReadsPerGene.out.tab"
+            root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_ReadsPerGene.out.tab"
         ),
         bam_output=os.path.join(
-            root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam"
+            root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam"
         ),
-        prefix=os.path.join(root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_"),
+        prefix=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_"),
     threads: 15
     conda:
         "envs/star.yaml"
@@ -922,7 +923,7 @@ rule star_align:
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","star_align","{tissue_name}_{tag}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "star_align", "{tissue_name}_{tag}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -949,7 +950,7 @@ rule index_bam_file:
     input:
         rules.star_align.output.bam_file,
     output:
-        os.path.join(root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}.bam.bai"),
+        os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai"),
     conda:
         "envs/samtools.yaml"
     threads: 10
@@ -959,7 +960,7 @@ rule index_bam_file:
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","index_bam_file","{tissue_name}_{tag}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "index_bam_file", "{tissue_name}_{tag}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -975,8 +976,8 @@ rule get_rnaseq_metrics:
         ref_flat=rules.generate_genome.output.ref_flat,
         rrna_interval_list=rules.generate_genome.output.rrna_interval_list,
     output:
-        metrics=os.path.join(root_data,"{tissue_name}","picard","rnaseq","{tissue_name}_{tag}_rnaseq.txt"),
-        strand=os.path.join(root_data,"{tissue_name}","strand","{tissue_name}_{tag}_strand.txt"),
+        metrics=os.path.join(root_data, "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
+        strand=os.path.join(root_data, "{tissue_name}", "strand", "{tissue_name}_{tag}_strand.txt"),
     threads: 4
     resources:
         mem_mb=6144,
@@ -986,7 +987,7 @@ rule get_rnaseq_metrics:
         "envs/picard.yaml"
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","get_rnaseq_metrics","{tissue_name}_{tag}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "get_rnaseq_metrics", "{tissue_name}_{tag}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -1031,8 +1032,8 @@ rule get_insert_size:
         bam=rules.star_align.output.bam_file,
         preround=rules.preroundup.output.layout,
     output:
-        txt=os.path.join(root_data,"{tissue_name}","picard","insert","{tissue_name}_{tag}_insert_size.txt"),
-        pdf=os.path.join(root_data,"{tissue_name}","picard","hist","{tissue_name}_{tag}_insert_size_histo.pdf"),
+        txt=os.path.join(root_data, "{tissue_name}", "picard", "insert", "{tissue_name}_{tag}_insert_size.txt"),
+        pdf=os.path.join(root_data, "{tissue_name}", "picard", "hist", "{tissue_name}_{tag}_insert_size_histo.pdf"),
     threads: 4
     resources:
         mem_mb=1024,
@@ -1042,7 +1043,7 @@ rule get_insert_size:
         "envs/picard.yaml"
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","get_insert_size","{tissue_name}_{tag}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "get_insert_size", "{tissue_name}_{tag}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -1064,9 +1065,9 @@ rule get_fragment_size:
         bai=rules.index_bam_file.output,
         bed_file=rules.generate_genome.output.bed_file,
     output:
-        os.path.join(root_data,"{tissue_name}","fragmentSizes","{tissue_name}_{tag}_fragment_length.txt"),
+        os.path.join(root_data, "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt"),
     params:
-        layout=os.path.join(root_data,"{tissue_name}","layouts","{tissue_name}_{tag}_layout.txt"),
+        layout=os.path.join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
     threads: 1
     resources:
         partition="batch",
@@ -1077,7 +1078,7 @@ rule get_fragment_size:
         "envs/rseqc.yaml"
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","get_fragment_size","{tissue_name}_{tag}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "get_fragment_size", "{tissue_name}_{tag}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
@@ -1092,7 +1093,7 @@ rule copy_gene_counts:
     input:
         rules.star_align.output.gene_table,
     output:
-        os.path.join("COMO_input","{tissue_name}","geneCounts","{sample}","{tissue_name}_{tag}.tab"),
+        os.path.join("COMO_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"),
     threads: 1
     resources:
         mem_mb=256,
@@ -1106,7 +1107,7 @@ rule copy_rnaseq_metrics:
     input:
         rules.get_rnaseq_metrics.output.strand,
     output:
-        os.path.join("COMO_input","{tissue_name}","strandedness","{sample}","{tissue_name}_{tag}_strandedness.txt"),
+        os.path.join("COMO_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
     threads: 1
     resources:
         mem_mb=256,
@@ -1121,7 +1122,7 @@ rule copy_insert_size:
         rules.get_insert_size.output.txt,
     output:
         os.path.join(
-            "COMO_input","{tissue_name}","insertSizeMetrics","{sample}","{tissue_name}_{tag}_insert_size.txt"
+            "COMO_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"
         ),
     threads: 1
     resources:
@@ -1137,7 +1138,7 @@ rule copy_fragment_size:
         rules.get_fragment_size.output,
     output:
         os.path.join(
-            "COMO_input","{tissue_name}","fragmentSizes","{sample}","{tissue_name}_{tag}_fragment_size.txt"
+            "COMO_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt"
         ),
     threads: 1
     resources:
@@ -1151,7 +1152,7 @@ rule copy_fragment_size:
 def multiqc_get_dump_fastq_data(wildcards):
     return (
         expand(
-            os.path.join(root_data,"{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
+            os.path.join(root_data, "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
@@ -1273,10 +1274,10 @@ rule multiqc:
             str(config_file_basename),
             f"{config_file_basename}_multiqc_report.html",
         ),
-        output_directory=directory(os.path.join(root_data,"{tissue_name}","multiqc",str(config_file_basename))),
+        output_directory=directory(os.path.join(root_data, "{tissue_name}", "multiqc", str(config_file_basename))),
     params:
         config_file_basename=config_file_basename,
-        input_directory=os.path.join(root_data,"{tissue_name}"),
+        input_directory=os.path.join(root_data, "{tissue_name}"),
     threads: 1
     conda:
         "envs/multiqc.yaml"
@@ -1286,7 +1287,7 @@ rule multiqc:
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
-            os.path.join("benchmarks","{tissue_name}","multiqc","{tissue_name}.benchmark"),
+            os.path.join("benchmarks", "{tissue_name}", "multiqc", "{tissue_name}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
     shell:
