@@ -21,6 +21,7 @@ samples: pd.DataFrame = pd.read_csv(
     delimiter=str(delimiter),
     names=["srr", "sample", "endtype", "prep_method"],
 )
+
 config_file_basename: str = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
 screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv", delimiter=",", header=0)
 contaminant_genomes_root = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
@@ -476,10 +477,19 @@ rule prefetch:
         )
     shell:
         """
+        echo Starting rule
         rm -f {output}.lock
+        
+        echo Making scratch directory
         mkdir -p {params.scratch_dir}
+        
+        echo Starting prefetch
         prefetch --max-size u --progress --output-file {params.temp_file} {params.srr_value}
+        
+        echo Making output directory
         mkdir -p "$(dirname {output})"
+        
+        echo Moving files
         mv {params.scratch_dir}/* "$(dirname {output})/"
         """
 
@@ -543,10 +553,8 @@ def fastqc_dump_fastq_input(wildcards):
             return [
                 checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0],
                 checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0],
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0],
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0],
             ]
-        return checkpoints.fasterq_dump.get(**wildcards).output
+        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output
 
     # Make sure we are able to load local FastQ files
     if "LOCAL_FASTQ_FILES" in config.keys() and os.path.exists(config["LOCAL_FASTQ_FILES"]):
@@ -686,7 +694,7 @@ def get_trim_input(wildcards):
                 *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
                 *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
             ]
-        return checkpoints.fasterq_dump.get(**wildcards).output
+        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output
     else:
         files = list(
             Path(config["LOCAL_FASTQ_FILES"]).rglob("{tissue_name}_{tag}_{PE_SE}.fastq.gz".format(**wildcards))
@@ -746,7 +754,7 @@ def get_fastqc_trim_input(wildcards):
         reverse = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)
         return [forward, reverse]
     else:
-        return checkpoints.trim.get(**wildcards).output
+        return checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output
 
 
 rule fastqc_trim:
@@ -801,8 +809,8 @@ def collect_star_align_input(wildcards):
         expand(
             rule_output,
             zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
+            tissue_name=wildcards.tissue_name,
+            tag=wildcards.tag,
             PE_SE=get.PE_SE(config),
         )
     )
@@ -854,32 +862,35 @@ def collect_star_align_input(wildcards):
 
 
 def new_star_input(wildcards):
-    # Open the control file to determine which samples are paired end or not
     items = []
     sample_name: str = f"{wildcards.tissue_name}_{wildcards.tag}"
-    is_paired_end: bool = "PE" in samples[samples["sample"].str.startswith(sample_name)]["endtype"].tolist()
+    is_paired_end: bool = "PE" == samples[samples["sample"] == sample_name]["endtype"].values[0]
     file_pattern = "_1.fastq.gz" if is_paired_end else "_S.fastq.gz"
-    pe_suffix = "1" if is_paired_end else "S"
-
     if perform.trim(config):
         items.extend(
             [
-                *checkpoints.trim.get(**wildcards, PE_SE=pe_suffix).output,
-                *checkpoints.trim.get(**wildcards, PE_SE="2").output,
+                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
+                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
             ]
+            if is_paired_end
+            else [*checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]
         )
     elif perform.dump_fastq(config):
         items.extend(
             [
-                *checkpoints.fasterq_dump.get(**wildcards, PE_SE=pe_suffix).output,
-                *checkpoints.fasterq_dump.get(**wildcards, PE_SE="2").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
             ]
+            if is_paired_end
+            else [*checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]
         )
     else:
         for file in Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{file_pattern}"):
-            if wildcards.tissue_name in str(file) and wildcards.tag in str(file):
+            if wildcards.tissue_name in file.as_posix() and wildcards.tag in file.as_posix():
                 items.extend(
-                    [str(file), str(file).replace(file_pattern, "_2.fastq.gz")] if is_paired_end else str(file)
+                    [file.as_posix(), file.as_posix().replace(file_pattern, "_2.fastq.gz")]
+                    if is_paired_end
+                    else file.as_posix()
                 )
                 break
 
@@ -1089,7 +1100,7 @@ rule copy_gene_counts:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp {input} {output}"""
+        """cp --link {input} {output}"""
 
 
 rule copy_rnaseq_metrics:
@@ -1103,7 +1114,7 @@ rule copy_rnaseq_metrics:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp {input} {output}"""
+        """cp --link {input} {output}"""
 
 
 rule copy_insert_size:
@@ -1119,7 +1130,7 @@ rule copy_insert_size:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp {input} {output}"""
+        """cp --link {input} {output}"""
 
 
 rule copy_fragment_size:
@@ -1135,7 +1146,7 @@ rule copy_fragment_size:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp {input} {output}"""
+        """cp --link {input} {output}"""
 
 
 def multiqc_get_dump_fastq_data(wildcards):
