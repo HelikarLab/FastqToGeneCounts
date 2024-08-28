@@ -1,7 +1,6 @@
 import csv
 import os
 import pandas as pd
-import warnings
 from pathlib import Path
 
 from utils import get, perform
@@ -551,10 +550,10 @@ def fastqc_dump_fastq_input(wildcards):
     if perform.prefetch(config):
         if str(wildcards.PE_SE) == "1":
             return [
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0],
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0],
+                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0],  # type: ignore
+                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0],  # type: ignore
             ]
-        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output
+        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
 
     # Make sure we are able to load local FastQ files
     if "LOCAL_FASTQ_FILES" in config.keys() and os.path.exists(config["LOCAL_FASTQ_FILES"]):
@@ -649,7 +648,7 @@ def contaminant_screen_input(wildcards):
 
     # If we have performed fasterq_dump, return its output
     if perform.dump_fastq(config):
-        return checkpoints.fasterq_dump.get(**wildcards).output
+        return checkpoints.fasterq_dump.get(**wildcards).output  # type: ignore
 
     # Otherwise collect local files
     fastq_files = Path(config["LOCAL_FASTQ_FILES"])
@@ -691,10 +690,10 @@ def get_trim_input(wildcards):
     if perform.dump_fastq(config):
         if str(wildcards.PE_SE) in ["1", "2"]:
             return [
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
             ]
-        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output
+        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
     else:
         files = list(
             Path(config["LOCAL_FASTQ_FILES"]).rglob("{tissue_name}_{tag}_{PE_SE}.fastq.gz".format(**wildcards))
@@ -750,11 +749,11 @@ checkpoint trim:
 
 def get_fastqc_trim_input(wildcards):
     if wildcards.PE_SE == "1":
-        forward = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)
-        reverse = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)
+        forward = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)  # type: ignore
+        reverse = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)  # type: ignore
         return [forward, reverse]
     else:
-        return checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output
+        return checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
 
 
 rule fastqc_trim:
@@ -811,20 +810,20 @@ def star_input(wildcards):
     if perform.trim(config):
         items.extend(
             [
-                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
-                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
+                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
+                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
             ]
             if is_paired_end
-            else [*checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]
+            else [*checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]  # type: ignore
         )
     elif perform.dump_fastq(config):
         items.extend(
             [
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
             ]
             if is_paired_end
-            else [*checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]
+            else [*checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]  # type: ignore
         )
     else:
         for file in Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{file_pattern}"):
