@@ -803,65 +803,7 @@ rule fastqc_trim:
         """
 
 
-def collect_star_align_input(wildcards):
-    rule_output = rules.trim.output if perform.trim else rules.fasterq_dump.output
-    in_files = sorted(
-        expand(
-            rule_output,
-            zip,
-            tissue_name=wildcards.tissue_name,
-            tag=wildcards.tag,
-            PE_SE=get.PE_SE(config),
-        )
-    )
-
-    grouped_reads = []
-    for i, in_file in enumerate(in_files):
-        direction = direction_from_name(in_file)
-        try:
-            next_file = in_files[i + 1]
-            next_direction = direction_from_name(next_file)
-        except:
-            if direction == "S":
-                grouped_reads.append(in_file)
-                continue
-            elif direction == "2":
-                continue
-            else:
-                warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
-                continue
-
-        if direction == "S":
-            grouped_reads.append(in_file)
-        elif direction == "1" and next_direction == "2":
-            if in_file[:-10] == next_file[:-10]:  # remove _1.fastq.gz to make sure they are same replicate
-                both_reads = " ".join([in_file, next_file])
-                grouped_reads.append(both_reads)
-            else:
-                warnings.warn(
-                    f"{in_file} and {next_file} are incorrectly called together, either the file order is getting scrambled or one end of {in_file} and one end of {next_file} failed to download"
-                )
-
-        elif direction == "1" and not next_direction == "2":
-            warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
-        elif direction == "2":
-            continue
-        else:
-            warnings.warn(f"{in_file} not handled, unknown reason!")
-
-    """
-    We need to return a string, or list of strings. If we return "grouped_reads" directly, some values within are not actually valid files, such as:
-        ["results/data/naiveB/naiveB_S1R1_1.fastq.gz results/data/naiveB/naiveB_S1R1_2.fastq.gz", "results/data/naiveB/naiveB_S1R2_S.fastq.gz"]
-    Index 0 is taken literally, as a string to a file location. Thus, it does not exist
-    Because of this, we are going to filter through each input file and return it if it matches our desired tissue_name and tag
-    This is much like what was done in the function get_dump_fastq_output, located above rule all
-    """
-    for read in grouped_reads:
-        if wildcards.tissue_name in read and wildcards.tag in read:
-            return read.split(" ")
-
-
-def new_star_input(wildcards):
+def star_input(wildcards):
     items = []
     sample_name: str = f"{wildcards.tissue_name}_{wildcards.tag}"
     is_paired_end: bool = "PE" == samples[samples["sample"] == sample_name]["endtype"].values[0]
@@ -899,7 +841,7 @@ def new_star_input(wildcards):
 
 rule star_align:
     input:
-        reads=new_star_input,
+        reads=star_input,
         genome_index=rules.star_index_genome.output.job_complete,
     output:
         gene_table=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
