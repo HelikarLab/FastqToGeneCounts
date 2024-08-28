@@ -1,7 +1,6 @@
 import csv
 import os
 import pandas as pd
-import warnings
 from pathlib import Path
 
 from utils import get, perform
@@ -21,6 +20,7 @@ samples: pd.DataFrame = pd.read_csv(
     delimiter=str(delimiter),
     names=["srr", "sample", "endtype", "prep_method"],
 )
+
 config_file_basename: str = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
 screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv", delimiter=",", header=0)
 contaminant_genomes_root = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
@@ -396,14 +396,14 @@ rule star_index_genome:
         """
         genome_directory=$(dirname {output.job_complete})
         mkdir -p "$genome_directory"
-        
+
         STAR --runMode genomeGenerate \
         --runThreadN {threads} \
         --genomeDir "$genome_directory" \
         --genomeFastaFiles {input.primary_assembly} \
         --sjdbGTFfile {input.gtf_file} \
         --sjdbOverhang 99
-        
+
         echo "STAR genomeGenerate for species '{params.species_name}' finished at $(date)" > {output.job_complete}
         """
 
@@ -437,14 +437,14 @@ rule get_contaminant_genomes:
         """
         mkdir -p {output.root_output}
         wget --quiet "{params.zip_url}" -O "{output.root_output}/FastQ_Screen_Genomes.zip"
-        
+
         # Unzip the archive
         unzip -o "{output.root_output}/FastQ_Screen_Genomes.zip" -d "{output.root_output}"
         rm "{output.root_output}/FastQ_Screen_Genomes.zip"
-        
+
         # Replace "[FastQ_Screen_Genomes_Path]" with the output directory, then remove any double slashes (//)
         sed 's|\\[FastQ_Screen_Genomes_Path\\]|{output.root_output}|g' "{output.config}" | sed 's|//|/|g' > "{output.config}.tmp"
-        
+
         mv "{output.config}.tmp" "{output.config}"
         """
 
@@ -476,10 +476,19 @@ rule prefetch:
         )
     shell:
         """
+        echo Starting rule
         rm -f {output}.lock
+
+        echo Making scratch directory
         mkdir -p {params.scratch_dir}
+
+        echo Starting prefetch
         prefetch --max-size u --progress --output-file {params.temp_file} {params.srr_value}
+
+        echo Making output directory
         mkdir -p "$(dirname {output})"
+
+        echo Moving files
         mv {params.scratch_dir}/* "$(dirname {output})/"
         """
 
@@ -517,13 +526,13 @@ checkpoint fasterq_dump:
     shell:
         """
         command='fasterq-dump --force --progress --threads {threads} --temp {params.scratch_dir} --outdir {params.scratch_dir}'
-        
+
         # Set the split/concatenate based on paired end or single end data
         [[ "{params.split_files}" == "True" ]] && command+=' --split-files' || command+=' --concatenate-reads'
-        
+
         # Add the SRA file path to the command
         command+=' {input.prefetch}'
-        
+
         eval $command
         ls -l {params.scratch_dir}
         pigz --synchronous --processes {threads} --force {params.scratch_dir}/{params.temp_filename}
@@ -541,12 +550,10 @@ def fastqc_dump_fastq_input(wildcards):
     if perform.prefetch(config):
         if str(wildcards.PE_SE) == "1":
             return [
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0],
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0],
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0],
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0],
+                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0],  # type: ignore
+                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0],  # type: ignore
             ]
-        return checkpoints.fasterq_dump.get(**wildcards).output
+        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
 
     # Make sure we are able to load local FastQ files
     if "LOCAL_FASTQ_FILES" in config.keys() and os.path.exists(config["LOCAL_FASTQ_FILES"]):
@@ -641,7 +648,7 @@ def contaminant_screen_input(wildcards):
 
     # If we have performed fasterq_dump, return its output
     if perform.dump_fastq(config):
-        return checkpoints.fasterq_dump.get(**wildcards).output
+        return checkpoints.fasterq_dump.get(**wildcards).output  # type: ignore
 
     # Otherwise collect local files
     fastq_files = Path(config["LOCAL_FASTQ_FILES"])
@@ -683,10 +690,10 @@ def get_trim_input(wildcards):
     if perform.dump_fastq(config):
         if str(wildcards.PE_SE) in ["1", "2"]:
             return [
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
             ]
-        return checkpoints.fasterq_dump.get(**wildcards).output
+        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
     else:
         files = list(
             Path(config["LOCAL_FASTQ_FILES"]).rglob("{tissue_name}_{tag}_{PE_SE}.fastq.gz".format(**wildcards))
@@ -742,11 +749,11 @@ checkpoint trim:
 
 def get_fastqc_trim_input(wildcards):
     if wildcards.PE_SE == "1":
-        forward = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)
-        reverse = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)
+        forward = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)  # type: ignore
+        reverse = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)  # type: ignore
         return [forward, reverse]
     else:
-        return checkpoints.trim.get(**wildcards).output
+        return checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
 
 
 rule fastqc_trim:
@@ -795,91 +802,36 @@ rule fastqc_trim:
         """
 
 
-def collect_star_align_input(wildcards):
-    rule_output = rules.trim.output if perform.trim else rules.fasterq_dump.output
-    in_files = sorted(
-        expand(
-            rule_output,
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-            PE_SE=get.PE_SE(config),
-        )
-    )
-
-    grouped_reads = []
-    for i, in_file in enumerate(in_files):
-        direction = direction_from_name(in_file)
-        try:
-            next_file = in_files[i + 1]
-            next_direction = direction_from_name(next_file)
-        except:
-            if direction == "S":
-                grouped_reads.append(in_file)
-                continue
-            elif direction == "2":
-                continue
-            else:
-                warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
-                continue
-
-        if direction == "S":
-            grouped_reads.append(in_file)
-        elif direction == "1" and next_direction == "2":
-            if in_file[:-10] == next_file[:-10]:  # remove _1.fastq.gz to make sure they are same replicate
-                both_reads = " ".join([in_file, next_file])
-                grouped_reads.append(both_reads)
-            else:
-                warnings.warn(
-                    f"{in_file} and {next_file} are incorrectly called together, either the file order is getting scrambled or one end of {in_file} and one end of {next_file} failed to download"
-                )
-
-        elif direction == "1" and not next_direction == "2":
-            warnings.warn(f"{in_file} expects additional paired-end read! Skipping....")
-        elif direction == "2":
-            continue
-        else:
-            warnings.warn(f"{in_file} not handled, unknown reason!")
-
-    """
-    We need to return a string, or list of strings. If we return "grouped_reads" directly, some values within are not actually valid files, such as:
-        ["results/data/naiveB/naiveB_S1R1_1.fastq.gz results/data/naiveB/naiveB_S1R1_2.fastq.gz", "results/data/naiveB/naiveB_S1R2_S.fastq.gz"]
-    Index 0 is taken literally, as a string to a file location. Thus, it does not exist
-    Because of this, we are going to filter through each input file and return it if it matches our desired tissue_name and tag
-    This is much like what was done in the function get_dump_fastq_output, located above rule all
-    """
-    for read in grouped_reads:
-        if wildcards.tissue_name in read and wildcards.tag in read:
-            return read.split(" ")
-
-
-def new_star_input(wildcards):
-    # Open the control file to determine which samples are paired end or not
+def star_input(wildcards):
     items = []
     sample_name: str = f"{wildcards.tissue_name}_{wildcards.tag}"
-    is_paired_end: bool = "PE" in samples[samples["sample"].str.startswith(sample_name)]["endtype"].tolist()
+    is_paired_end: bool = "PE" == samples[samples["sample"] == sample_name]["endtype"].values[0]
     file_pattern = "_1.fastq.gz" if is_paired_end else "_S.fastq.gz"
-    pe_suffix = "1" if is_paired_end else "S"
-
     if perform.trim(config):
         items.extend(
             [
-                *checkpoints.trim.get(**wildcards, PE_SE=pe_suffix).output,
-                *checkpoints.trim.get(**wildcards, PE_SE="2").output,
+                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
+                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
             ]
+            if is_paired_end
+            else [*checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]  # type: ignore
         )
     elif perform.dump_fastq(config):
         items.extend(
             [
-                *checkpoints.fasterq_dump.get(**wildcards, PE_SE=pe_suffix).output,
-                *checkpoints.fasterq_dump.get(**wildcards, PE_SE="2").output,
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
+                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
             ]
+            if is_paired_end
+            else [*checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]  # type: ignore
         )
     else:
         for file in Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{file_pattern}"):
-            if wildcards.tissue_name in str(file) and wildcards.tag in str(file):
+            if wildcards.tissue_name in file.as_posix() and wildcards.tag in file.as_posix():
                 items.extend(
-                    [str(file), str(file).replace(file_pattern, "_2.fastq.gz")] if is_paired_end else str(file)
+                    [file.as_posix(), file.as_posix().replace(file_pattern, "_2.fastq.gz")]
+                    if is_paired_end
+                    else file.as_posix()
                 )
                 break
 
@@ -888,7 +840,7 @@ def new_star_input(wildcards):
 
 rule star_align:
     input:
-        reads=new_star_input,
+        reads=star_input,
         genome_index=rules.star_index_genome.output.job_complete,
     output:
         gene_table=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
@@ -918,7 +870,7 @@ rule star_align:
     shell:
         """
         genome_directory=$(dirname {input.genome_index})
-        
+
         STAR \
         --runThreadN {threads} \
         --readFilesCommand "zcat" \
@@ -929,7 +881,7 @@ rule star_align:
         --outSAMunmapped Within \
         --outSAMattributes Standard \
         --quantMode GeneCounts
-        
+
         mv {params.gene_table_output} {output.gene_table}
         mv {params.bam_output} {output.bam_file}
         """
@@ -983,7 +935,7 @@ rule get_rnaseq_metrics:
         """
         # Create the parent output directories
         #mkdir -p $(dirname -- "{output.metrics}")
-        
+
         # Get the column sums and store them in unst, forw, and rev, respectively
         # We are interested in columns 2, 3, and 4, which correspond to the number of reads in the unstranded, forward, and reverse strand, respectively
         # Column 1: Gene ID
@@ -991,16 +943,16 @@ rule get_rnaseq_metrics:
         # Column 3: Counts for  1st read strand aligned with RNA
         # Column 4: Counts for 2nd read strand aligned with RNA
         colsums=$(grep -v "N_" {input.tab} | awk '{{unstranded+=$2;forward+=$3;reverse+=$4}}END{{print unstranded,forward,reverse}}') || colsums="0 1 2"
-        
+
         # Split colsums based on space (create array of three items)
         IFS=" "
         read -ra arr <<< "$colsums"
-        
+
         # Declare these variables as integers
         declare -i unstranded=${{arr[0]}}
         declare -i forward=${{arr[1]}}
         declare -i reverse=${{arr[2]}}
-        
+
         # Increment the denominator by 1 to prevent "divide by 0"
         if [[ $(( reverse / (forward+1) )) -gt 2 ]]; then
             strand_spec="SECOND_READ_TRANSCRIPTION_STRAND"
@@ -1009,9 +961,9 @@ rule get_rnaseq_metrics:
         else
             strand_spec="NONE"
         fi
-        
+
         echo $strand_spec > {output.strand}
-        
+
         picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={input.ref_flat} STRAND_SPECIFICITY=$strand_spec RIBOSOMAL_INTERVALS={input.rrna_interval_list}
         """
 
@@ -1089,7 +1041,7 @@ rule copy_gene_counts:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp {input} {output}"""
+        """cp --link {input} {output}"""
 
 
 rule copy_rnaseq_metrics:
@@ -1103,7 +1055,7 @@ rule copy_rnaseq_metrics:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp {input} {output}"""
+        """cp --link {input} {output}"""
 
 
 rule copy_insert_size:
@@ -1119,7 +1071,7 @@ rule copy_insert_size:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp {input} {output}"""
+        """cp --link {input} {output}"""
 
 
 rule copy_fragment_size:
@@ -1135,7 +1087,7 @@ rule copy_fragment_size:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp {input} {output}"""
+        """cp --link {input} {output}"""
 
 
 def multiqc_get_dump_fastq_data(wildcards):
@@ -1282,6 +1234,6 @@ rule multiqc:
     shell:
         """
         mkdir -p "{output.output_directory}"
-        
+
         multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {params.config_file_basename}_multiqc_report.html --outdir "{output.output_directory}" "{params.input_directory}"
         """
