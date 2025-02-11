@@ -61,59 +61,49 @@ rule all:
         os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_ref_flat.txt"),
         os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
         expand(
-            os.path.join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
+            f"{root_data}/{{tissue_name}}/layouts/{{tissue_name}}_{{tag}}_layout.txt",
+            zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
         ),
         expand(
-            os.path.join(root_data, "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
+            f"{root_data}/{{tissue_name}}/prepMethods/{{tissue_name}}_{{tag}}_prep_method.txt",
+            zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
         ),
         expand(
-            os.path.join(
-                root_data,
-                "{tissue_name}",
-                "fastqc",
-                "untrimmed_reads",
-                "untrimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip",
-            ),
+            f"{root_data}/{{tissue_name}}/fastqc/untrimmed_reads/untrimmed_{{tissue_name}}_{{tag}}_{{PE_SE}}_fastqc.zip",
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
             PE_SE=get.PE_SE(config),
         ),
         expand(
-            os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
+            f"{root_data}/{{tissue_name}}/aligned_reads/{{tag}}/{{tissue_name}}_{{tag}}.tab",
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
         ),
         expand(
-            os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
+            f"{root_data}/{{tissue_name}}/aligned_reads/{{tag}}/{{tissue_name}}_{{tag}}.bam",
             zip,
             tissue_name=get.tissue_name(config=config),
             tag=get.tags(config=config),
         ),
         expand(
-            os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai"),
+            f"{root_data}/{{tissue_name}}/aligned_reads/{{tag}}/{{tissue_name}}_{{tag}}.bam.bai",
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
         ),
         expand(
-            os.path.join(
-                root_data,
-                "{tissue_name}",
-                "multiqc",
-                config_file_basename,
-                f"{config_file_basename}_multiqc_report.html",
-            ),
+            f"{root_data}/{{tissue_name}}/multiqc/{config_file_basename}/{config_file_basename}_multiqc_report.html",
             tissue_name=get.tissue_name(config),
         ),
         (
             expand(
-                os.path.join(root_temp, "prefetch", "{tissue_name}", "{tissue_name}_{tag}", "{tissue_name}_{tag}.sra"),
+                f"{root_temp}/prefetch/{{tissue_name}}/{{tissue_name}}_{{tag}}/{{tissue_name}}_{{tag}}.sra",
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -123,7 +113,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes", "{name}"),
+                f"{config['ROOTDIR']}/FastQ_Screen_Genomes/{{name}}",
                 name=screen_genomes["name"].values,
             )
             if perform.screen(config=config)
@@ -131,7 +121,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(root_data, "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
+                f"{root_data}/{{tissue_name}}/raw/{{tissue_name}}_{{tag}}_{{PE_SE}}.fastq.gz",
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -142,9 +132,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(
-                    root_data, "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz"
-                ),
+                f"{root_data}/{{tissue_name}}/trimmed_reads/trimmed_{{tissue_name}}_{{tag}}_{{PE_SE}}.fastq.gz",
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -155,7 +143,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(root_data, "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_length.txt"),
+                f"{root_data}/{{tissue_name}}/fragmentSizes/{{tissue_name}}_{{tag}}_fragment_size.txt",
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -165,7 +153,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(root_data, "{tissue_name}", "fq_screen", "{tissue_name}_{tag}_{PE_SE}_screen.txt"),
+                f"{root_data}/{{tissue_name}}/fq_screen/{{tissue_name}}_{{tag}}_{{PE_SE}}_screen.txt",
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -176,13 +164,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(
-                    root_data,
-                    "{tissue_name}",
-                    "fastqc",
-                    "trimmed_reads",
-                    "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip",
-                ),
+                f"{root_data}/{{tissue_name}}/fastqc/trimmed_reads/trimmed_{{tissue_name}}_{{tag}}_{{PE_SE}}_fastqc.zip",
                 zip,
                 tissue_name=get.tissue_name(config=config),
                 tag=get.tags(config=config),
@@ -193,7 +175,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(root_data, "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
+                f"{root_data}/{{tissue_name}}/picard/rnaseq/{{tissue_name}}_{{tag}}_rnaseq.txt",
                 zip,
                 tissue_name=get.tissue_name(config),
                 tag=get.tags(config),
@@ -202,7 +184,7 @@ rule all:
             else []
         ),
         expand(
-            os.path.join("COMO_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"),
+            "COMO_input/{tissue_name}/geneCounts/{sample}/{tissue_name}_{tag}.tab",
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
@@ -210,9 +192,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(
-                    "COMO_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"
-                ),
+                "COMO_input/{tissue_name}/strandedness/{sample}/{tissue_name}_{tag}_strandedness.txt",
                 zip,
                 tissue_name=get.tissue_name(config),
                 sample=get.sample(config),
@@ -223,13 +203,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(
-                    "COMO_input",
-                    "{tissue_name}",
-                    "insertSizeMetrics",
-                    "{sample}",
-                    "{tissue_name}_{tag}_insert_size.txt",
-                ),
+                "COMO_input/{tissue_name}/insertSizeMetrics/{sample}/{tissue_name}_{tag}_insert_size.txt",
                 zip,
                 tissue_name=get.tissue_name(config),
                 tag=get.tags(config),
@@ -240,9 +214,7 @@ rule all:
         ),
         (
             expand(
-                os.path.join(
-                    "COMO_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt"
-                ),
+                "COMO_input/{tissue_name}/fragmentSizes/{sample}/{tissue_name}_{tag}_fragment_size.txt",
                 zip,
                 tissue_name=get.tissue_name(config),
                 tag=get.tags(config),
@@ -250,13 +222,16 @@ rule all:
             )
             if perform.get_fragment_size(config)
             else []
-        ),
+        )
 
 
 rule preroundup:
     output:
-        layout=os.path.join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
-        preparation=os.path.join(root_data, "{tissue_name}", "prepMethods", "{tissue_name}_{tag}_prep_method.txt"),
+        layout=f"{root_data}/{{tissue_name}}/layouts/{{tissue_name}}_{{tag}}_layout.txt",
+        preparation=f"{root_data}/{{tissue_name}}/prepMethods/{{tissue_name}}_{{tag}}_prep_method.txt",
+        strandedness=f"{root_data}/{{tissue_name}}/strandedness/{{tissue_name}}_{{tag}}_strandedness.txt"
+    params:
+        sample_name = lambda wildcards: f"{wildcards.tissue_name}_{wildcards.tag}"
     resources:
         mem_mb=256,
         runtime=1,
