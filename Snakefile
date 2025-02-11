@@ -447,7 +447,6 @@ checkpoint fasterq_dump:
     conda:
         "envs/SRAtools.yaml"
     params:
-        scratch_dir=config["SCRATCH_DIR"],
         temp_filename=lambda wildcards: (
             f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq"
             if wildcards.PE_SE in ["1", "2"]
@@ -633,20 +632,20 @@ rule contaminant_screen:
 
 def get_trim_input(wildcards):
     if perform.dump_fastq(config):
-        if str(wildcards.PE_SE) in ["1", "2"]:
+        if str(wildcards.PE_SE) in {"1", "2"}:
             return [
                 *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
                 *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
             ]
         return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
+    elif wildcards.PE_SE in {"1", "2"}:
+        forward = list(Path(config["LOCAL_FASTQ_FILES"]).glob("{tissue_name}_{tag}_1.fastq.gz".format(tissue_name=wildcards.tissue_name,tag=wildcards.tag)))
+        reverse = list(Path(config["LOCAL_FASTQ_FILES"]).glob("{tissue_name}_{tag}_2.fastq.gz".format(tissue_name=wildcards.tissue_name,tag=wildcards.tag)))
+        return [str(forward[0]), str(reverse[0])]
+    elif wildcards.PE_SE == "S":
+        return list(Path(config["LOCAL_FASTQ_FILES"]).glob("{tissue_name}_{tag}_S.fastq.gz".format(tissue_name=wildcards.tissue_name, tag=wildcards.tag)))[0]
     else:
-        files = list(
-            Path(config["LOCAL_FASTQ_FILES"]).rglob("{tissue_name}_{tag}_{PE_SE}.fastq.gz".format(**wildcards))
-        )
-        if str(wildcards.PE_SE) in ["1", "2"]:
-            return [str(file) for file in files] + [str(file).replace("_1.fastq.gz", "_2.fastq.gz") for file in files]
-        else:
-            return [str(file) for file in files]
+        raise ValueError(f"Unknown value for PE_SE: {wildcards.PE_SE}")
 
 
 checkpoint trim:
@@ -697,8 +696,12 @@ def get_fastqc_trim_input(wildcards):
         forward = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)  # type: ignore
         reverse = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)  # type: ignore
         return [forward, reverse]
-    else:
+    elif wildcards.PE_SE == "2":
+        return str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)  # type: ignore
+    elif wildcards.PE_SE == "S":
         return checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
+    else:
+        raise ValueError(f"Unknown value for PE_SE: {wildcards.PE_SE}")
 
 
 rule fastqc_trim:
@@ -751,24 +754,14 @@ def star_input(wildcards):
     sample_name: str = f"{wildcards.tissue_name}_{wildcards.tag}"
     is_paired_end: bool = "PE" == samples[samples["sample"] == sample_name]["endtype"].values[0]
     file_pattern = "_1.fastq.gz" if is_paired_end else "_S.fastq.gz"
-    if perform.trim(config):
-        items.extend(
-            [
+    if perform.trim(config) or perform.dump_fastq(config):
+        if is_paired_end:
+            return [
                 *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
                 *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
             ]
-            if is_paired_end
-            else [*checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]  # type: ignore
-        )
-    elif perform.dump_fastq(config):
-        items.extend(
-            [
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
-                *checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
-            ]
-            if is_paired_end
-            else [*checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output]  # type: ignore
-        )
+        else:
+            return checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="S").output  # type: ignore
     else:
         for file in Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{file_pattern}"):
             if wildcards.tissue_name in file.as_posix() and wildcards.tag in file.as_posix():
@@ -956,7 +949,6 @@ rule get_fragment_size:
         bed_filepath=rules.generate_genome.output
     threads: 1
     resources:
-        partition="batch",
         mem_mb=1024,
         runtime=120,
         tissue_name=lambda wildcards: wildcards.tissue_name
@@ -967,12 +959,8 @@ rule get_fragment_size:
             os.path.join("benchmarks", "{tissue_name}", "get_fragment_size", "{tissue_name}_{tag}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
-    shell:
-        """
-        # get matches of script file
-        file_path=$(find .snakemake/conda/*/bin/RNA_fragment_size.py)
-        python3 $file_path -r {input.bed_file} -i {input.bam} > {output}
-        """
+    script:
+        "utils/get_fragment_size.py"
 
 
 rule copy_gene_counts:
