@@ -1,4 +1,6 @@
 channels:
-  - bioconda
+  - conda-forge
 dependencies:
-  - rseqc=4.0.0
+  - conda-forge::python==3.10
+  - pip:
+    - pysam
