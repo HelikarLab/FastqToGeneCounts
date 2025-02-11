@@ -18,6 +18,7 @@ with open(config["MASTER_CONTROL"]) as i_stream:
 
 samples: pd.DataFrame = pd.read_csv(
     filepath_or_buffer=str(config["MASTER_CONTROL"]),
+    header=0,
     delimiter=str(delimiter),
     names=["srr", "sample", "endtype", "prep_method"],
 )
