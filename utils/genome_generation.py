@@ -21,7 +21,7 @@ _ref_flat_url = "https://hgdownload.soe.ucsc.edu/goldenPath/{final_genome}/datab
 
 
 class Utilities:
-    _latest_release: int = -1
+    _latest_release: Union[int, None] = None
 
     @staticmethod
     def get_latest_release() -> int:
@@ -31,7 +31,7 @@ class Utilities:
         Returns:
             int: An integer matching the release number. For example, if the latest release is `release-112`, this function returns `112`
         """
-        if Utilities._latest_release != -1:
+        if Utilities._latest_release is not None:
             return Utilities._latest_release
 
         pub_root: ftplib.FTP = ftplib.FTP(_ensembl_url)
