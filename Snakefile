@@ -38,7 +38,8 @@ elif config["GENOME"]["VERSION"].isdigit():
     ensembl_release_number = f"release-{config['GENOME']['VERSION']}"
 else:
     raise ValueError(
-        "Invalid GENOME VERSION in config.yaml file. Valid options are: 'latest', 'release-###' (i.e., 'release-112'), or an integer (i.e., 112)"
+        "Invalid GENOME VERSION in config.yaml file. "
+        "Valid options are: 'latest', 'release-###' (i.e., 'release-112'), or an integer (i.e., 112)"
     )
 
 
