@@ -425,7 +425,7 @@ rule prefetch:
         rm -f {output}.lock
 
         echo Making scratch directory
-        mkdir -p {params.scratch_dir}
+        mkdir -p {config[SCRATCH_DIR]}
 
         echo Starting prefetch
         prefetch --max-size u --progress --output-file {params.temp_file} {params.srr_value}
@@ -434,7 +434,7 @@ rule prefetch:
         mkdir -p "$(dirname {output})"
 
         echo Moving files
-        mv {params.scratch_dir}/* "$(dirname {output})/"
+        mv {config[SCRATCH_DIR]}/* "$(dirname {output})/"
         """
 
 
@@ -470,7 +470,7 @@ checkpoint fasterq_dump:
         )
     shell:
         """
-        command='fasterq-dump --force --progress --threads {threads} --temp {params.scratch_dir} --outdir {params.scratch_dir}'
+        command='fasterq-dump --force --progress --threads {threads} --temp {config[SCRATCH_DIR]} --outdir {config[SCRATCH_DIR]}'
 
         # Set the split/concatenate based on paired end or single end data
         [[ "{params.split_files}" == "True" ]] && command+=' --split-files' || command+=' --concatenate-reads'
@@ -479,9 +479,9 @@ checkpoint fasterq_dump:
         command+=' {input.prefetch}'
 
         eval $command
-        ls -l {params.scratch_dir}
-        pigz --synchronous --processes {threads} --force {params.scratch_dir}/{params.temp_filename}
-        mv {params.scratch_dir}/{params.gzip_file} {output.fastq}
+        ls -l {config[SCRATCH_DIR]}
+        pigz --synchronous --processes {threads} --force {config[SCRATCH_DIR]}/{params.temp_filename}
+        mv {config[SCRATCH_DIR]}/{params.gzip_file} {output.fastq}
         """
 
 
@@ -673,15 +673,15 @@ checkpoint trim:
         output_directory="$(dirname {output})"
 
         if [[ "{wildcards.PE_SE}" == "1" ]]; then
-            file_out_1="{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
-            trim_galore --paired --cores 4 -o {params.scratch_dir} {input}
+            file_out_1="{config[SCRATCH_DIR]}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
+            file_out_2="{config[SCRATCH_DIR]}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
+            trim_galore --paired --cores 4 -o {config[SCRATCH_DIR]} {input}
             mv "$file_out_1" "{output}"
-
-        # Skip over reverse-reads. Create the output file so snakemake does not complain about the rule not generating output
+            mv "$file_out_2" "{params.reverse_paired_end}"
+            
+        # Skip over reverse-reads but create the output file so snakemake does not complain about this rule not generating output
         elif [[ "{wildcards.PE_SE}" == "2" ]]; then
-            file_out_2="{params.scratch_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
-            trim_galore --paired --cores 4 -o {params.scratch_dir} {input}
-            mv "$file_out_2" "{output}"
+            touch "{output}"
 
         # Work on single-end reads
         elif [[ "{wildcards.PE_SE}" == "S" ]]; then
@@ -733,7 +733,6 @@ rule fastqc_trim:
         mkdir -p "$output_directory"
 
         if [ "{wildcards.PE_SE}" == "1" ]; then
-            # send fastqc commands to background so we can run both at the same time
             fastqc {input} --threads {threads} -o "$output_directory"
 
         # Skip reverse reads, but create the output file so Snakemake does not complain about missing files
