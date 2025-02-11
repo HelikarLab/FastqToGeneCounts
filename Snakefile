@@ -12,9 +12,10 @@ configfile: "config.yaml"
 
 
 os.makedirs(config["ROOTDIR"], exist_ok=True)
+with open(config["MASTER_CONTROL"]) as i_stream:
+    # Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
+    delimiter = csv.Sniffer().sniff(i_stream.readline().rstrip("\n")).delimiter
 
-# Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
-delimiter = csv.Sniffer().sniff(open(config["MASTER_CONTROL"]).read(1024)).delimiter
 samples: pd.DataFrame = pd.read_csv(
     filepath_or_buffer=str(config["MASTER_CONTROL"]),
     delimiter=str(delimiter),
