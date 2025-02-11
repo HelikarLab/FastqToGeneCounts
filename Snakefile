@@ -1,3 +1,4 @@
+import re
 import csv
 import os
 import pandas as pd
@@ -237,87 +238,53 @@ rule preroundup:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name
     run:
-        # SRR12873784,effectorcd8_S1R1,PE,total
-        sample_row: pd.DataFrame = samples.loc[
-            samples["sample"] == f"{wildcards.tissue_name}_{wildcards.tag}",
-            :,
-            # Collect everything from the row by using `:`
-        ]
-        # Collect the required data
-        srr_code: str = sample_row["srr"].values[0]
-        name: str = sample_row["sample"].values[0]
+        # example row: SRR12873784,effectorcd8_S1R1,PE,total
+        sample_row: pd.Series = samples[samples["sample"].eq(params.sample_name)]
         endtype: str = sample_row["endtype"].values[0].upper()
         prep_method: str = sample_row["prep_method"].values[0].lower()
-        tissue_name: str = name.split("_")[0]
-        tag: str = name.split("_")[1]
-        study: str = re.match(r"S\d+", tag).group()
-
-        # Write paired/single end or single cell to the appropriate location
-        layouts_root: Path = Path(root_data, tissue_name, "layouts", f"{name}_layout.txt")
-        layouts_como: Path = Path("COMO_input", tissue_name, "layouts", study, f"{name}_layout.txt")
-        layouts_root.parent.mkdir(parents=True, exist_ok=True)
-        layouts_como.parent.mkdir(parents=True, exist_ok=True)
-        layouts_write_root = open(layouts_root, "w")
-        layouts_write_como = open(layouts_como, "w")
-        layout: str = str(sample_row["endtype"].values[0]).upper()  # PE, SE, or SLC
-
-        if Layout[layout] == Layout.PE:
-            layouts_write_root.write(Layout.PE.value)
-            layouts_write_como.write(Layout.PE.value)
-        elif Layout[layout] == Layout.SE:
-            layouts_write_root.write(Layout.SE.value)
-            layouts_write_como.write(Layout.SE.value)
-        elif Layout[layout] == Layout.SLC:
-            layouts_write_root.write(Layout.SLC.value)
-            layouts_write_como.write(Layout.SLC.value)
-        else:
-            raise ValueError(f"Invalid selection {layout}. Should be one of 'PE', 'SE', or 'SLC'")
-        layouts_write_root.close()
-        layouts_write_como.close()
-
-        # Write mrna/total to the appropriate location
-        prep_root: Path = Path(root_data, tissue_name, "prepMethods", f"{name}_prep_method.txt")
-        prep_como: Path = Path("COMO_input", tissue_name, "prepMethods", study, f"{name}_prep_method.txt")
-        prep_root.parent.mkdir(parents=True, exist_ok=True)
-        prep_como.parent.mkdir(parents=True, exist_ok=True)
-        write_prep_root = open(prep_root.as_posix(), "w")
-        write_prep_como = open(prep_como.as_posix(), "w")
-        prep_method = str(sample_row["prep_method"].values[0]).lower()  # total or mrna
-
-        if PrepMethod[prep_method] == PrepMethod.total:
-            write_prep_root.write(PrepMethod.total.value)
-            write_prep_como.write(PrepMethod.total.value)
-        elif PrepMethod[prep_method] == PrepMethod.mrna or PrepMethod[prep_method] == PrepMethod.polya:
-            write_prep_root.write(PrepMethod.mrna.value)
-            write_prep_como.write(PrepMethod.mrna.value)
-        else:
-            raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
-        write_prep_root.close()
-        write_prep_como.close()
+        study = re.match(r"S\d+", wildcards.tag).group()
 
         # Make the required directories
         directories: list[str] = [
-            os.path.join("COMO_input", tissue_name, "geneCounts"),
-            os.path.join("COMO_input", tissue_name, "insertSizeMetrics"),
-            os.path.join("COMO_input", tissue_name, "layouts"),
-            os.path.join("COMO_input", tissue_name, "layouts", study),
-            os.path.join("COMO_input", tissue_name, "fragmentSizes"),
-            os.path.join("COMO_input", tissue_name, "prepMethods"),
-            os.path.join("COMO_input", tissue_name, "prepMethods", study),
-            os.path.join(root_data, tissue_name, "layouts"),
-            os.path.join(root_data, tissue_name, "prepMethods"),
-            os.path.join("COMO_input", tissue_name, "geneCounts"),
-            os.path.join("COMO_input", tissue_name, "insertSizeMetrics"),
-            os.path.join("COMO_input", tissue_name, "layouts"),
-            os.path.join("COMO_input", tissue_name, "layouts", study),
-            os.path.join("COMO_input", tissue_name, "fragmentSizes"),
-            os.path.join("COMO_input", tissue_name, "prepMethods"),
-            os.path.join("COMO_input", tissue_name, "prepMethods", study),
-            os.path.join(root_data, tissue_name, "layouts"),
-            os.path.join(root_data, tissue_name, "prepMethods"),
+            os.path.join("COMO_input", wildcards.tissue_name, "layouts", study),
+            os.path.join("COMO_input", wildcards.tissue_name, "prepMethods", study),
+            os.path.join(root_data, wildcards.tissue_name, "layouts"),
+            os.path.join(root_data, wildcards.tissue_name, "prepMethods"),
         ]
         for i in directories:
             os.makedirs(name=i, exist_ok=True)
+
+        # Write paired/single end or single cell to the appropriate location
+        layouts_root: Path = Path(root_data, wildcards.tissue_name, "layouts", f"{params.sample_name}_layout.txt")
+        layouts_como: Path = Path("COMO_input", wildcards.tissue_name, "layouts", study, f"{params.sample_name}_layout.txt")
+        with layouts_root.open("w") as layouts_write_root, layouts_como.open("w") as layouts_write_como:
+            layout: str = str(sample_row["endtype"].values[0]).upper()  # PE, SE, or SLC
+            if Layout[layout] == Layout.PE:
+                layouts_write_root.write(Layout.PE.value)
+                layouts_write_como.write(Layout.PE.value)
+            elif Layout[layout] == Layout.SE:
+                layouts_write_root.write(Layout.SE.value)
+                layouts_write_como.write(Layout.SE.value)
+            elif Layout[layout] == Layout.SLC:
+                layouts_write_root.write(Layout.SLC.value)
+                layouts_write_como.write(Layout.SLC.value)
+            else:
+                raise ValueError(f"Invalid selection {layout}. Should be one of 'PE', 'SE', or 'SLC'")
+
+        # Write mrna/total to the appropriate location
+        prep_root: Path = Path(root_data, wildcards.tissue_name, "prepMethods", f"{params.sample_name}_prep_method.txt")
+        prep_como: Path = Path("COMO_input", wildcards.tissue_name, "prepMethods", study, f"{params.sample_name}_prep_method.txt")
+        with prep_root.open("w") as write_prep_root, prep_como.open("w") as write_prep_como:
+            prep_method = str(sample_row["prep_method"].values[0]).lower()  # total or mrna
+            if PrepMethod[prep_method] == PrepMethod.total:
+                write_prep_root.write(PrepMethod.total.value)
+                write_prep_como.write(PrepMethod.total.value)
+            elif PrepMethod[prep_method] == PrepMethod.mrna or PrepMethod[prep_method] == PrepMethod.polya:
+                write_prep_root.write(PrepMethod.mrna.value)
+                write_prep_como.write(PrepMethod.mrna.value)
+            else:
+                raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
+
 
 
 rule generate_genome:
