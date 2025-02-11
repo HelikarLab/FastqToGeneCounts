@@ -43,6 +43,7 @@ else:
         "Valid options are: 'latest', 'release-###' (i.e., 'release-112'), or an integer (i.e., 112)"
     )
 
+localrules: all
 
 rule all:
     input:
