@@ -11,9 +11,8 @@ from utils.genome_generation import Utilities
 
 configfile: "config.yaml"
 
-
 os.makedirs(config["ROOTDIR"], exist_ok=True)
-with open(config["MASTER_CONTROL"]) as i_stream:
+with open(config["MASTER_CONTROL"], "r") as i_stream:
     # Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
     delimiter = csv.Sniffer().sniff(i_stream.readline().rstrip("\n")).delimiter
 
@@ -231,7 +230,6 @@ rule preroundup:
     output:
         layout=f"{root_data}/{{tissue_name}}/layouts/{{tissue_name}}_{{tag}}_layout.txt",
         preparation=f"{root_data}/{{tissue_name}}/prepMethods/{{tissue_name}}_{{tag}}_prep_method.txt",
-        strandedness=f"{root_data}/{{tissue_name}}/strandedness/{{tissue_name}}_{{tag}}_strandedness.txt"
     params:
         sample_name = lambda wildcards: f"{wildcards.tissue_name}_{wildcards.tag}"
     resources:
@@ -246,13 +244,12 @@ rule preroundup:
         study = re.match(r"S\d+", wildcards.tag).group()
 
         # Make the required directories
-        directories: list[str] = [
-            os.path.join("COMO_input", wildcards.tissue_name, "layouts", study),
-            os.path.join("COMO_input", wildcards.tissue_name, "prepMethods", study),
+        for i in [
             os.path.join(root_data, wildcards.tissue_name, "layouts"),
             os.path.join(root_data, wildcards.tissue_name, "prepMethods"),
-        ]
-        for i in directories:
+            os.path.join("COMO_input", wildcards.tissue_name, "layouts", study),
+            os.path.join("COMO_input", wildcards.tissue_name, "prepMethods", study),
+        ]:
             os.makedirs(name=i, exist_ok=True)
 
         # Write paired/single end or single cell to the appropriate location
@@ -656,8 +653,6 @@ checkpoint trim:
     threads: 16
     conda:
         "envs/trim.yaml"
-    params:
-        reverse_paired_end=os.path.join(root_data, "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz")
     resources:
         mem_mb=10240,
         runtime=120,
@@ -670,19 +665,18 @@ checkpoint trim:
     shell:
         """
         output_directory="$(dirname {output})"
-
+    
+        # process paired-end forward read
         if [[ "{wildcards.PE_SE}" == "1" ]]; then
-            file_out_1="{config[SCRATCH_DIR]}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz"    # final output paired end, forward read
-            file_out_2="{config[SCRATCH_DIR]}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz"    # final output paired end, reverse read
             trim_galore --paired --cores 4 -o {config[SCRATCH_DIR]} {input}
-            mv "$file_out_1" "{output}"
-            mv "$file_out_2" "{params.reverse_paired_end}"
+            mv "{config[SCRATCH_DIR]}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz" "{output}"
             
-        # Skip over reverse-reads but create the output file so snakemake does not complain about this rule not generating output
+        # process paired-end reverse read
         elif [[ "{wildcards.PE_SE}" == "2" ]]; then
-            touch "{output}"
+            trim_galore --paired --cores 4 -o {config[SCRATCH_DIR]} {input}
+            mv "{config[SCRATCH_DIR]}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz" "{output}"
 
-        # Work on single-end reads
+        # process single-end reads
         elif [[ "{wildcards.PE_SE}" == "S" ]]; then
             file_out="$output_directory/{wildcards.tissue_name}_{wildcards.tag}_S_trimmed.fq.gz"   # final output single end
             trim_galore --cores 4 -o "$output_directory" {input}
@@ -691,33 +685,15 @@ checkpoint trim:
         """
 
 
-def get_fastqc_trim_input(wildcards):
-    if wildcards.PE_SE == "1":
-        forward = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output)  # type: ignore
-        reverse = str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)  # type: ignore
-        return [forward, reverse]
-    elif wildcards.PE_SE == "2":
-        return str(checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output)  # type: ignore
-    elif wildcards.PE_SE == "S":
-        return checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
-    else:
-        raise ValueError(f"Unknown value for PE_SE: {wildcards.PE_SE}")
-
-
 rule fastqc_trim:
     input:
-        get_fastqc_trim_input
+        lambda wildcards: checkpoints.trim.get(**wildcards).output,
     output:
-        os.path.join(
-            root_data, "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"
-        )
+        zip=os.path.join(root_data, "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
+        html=os.path.join(root_data, "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html")
     params:
-        file_two_input=os.path.join(
-            root_data, "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2.fastq.gz"
-        ),
-        file_two_out=os.path.join(
-            root_data, "{tissue_name}", "fastqc", "trimmed_reads", "trimmed_{tissue_name}_{tag}_2_fastqc.zip"
-        )
+        temp_zip=os.path.join(config["SCRATCH_DIR"], "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
+        temp_html=os.path.join(config["SCRATCH_DIR"], "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
     threads: 8
     conda:
         "envs/fastqc.yaml"
@@ -732,20 +708,10 @@ rule fastqc_trim:
         )
     shell:
         """
-        output_directory="$(dirname {output})"
-        mkdir -p "$output_directory"
-
-        if [ "{wildcards.PE_SE}" == "1" ]; then
-            fastqc {input} --threads {threads} -o "$output_directory"
-
-        # Skip reverse reads, but create the output file so Snakemake does not complain about missing files
-        # This file will be created when wildcards.PE_SE == "1"
-        elif [ "{wildcards.PE_SE}" == "2" ]; then
-            touch {output}
-
-        elif [ "{wildcards.PE_SE}" == "S" ]; then
-            fastqc {input} --threads {threads} -o "$output_directory"
-        fi
+        mkdir -p "$(dirname {output})" "{config[SCRATCH_DIR]}"
+        fastqc {input} --threads {threads} --outdir "{config[SCRATCH_DIR]}"
+        mv "{params.temp_zip}" "{output.zip}"
+        mv "{params.temp_html}" "{output.html}"
         """
 
 
@@ -1036,7 +1002,7 @@ def multiqc_get_dump_fastq_data(wildcards):
 def multiqc_get_fastqc_data(wildcards):
     output_files = (
         expand(
-            rules.fastqc_trim.output,
+            rules.fastqc_trim.output.zip,
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
