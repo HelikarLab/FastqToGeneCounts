@@ -665,12 +665,12 @@ checkpoint trim:
     shell:
         """
         output_directory="$(dirname {output})"
-    
+
         # process paired-end forward read
         if [[ "{wildcards.PE_SE}" == "1" ]]; then
             trim_galore --paired --cores 4 -o {config[SCRATCH_DIR]} {input}
             mv "{config[SCRATCH_DIR]}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz" "{output}"
-            
+
         # process paired-end reverse read
         elif [[ "{wildcards.PE_SE}" == "2" ]]; then
             trim_galore --paired --cores 4 -o {config[SCRATCH_DIR]} {input}
