@@ -1,0 +1,66 @@
+line-length = 150
+include = ["src/**/*.py", "docs/**/*.py", "tests/**/*.py"]
+exclude = ["src/mechainistic/__version__.py"]
+target-version = "py310"
+
+[format]
+quote-style = "double"
+docstring-code-format = true
+
+[lint]
+
+# Linting rules: https://docs.astral.sh/ruff/rules/
+select = [
+    "A", # do not use python builtins for variables or parameters
+    "ARG", # warn on usused function arguments
+    "ASYNC", # identify asynchronous-related problems
+    "B", # find likely bugs and design problems
+    "BLE", # do not allow blind `except`
+    "C4", # create better list, set, & dict comprehensions
+    "C90", # check for complexity
+    "D", # docstring style checker
+    "DOC", # docstring linter
+    "E", # style guide checking
+    "F", # check for errors
+    "FA", # use from __future__ import annotations if needed
+    "FBT", # detect boolean traps
+    "FURB", # refurbish and modernize Python codebases
+    "I", # sorting imports rules
+    "N", # check naming conventions
+    "NPY", # numpy-specific rules
+    "PD", # pandas linting
+    "PERF", # check performance anti-patterns
+    "PL", # pylint
+    "PT", # check common style issues or inconsistencies in pytest
+    "PTH", # use pathlib where possible
+    "RET", # check return statements
+    "RSE", # require `raise ... from e`
+    "RUF", # ruff-specific linting rules
+    "S", # security testing
+    "SIM", # check for code that can be simplified
+    "T201", # do not allow print
+    "T203", # do not allow pprint
+    "TRY", # prevent Exception handling antipatterns
+    "UP", # upgrade syntax for newer versions
+]
+ignore = [
+    "B008", # allow function call in argument (required for FastAPI)
+    "D100", # do not require file-level docstring
+    "D101", # do not require class-level docstring
+    "F401", # allow unused imports
+    "PD901", # allow using `df` as dataframe name
+    "S608", # do not check for SQL injection (table names are safe and hardcoded)
+    "SIM117", # allow multi-line `with` statements without combining them on a single line
+    "TRY003", # allow raising errors
+    "PD011", # allow pd series to list conversion
+]
+
+[lint.per-file-ignores]
+"tests/*" = [
+    "S101", # allow use of `assert` in test files
+    "F811", # allow redefinition of function names (required to use fixtures)
+    "PLC2701", # allow importing private members in tests
+]
+
+[lint.pydocstyle]
+convention = "pep257"
