@@ -925,8 +925,7 @@ rule get_fragment_size:
             os.path.join("benchmarks", "{tissue_name}", "get_fragment_size", "{tissue_name}_{tag}.benchmark"),
             config["BENCHMARK_TIMES"],
         )
-    script:
-        "utils/get_fragment_size.py"
+    shell: "python3 utils/get_fragment_size_new.py --input {input.bam} --bai {input.bai} --refgene {input.bed_file} --output {output}"
 
 
 rule copy_gene_counts:
