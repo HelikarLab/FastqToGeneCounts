@@ -42,9 +42,9 @@ else:
         "Valid options are: 'latest', 'release-###' (i.e., 'release-112'), or an integer (i.e., 112)"
     )
 
-localrules: all
 
 rule all:
+    localrule: True
     input:
         # Genome generation items + star genome index
         os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}.bed"),
@@ -930,6 +930,7 @@ rule get_fragment_size:
 
 
 rule copy_gene_counts:
+    localrule: True
     input:
         rules.star_align.output.gene_table
     output:
@@ -943,6 +944,7 @@ rule copy_gene_counts:
 
 
 rule copy_rnaseq_metrics:
+    localrule: True
     input:
         rules.get_rnaseq_metrics.output.strand
     output:
@@ -956,6 +958,7 @@ rule copy_rnaseq_metrics:
 
 
 rule copy_insert_size:
+    localrule: True
     input:
         rules.get_insert_size.output.txt
     output:
@@ -971,6 +974,7 @@ rule copy_insert_size:
 
 
 rule copy_fragment_size:
+    localrule: True
     input:
         rules.get_fragment_size.output
     output:
