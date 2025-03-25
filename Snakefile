@@ -900,10 +900,10 @@ rule get_insert_size:
         )
     shell:
         """
-        lay=$(cat {input.preround})
-        if [ $lay == "paired-end"]; then
-            picard CollectinsertSizeMetrics I={input.bam} O={output.txt} H={output.pdf} M=0.05
-            picard CollectinsertSizeMetrics I={input.bam} O={output.txt} H={output.pdf} M=0.05
+        layout=$(cat {input.preround})
+        if [ $layout == "paired-end" ]; then
+            picard CollectInsertSizeMetrics I={input.bam} O={output.txt} H={output.pdf} M=0.05
+            picard CollectInsertSizeMetrics I={input.bam} O={output.txt} H={output.pdf} M=0.05
         else
             echo "cannot collect metrics for single-end data" > {output.txt}
             touch {output.pdf}
