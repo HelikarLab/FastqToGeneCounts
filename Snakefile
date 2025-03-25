@@ -184,6 +184,26 @@ rule all:
             if perform.get_rnaseq_metrics(config)
             else []
         ),
+        (
+            expand(
+                f"{root_data}/{{tissue_name}}/picard/insert/{{tissue_name}}_{{tag}}_insert_size.txt",
+                zip,
+                tissue_name=get.tissue_name(config),
+                tag=get.tags(config),
+        )
+            if perform.get_insert_size(config)
+            else []
+        ),
+        (
+            expand(
+                f"{root_data}/{{tissue_name}}/picard/hist/{{tissue_name}}_{{tag}}_insert_size_histo.pdf",
+                zip,
+                tissue_name=get.tissue_name(config),
+                tag=get.tags(config),
+            )
+            if perform.get_insert_size(config)
+            else []
+        ),
         expand(
             "COMO_input/{tissue_name}/geneCounts/{sample}/{tissue_name}_{tag}.tab",
             zip,
