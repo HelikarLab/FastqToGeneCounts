@@ -758,7 +758,7 @@ rule star_align:
             root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam"
         ),
         prefix=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_")
-    threads: 15
+    threads: 10
     conda:
         "envs/star.yaml"
     resources:
