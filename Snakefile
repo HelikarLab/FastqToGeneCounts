@@ -304,8 +304,7 @@ rule generate_genome:
             species_name,
             f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai",
         )
-    conda:
-        "envs/generate_genome.yaml"
+    conda: "envs/generate_genome.yaml"
     threads: 1
     resources:
         mem_mb=8096,
@@ -328,8 +327,7 @@ rule star_index_genome:
         job_complete=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt")
     params:
         species_name=species_name
-    conda:
-        "envs/star.yaml"
+    conda: "envs/star.yaml"
     threads: 10
     resources:
         mem_mb=51200,
@@ -397,8 +395,7 @@ rule prefetch:
         config["MASTER_CONTROL"]
     output:
         os.path.join(root_temp, "prefetch", "{tissue_name}", "{tissue_name}_{tag}", "{tissue_name}_{tag}.sra")
-    conda:
-        "envs/SRAtools.yaml"
+    conda: "envs/SRAtools.yaml"
     threads: 1
     params:
         srr_value=lambda wildcards: samples.at[
@@ -440,9 +437,8 @@ checkpoint fasterq_dump:
         prefetch=rules.prefetch.output
     output:
         fastq=os.path.join(root_data, "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+    conda: "envs/SRAtools.yaml"
     threads: 10
-    conda:
-        "envs/SRAtools.yaml"
     params:
         temp_filename=lambda wildcards: (
             f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq"
@@ -542,9 +538,8 @@ rule fastqc_dump_fastq:
         file_two_html_rename=os.path.join(
             root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.html"
         )
+    conda: "envs/fastqc.yaml"
     threads: 8
-    conda:
-        "envs/fastqc.yaml"
     resources:
         mem_mb=4096,
         runtime=150,
@@ -609,8 +604,7 @@ rule contaminant_screen:
         PE_SE="{PE_SE}",
         genomes_config=rules.get_contaminant_genomes.output.config,
         output_directory=os.path.join(root_data, "{tissue_name}", "fq_screen")
-    conda:
-        "envs/screen.yaml"
+    conda: "envs/screen.yaml"
     threads: 10
     resources:
         mem_mb=6144,
@@ -650,9 +644,8 @@ checkpoint trim:
         get_trim_input
     output:
         os.path.join(root_data, "{tissue_name}", "trimmed_reads", "trimmed_{tissue_name}_{tag}_{PE_SE}.fastq.gz")
+    conda: "envs/trim.yaml"
     threads: 16
-    conda:
-        "envs/trim.yaml"
     resources:
         mem_mb=10240,
         runtime=120,
@@ -694,9 +687,8 @@ rule fastqc_trim:
     params:
         temp_zip=os.path.join(config["SCRATCH_DIR"], "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
         temp_html=os.path.join(config["SCRATCH_DIR"], "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
+    conda: "envs/fastqc.yaml"
     threads: 8
-    conda:
-        "envs/fastqc.yaml"
     resources:
         mem_mb=10240,
         runtime=150,
@@ -758,9 +750,8 @@ rule star_align:
             root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam"
         ),
         prefix=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_")
+    conda: "envs/star.yaml"
     threads: 10
-    conda:
-        "envs/star.yaml"
     resources:
         mem_mb=40960,
         runtime=60,
@@ -795,8 +786,7 @@ rule index_bam_file:
         rules.star_align.output.bam_file
     output:
         os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam.bai")
-    conda:
-        "envs/samtools.yaml"
+    conda: "envs/samtools.yaml"
     threads: 10
     resources:
         mem_mb=1024,
@@ -822,13 +812,12 @@ rule get_rnaseq_metrics:
     output:
         metrics=os.path.join(root_data, "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
         strand=os.path.join(root_data, "{tissue_name}", "strand", "{tissue_name}_{tag}_strand.txt")
+    conda: "envs/picard.yaml"
     threads: 4
     resources:
         mem_mb=6144,
         runtime=90,
         tissue_name=lambda wildcards: wildcards.tissue_name
-    conda:
-        "envs/picard.yaml"
     benchmark:
         repeat(
             os.path.join("benchmarks", "{tissue_name}", "get_rnaseq_metrics", "{tissue_name}_{tag}.benchmark"),
@@ -878,13 +867,12 @@ rule get_insert_size:
     output:
         txt=os.path.join(root_data, "{tissue_name}", "picard", "insert", "{tissue_name}_{tag}_insert_size.txt"),
         pdf=os.path.join(root_data, "{tissue_name}", "picard", "hist", "{tissue_name}_{tag}_insert_size_histo.pdf")
+    conda: "envs/picard.yaml"
     threads: 4
     resources:
         mem_mb=1024,
         runtime=60,
         tissue_name=lambda wildcards: wildcards.tissue_name
-    conda:
-        "envs/picard.yaml"
     benchmark:
         repeat(
             os.path.join("benchmarks", "{tissue_name}", "get_insert_size", "{tissue_name}_{tag}.benchmark"),
@@ -913,13 +901,12 @@ rule get_fragment_size:
     params:
         layout=os.path.join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
         bed_filepath=rules.generate_genome.output
+    conda: "envs/rseqc.yaml"
     threads: 1
     resources:
         mem_mb=1024,
         runtime=120,
         tissue_name=lambda wildcards: wildcards.tissue_name
-    conda:
-        "envs/rseqc.yaml"
     benchmark:
         repeat(
             os.path.join("benchmarks", "{tissue_name}", "get_fragment_size", "{tissue_name}_{tag}.benchmark"),
@@ -1117,9 +1104,8 @@ rule multiqc:
     params:
         config_file_basename=config_file_basename,
         input_directory=os.path.join(root_data, "{tissue_name}")
+    conda: "envs/multiqc.yaml"
     threads: 1
-    conda:
-        "envs/multiqc.yaml"
     resources:
         mem_mb=5120,
         runtime=30,
