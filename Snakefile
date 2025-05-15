@@ -913,7 +913,7 @@ rule get_fragment_size:
             config["BENCHMARK_TIMES"],
         )
     shell:
-        "python3 utils/get_fragment_size_new.py --input {input.bam} --bai {input.bai} --refgene {input.bed_file} --output {output}"
+        "python3 utils/get_fragment_size.py --input {input.bam} --bai {input.bai} --refgene {input.bed_file} --output {output}"
 
 
 rule copy_gene_counts:
