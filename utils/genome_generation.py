@@ -50,6 +50,10 @@ class Utilities:
                 release_number: int = int(release.split("-")[-1])
                 latest_release = max(latest_release, release_number)
 
+        while not pub_root.nlst(f"/pub/release-{latest_release}/") and latest_release > 0:
+            print(f"❗❗❗ WARNING ❗❗❗ Could not find files for release 'release-{latest_release}', moving to 'release-{latest_release - 1}'")
+            latest_release -= 1
+
         Utilities._latest_release = latest_release
         return latest_release
 
@@ -207,6 +211,9 @@ class NCBI:
         primary_assembly_path = ""
         total_download_size: int = 0
 
+        files = self._ftp.nlst(fasta_root)
+        if not files:
+            self._release_number
         for filename in self._ftp.nlst(fasta_root):
             if filename.endswith(primary_assembly_suffix):
                 primary_assembly_path = filename
@@ -228,9 +235,10 @@ class NCBI:
                 if ".dna.primary_assembly." in filename:
                     chromosome_files.append(filename)
                 if filename.endswith(".dna.primary_assembly.1.fa.gz"):
-                    primary_assembly_filename = filename.split("/")[-1].replace(".1.fa.gz", ".fa.gz")  # fmt: skip
+                    primary_assembly_filename = filename.split("/")[-1].replace(".1.fa.gz", ".fa.gz")
 
             # TODO: add a progress bar to this download
+            print(f"Will save genome to '{os.path.join(save_directory, primary_assembly_filename)}'")
             with open(os.path.join(save_directory, primary_assembly_filename), "wb") as fasta_file:
                 for remote_chromosome in chromosome_files:
                     chromosome_filename = remote_chromosome.split("/")[-1]
