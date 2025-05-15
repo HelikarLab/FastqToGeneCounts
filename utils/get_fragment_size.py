@@ -1,28 +1,19 @@
-"""This script is taken from: https://rseqc.sourceforge.net/.
+"""Calculate fragment size for each gene/transcript.
 
-Specifically, the `scripts/RNA_fragment_size.py` file
-
-calculate fragment size for each gene/transcript. For each transcript/gene, it Will report:
+For each transcript/gene, it Will report:
 1) # of fragment that was used.
 2) mean of fragment size
 3) median of fragment size
 4) stdev of fragment size
 """
 
-import os
+import re
 import sys
 from optparse import OptionParser
+from pathlib import Path
 
 import pysam
 from numpy import mean, median, std
-
-if sys.version_info[0] != 3:
-    print(
-        "\nYou are using python" + str(sys.version_info[0]) + "." + str(sys.version_info[1]) + " This verion of RSeQC needs python3!\n",
-        file=sys.stderr,
-    )
-    sys.exit()
-
 
 __author__ = "Liguo Wang"
 __copyright__ = "Copyleft"
@@ -35,76 +26,89 @@ __status__ = "Production"
 
 
 def overlap_length2(lst1, lst2):
-    l = 0
+    """Calculate the overlap length between two lists of intervals."""
+    length = 0
     for x in lst1:
         for y in lst2:
-            l += len(list(range(max(x[0], y[0]), min(x[-1], y[-1]) + 1)))
-    return l
+            length += len(list(range(max(x[0], y[0]), min(x[-1], y[-1]) + 1)))
+    return length
 
 
-def fragment_size(bedfile, samfile, qcut=30, ncut=5):
-    """Calculate the fragment size for each gene"""
-    for line in open(bedfile):
-        exon_range = []
-        if line.startswith(("#", "track", "browser")):
-            continue
-        fields = line.split()
-        chrom = fields[0]
-        tx_start = int(fields[1])
-        tx_end = int(fields[2])
-        geneName = fields[3]
-        trand = fields[5].replace(" ", "_")
-        exon_starts = list(map(int, fields[11].rstrip(",\n").split(",")))
-        exon_starts = list(map((lambda x: x + tx_start), exon_starts))
-        exon_ends = list(map(int, fields[10].rstrip(",\n").split(",")))
-        exon_ends = list(map((lambda x, y: x + y), exon_starts, exon_ends))
-        geneID = "\t".join([str(i) for i in (chrom, tx_start, tx_end, geneName)])
+def _calculate_exon_start(tx_start: int, fields: list[str]) -> list[int]:
+    exon_starts: list[int] = list(map(int, fields[11].rstrip(",\n").split(",")))
+    return [i + tx_start for i in exon_starts]
 
-        for st, end in zip(exon_starts, exon_ends, strict=False):
-            exon_range.append([st + 1, end + 1])
-        # exon_range.append([chrom, st,end])
 
-        try:
-            alignedReads = samfile.fetch(chrom, tx_start, tx_end)
-        except:
-            yield "\t".join([str(i) for i in (geneID, 0, 0, 0)])
-            continue
+def _calculate_exon_end(exon_starts: list[int], fields: list[str]) -> list[int]:
+    exon_ends: list[int] = list(map(int, fields[10].rstrip(",\n").split(",")))
+    return [x + y for x, y in zip(exon_starts, exon_ends, strict=True)]
 
-        frag_sizes = []
-        for aligned_read in alignedReads:
-            if not aligned_read.is_paired:  # skip single sequencing
+
+def get_contig(chrom_value: str) -> str:
+    chromosome_match = re.match(r"^chr(\d+)$", chrom_value)
+    if chromosome_match:
+        return chromosome_match.group(1)
+    if chrom_value.endswith(("X", "Y")):
+        return chrom_value[-1]
+
+    if "_" in chrom_value:
+        split_chrom = chrom_value.split("_")
+        contig = split_chrom[-2] if split_chrom[-1] == "random" else split_chrom[-1]
+        contig = contig.replace("v", ".")
+        return contig
+
+    raise ValueError(f"Cannot parse chromosome name: {chrom_value}")
+
+
+def fragment_size(reference_bed_filepath: Path, input_bam_filepath: Path, qcut: int = 30, ncut: int = 5):
+    """Calculate the fragment size for each gene."""
+    with reference_bed_filepath.open("r") as i_stream, pysam.AlignmentFile(input_bam_filepath.as_posix()) as sam_file:
+        for line in i_stream:
+            if line.startswith(("#", "track", "browser")):
                 continue
-            if aligned_read.is_read2:
-                continue
-            if aligned_read.mate_is_unmapped:
-                continue
-            if aligned_read.is_qcfail:
-                continue  # skip low quanlity
-            if aligned_read.is_duplicate:
-                continue  # skip duplicate read
-            if aligned_read.is_secondary:
-                continue  # skip non primary hit
-            if aligned_read.mapq < qcut:
-                continue
+            fields = line.split()
+            chrom = fields[0]
+            contig = get_contig(chrom_value=chrom)
 
-            read_st = aligned_read.pos
-            mate_st = aligned_read.pnext
-            if read_st > mate_st:
-                (read_st, mate_st) = (mate_st, read_st)
-            if read_st < tx_start or mate_st > tx_end:
-                continue
-            read_len = aligned_read.qlen
-            map_range = [[read_st + 1, mate_st]]
-            # map_range = [[chrom, read_st, mate_st]]
-            frag_len = overlap_length2(exon_range, map_range) + read_len
-            frag_sizes.append(frag_len)
-        if len(frag_sizes) < ncut:
-            yield "\t".join([str(i) for i in (geneID, len(frag_sizes), 0, 0, 0)])
-        else:
-            yield "\t".join([str(i) for i in (geneID, len(frag_sizes), mean(frag_sizes), median(frag_sizes), std(frag_sizes))])
+            tx_start = int(fields[1])
+            tx_end = int(fields[2])
+            gene_name = fields[3]
+
+            exon_starts: list[int] = _calculate_exon_start(tx_start, fields)
+            exon_ends = _calculate_exon_end(exon_starts, fields)
+            gene_id = "\t".join([str(i) for i in (chrom, tx_start, tx_end, gene_name)])
+            exon_range = [[st + 1, end + 1] for st, end in zip(exon_starts, exon_ends, strict=True)]
+
+            frag_sizes = []
+            aligned_reads = sam_file.fetch(contig=get_contig(chrom_value=chrom), start=tx_start, stop=tx_end)
+            for read in aligned_reads:
+                if (
+                    not read.is_paired  # single-end sequencing
+                    or read.is_read2  # reverse read
+                    or read.mate_is_unmapped  # paired read is not mapped
+                    or read.is_qcfail  # low quality
+                    or read.is_duplicate  # duplicate read
+                    or read.is_secondary  # non primary hit
+                    or read.mapping_quality < qcut  # low mapping quality
+                ):
+                    continue
+
+                read_start = read.reference_start
+                mate_start = read.next_reference_start
+                if read_start > mate_start:
+                    read_start, mate_start = mate_start, read_start
+                if read_start < tx_start or mate_start > tx_end:
+                    continue
+                map_range = [[read_start + 1, mate_start]]
+                frag_sizes.append(overlap_length2(exon_range, map_range) + read.query_alignment_length)
+            yield (
+                "\t".join([str(i) for i in (gene_id, len(frag_sizes), 0, 0, 0)])
+                if len(frag_sizes) < ncut
+                else "\t".join([str(i) for i in (gene_id, len(frag_sizes), mean(frag_sizes), median(frag_sizes), std(frag_sizes))])
+            )
 
 
-def main():
+def _main():
     usage = "%prog [options]" + "\n" + __doc__ + "\n"
     parser = OptionParser(usage, version="%prog " + __version__)
     parser.add_option("-i", "--input", action="store", type="string", dest="input_file", help="Input BAM file")
@@ -137,20 +141,39 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    if not os.path.exists(options.input_file):
+    options.input_file = Path(options.input_file)
+    options.refgene_bed = Path(options.refgene_bed)
+    options.bai_file = Path(options.bai_file)
+    options.output_filepath = Path(options.output_filepath)
+
+    if not options.input_file.exists():
         raise FileNotFoundError(f"BAM file does not exist: '{options.input_file}'")
-    if not os.path.exists(options.bai_file):
+    if not options.bai_file.exists():
         raise FileNotFoundError(f"BAI file does not exist: '{options.bai_file}'")
-    if not os.path.exists(options.refgene_bed):
+    if not options.refgene_bed.exists():
         raise FileNotFoundError(f"BED file does not exist: '{options.refgene_bed}'")
 
-    os.makedirs(os.path.basename(options.output_filepath), exist_ok=True)
-    with open(options.output_filepath, "w") as o_stream:
+    with options.output_filepath.open("w") as o_stream:
         o_stream.write("\t".join([str(i) for i in ("chrom", "tx_start", "tx_end", "symbol", "frag_count", "frag_mean", "frag_median", "frag_std")]))
         o_stream.write("\n")
-        for tmp in fragment_size(options.refgene_bed, pysam.Samfile(options.input_file), options.map_qual, options.fragment_num):
+        for tmp in fragment_size(
+            reference_bed_filepath=options.refgene_bed,
+            input_bam_filepath=options.input_file,
+            qcut=options.map_qual,
+            ncut=options.fragment_num,
+        ):
             o_stream.write(tmp + "\n")
 
 
 if __name__ == "__main__":
-    main()
+    # fmt: off
+    sys.argv.extend(
+        [
+            "--input", "/Users/joshl/Projects/FastqToGeneCounts/temp_data/notreatment_S1R1.bam",
+            "--refgene", "/Users/joshl/Projects/FastqToGeneCounts/temp_data/mus_musculus.bed",
+            "--bai", "/Users/joshl/Projects/FastqToGeneCounts/temp_data/notreatment_S1R1.bam.bai",
+            "--output", "/Users/joshl/Projects/FastqToGeneCounts/temp_data/notreatment_S1R1_fragment_size.txt",
+        ]
+    )
+    # fmt: on
+    _main()
