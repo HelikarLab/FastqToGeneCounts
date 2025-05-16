@@ -319,8 +319,7 @@ rule download_genome:
             species_name,
             f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai",
         ),
-    conda:
-        "envs/generate_genome.yaml"
+    conda: "envs/generate_genome.yaml"
     threads: 1
     resources:
         mem_mb=8096,
