@@ -538,7 +538,7 @@ def fastqc_dump_fastq_input(wildcards):
                 if (wildcards.tissue_name in file) and (wildcards.tag in file) and (f"_{wildcards.PE_SE}" in file):
                     file_one: str = str(os.path.join(path, file))
                     return [file_one, file_one.replace("_1.fastq.gz", "_2.fastq.gz")] if str(wildcards.PE_SE) == "1" else file_one
-
+    return []
 
 rule fastqc_dump_fastq:
     input:
@@ -612,6 +612,7 @@ def contaminant_screen_input(wildcards):
     fastq_files = Path(config["LOCAL_FASTQ_FILES"])
     for file in fastq_files.rglob("{tissue_name}_{tag}_{PE_SE}.fastq.gz".format(**wildcards)):
         return str(file)
+    return []
 
 
 rule contaminant_screen:
