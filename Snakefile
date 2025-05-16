@@ -742,7 +742,12 @@ rule fastqc_trim:
 def alignment_input(wildcards):
     items = []
     sample_name: str = f"{wildcards.tissue_name}_{wildcards.tag}"
-    is_paired_end: bool = "PE" == samples[samples["sample"] == sample_name]["endtype"].values[0]
+
+    try:
+        is_paired_end: bool = "PE" == samples[samples["sample"] == sample_name]["endtype"].values[0]
+    except IndexError as e:
+        raise ValueError(f"Unable to find the sample '{sample_name}' in the control filepath '{config['MASTER_CONTROL']}'. Have you set the correct path for the 'MASTER_CONTROL' and/or 'LOCAL_FASTQ_FILES' variable(s)?") from e
+
     file_pattern = "_1.fastq.gz" if is_paired_end else "_S.fastq.gz"
     if perform.trim(config) or perform.dump_fastq(config):
         if is_paired_end:
