@@ -299,7 +299,7 @@ rule preroundup:
                 raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
 
 
-rule generate_genome:
+rule download_genome:
     output:
         bed_file=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}.bed"),
         ref_flat=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_ref_flat.txt"),
@@ -359,7 +359,7 @@ rule star_index_genome:
         """
 
 
-rule get_contaminant_genomes:
+rule download_contaminant_genomes:
     output:
         root_output=directory(contaminant_genomes_root),
         Adapters=directory(os.path.join(contaminant_genomes_root, "Adapters")),
@@ -597,7 +597,7 @@ rule contaminant_screen:
         tissue_name="{tissue_name}",
         tag="{tag}",
         PE_SE="{PE_SE}",
-        genomes_config=rules.get_contaminant_genomes.output.config,
+        genomes_config=rules.download_contaminant_genomes.output.config,
         output_directory=os.path.join(root_data, "{tissue_name}", "fq_screen"),
     conda:
         "envs/screen.yaml"
@@ -710,8 +710,7 @@ rule fastqc_trim:
         mv "{params.temp_html}" "{output.html}"
         """
 
-
-def star_input(wildcards):
+def alignment_input(wildcards):
     items = []
     sample_name: str = f"{wildcards.tissue_name}_{wildcards.tag}"
     is_paired_end: bool = "PE" == samples[samples["sample"] == sample_name]["endtype"].values[0]
@@ -807,6 +806,8 @@ rule get_rnaseq_metrics:
         tab=rules.star_align.output.gene_table,
         ref_flat=rules.generate_genome.output.ref_flat,
         rrna_interval_list=rules.generate_genome.output.rrna_interval_list,
+        ref_flat=rules.download_genome.output.ref_flat,
+        rrna_interval_list=rules.download_genome.output.rrna_interval_list,
     output:
         metrics=os.path.join(root_data, "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
         strand=os.path.join(root_data, "{tissue_name}", "strand", "{tissue_name}_{tag}_strand.txt"),
@@ -895,12 +896,12 @@ rule get_fragment_size:
     input:
         bam=rules.star_align.output.bam_file,
         bai=rules.index_bam_file.output,
-        bed_file=rules.generate_genome.output.bed_file,
+        bed_file=rules.download_genome.output.bed_file,
     output:
         os.path.join(root_data, "{tissue_name}", "fragmentSizes", "{tissue_name}_{tag}_fragment_size.txt"),
     params:
         layout=os.path.join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
-        bed_filepath=rules.generate_genome.output,
+        bed_filepath=rules.download_genome.output,
     conda:
         "envs/rseqc.yaml"
     threads: 1
