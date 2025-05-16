@@ -325,7 +325,7 @@ rule download_genome:
     resources:
         mem_mb=8096,
         runtime=30,
-        tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
+        tissue_name="",  # intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
     shell:
         """
         python3 utils/genome_generation.py \
@@ -337,8 +337,8 @@ rule download_genome:
 
 rule star_index_genome:
     input:
-        primary_assembly=rules.generate_genome.output.primary_assembly,
-        gtf_file=rules.generate_genome.output.gtf_file,
+        primary_assembly=rules.download_genome.output.primary_assembly,
+        gtf_file=rules.download_genome.output.gtf_file,
     output:
         job_complete=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
     params:
@@ -390,7 +390,7 @@ rule download_contaminant_genomes:
     resources:
         mem_mb=6144,
         runtime=30,
-        tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
+        tissue_name="",  # intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
     shell:
         """
         mkdir -p {output.root_output}
@@ -743,6 +743,7 @@ rule star_align:
     input:
         reads=star_input,
         genome_index=rules.star_index_genome.output.job_complete,
+        reads=alignment_input,
     output:
         gene_table=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
         bam_file=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
