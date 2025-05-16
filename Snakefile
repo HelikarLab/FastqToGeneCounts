@@ -829,8 +829,8 @@ rule index_bam_file:
         )
     shell:
         """
-       samtools index -@ {threads} {input} {output}
-       """
+        samtools index -@ {threads} {input} {output}
+        """
 
 
 rule get_rnaseq_metrics:
@@ -842,9 +842,6 @@ rule get_rnaseq_metrics:
     output:
         metrics=os.path.join(root_data, "{tissue_name}", "picard", "rnaseq", "{tissue_name}_{tag}_rnaseq.txt"),
         strand=os.path.join(root_data, "{tissue_name}", "strand", "{tissue_name}_{tag}_strand.txt"),
-    conda:
-        "envs/picard.yaml"
-    threads: 4
     conda: "envs/picard.yaml"
     threads: 1
     resources:
