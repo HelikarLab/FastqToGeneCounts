@@ -340,6 +340,22 @@ rule star_index_genome:
         primary_assembly=rules.download_genome.output.primary_assembly,
         gtf_file=rules.download_genome.output.gtf_file,
     output:
+        chromosome_length=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrLength.txt"),
+        chromosome_name_length=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrNameLength.txt"),
+        chromosome_name=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrName.txt"),
+        chromosome_start=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "chrStart.txt"),
+        exon_gene_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "exonGeTrInfo.tab"),
+        exon_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "exonInfo.tab"),
+        gene_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "geneInfo.tab"),
+        genome=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "Genome"),
+        genome_parameters=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "genomeParameters.txt"),
+        log=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "Log.out"),
+        suffix_array=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "SA"),
+        genome_index=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "SAindex"),
+        sjdb_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbInfo.txt"),
+        sjdb_list_from_gtf=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbList.fromGTF.out.tab"),
+        sjdb_list=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbList.out.tab"),
+        transcript_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "transcriptInfo.tab"),
         job_complete=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
     params:
         species_name=species_name,
@@ -741,9 +757,8 @@ def alignment_input(wildcards):
 
 rule star_align:
     input:
-        reads=star_input,
-        genome_index=rules.star_index_genome.output.job_complete,
         reads=alignment_input,
+        genome_index=rules.star_index_genome.output.genome
     output:
         gene_table=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
         bam_file=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
