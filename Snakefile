@@ -417,7 +417,7 @@ rule download_contaminant_genomes:
         wget --quiet "{params.zip_url}" -O "{output.root_output}/FastQ_Screen_Genomes.zip"
 
         # Unzip the archive
-        unzip -o "{output.root_output}/FastQ_Screen_Genomes.zip" -d "{output.root_output}"
+        unzip -qq -o "{output.root_output}/FastQ_Screen_Genomes.zip" -d "{output.root_output}"
         rm "{output.root_output}/FastQ_Screen_Genomes.zip"
 
         # Replace "[FastQ_Screen_Genomes_Path]" with the output directory, then remove any double slashes (//)
@@ -577,7 +577,7 @@ rule fastqc_dump_fastq:
         mkdir -p "$output_directory"
 
         if [ "{wildcards.PE_SE}" == "1" ]; then
-            fastqc {input} --threads {threads} -o "$output_directory"
+            fastqc {input} --threads {threads} -o "$output_directory" --quiet
 
             mv "{params.file_one_zip}" "{output.file_one_zip_rename}"
             mv "{params.file_one_html}" "{output.file_one_html_rename}"
@@ -591,7 +591,7 @@ rule fastqc_dump_fastq:
             touch {params.file_two_html_rename}
 
         elif [ "{wildcards.PE_SE}" == "S" ]; then
-            fastqc {input} --threads {threads} -o "$output_directory"
+            fastqc {input} --threads {threads} -o "$output_directory" --quiet
 
             mv "{params.file_one_zip}" "{output.file_one_zip_rename}"
             mv "{params.file_one_html}" "{output.file_one_html_rename}"
@@ -882,7 +882,13 @@ rule get_rnaseq_metrics:
 
         echo $strand_spec > {output.strand}
 
-        picard CollectRnaSeqMetrics I={input.bam} O={output.metrics} REF_FLAT={input.ref_flat} STRAND_SPECIFICITY=$strand_spec RIBOSOMAL_INTERVALS={input.rrna_interval_list}
+        picard CollectRnaSeqMetrics \
+            --VERBOSITY WARNING \
+            --INPUT {input.bam} \
+            --OUTPUT {output.metrics} \
+            --REF_FLAT {input.ref_flat} \
+            --STRAND_SPECIFICITY $strand_spec \
+            --RIBOSOMAL_INTERVALS {input.rrna_interval_list}
         """
 
 
@@ -909,8 +915,12 @@ rule get_insert_size:
         """
         layout=$(cat {input.preround})
         if [ $layout == "paired-end" ]; then
-            picard CollectInsertSizeMetrics I={input.bam} O={output.txt} H={output.pdf} M=0.05
-            picard CollectInsertSizeMetrics I={input.bam} O={output.txt} H={output.pdf} M=0.05
+            picard CollectInsertSizeMetrics \
+                --VERBOSITY WARNING \
+                --INPUT {input.bam} \
+                --OUTPUT {output.txt} \
+                --Histogram_FILE {output.pdf} \
+                --MINIMUM_PCT 0.05
         else
             echo "cannot collect metrics for single-end data" > {output.txt}
             touch {output.pdf}
