@@ -559,9 +559,8 @@ rule fastqc_dump_fastq:
         file_two_html=os.path.join(root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "{tissue_name}_{tag}_2_fastqc.html"),
         file_two_zip_rename=os.path.join(root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.zip"),
         file_two_html_rename=os.path.join(root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.html"),
-    conda:
-        "envs/fastqc.yaml"
     priority: -1  # do not prioritize this rule
+    conda: "envs/fastqc.yaml"
     threads: 8
     resources:
         mem_mb=4096,
@@ -720,9 +719,8 @@ rule fastqc_trim:
     params:
         temp_zip=os.path.join(config["SCRATCH_DIR"], "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
         temp_html=os.path.join(config["SCRATCH_DIR"], "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
-    conda:
-        "envs/fastqc.yaml"
     priority: -1  # do not prioritize this rule
+    conda: "envs/fastqc.yaml"
     threads: 8
     resources:
         mem_mb=10240,
