@@ -802,10 +802,10 @@ rule index_bam_file:
 
 rule get_rnaseq_metrics:
     input:
-        bam=rules.star_align.output.bam_file,
-        tab=rules.star_align.output.gene_table,
-        ref_flat=rules.generate_genome.output.ref_flat,
-        rrna_interval_list=rules.generate_genome.output.rrna_interval_list,
+        # bam=rules.star_align.output.bam_file,
+        # tab=rules.star_align.output.gene_table,
+        bam=rules.hisat2_align.output.bam,
+        tab=rules.feature_counts.output.gene_tab,
         ref_flat=rules.download_genome.output.ref_flat,
         rrna_interval_list=rules.download_genome.output.rrna_interval_list,
     output:
