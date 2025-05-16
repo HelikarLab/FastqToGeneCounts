@@ -561,6 +561,7 @@ rule fastqc_dump_fastq:
         file_two_html_rename=os.path.join(root_data, "{tissue_name}", "fastqc", "untrimmed_reads", "untrimmed_{tissue_name}_{tag}_2_fastqc.html"),
     conda:
         "envs/fastqc.yaml"
+    priority: -1  # do not prioritize this rule
     threads: 8
     resources:
         mem_mb=4096,
@@ -627,6 +628,7 @@ rule contaminant_screen:
         PE_SE="{PE_SE}",
         genomes_config=rules.download_contaminant_genomes.output.config,
         output_directory=os.path.join(root_data, "{tissue_name}", "fq_screen"),
+    priority: -1  # do not prioritize this rule
     conda:
         "envs/screen.yaml"
     threads: 10
@@ -720,6 +722,7 @@ rule fastqc_trim:
         temp_html=os.path.join(config["SCRATCH_DIR"], "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
     conda:
         "envs/fastqc.yaml"
+    priority: -1  # do not prioritize this rule
     threads: 8
     resources:
         mem_mb=10240,
