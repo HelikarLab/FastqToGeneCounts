@@ -27,9 +27,10 @@ samples: pd.DataFrame = pd.read_csv(
 config_file_basename: str = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
 screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv", delimiter=",", header=0)
 contaminant_genomes_root = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
-root_data = os.path.join(config["ROOTDIR"], "data")
-root_temp = os.path.join(config["ROOTDIR"], "temp")
 species_name = Utilities.get_species_from_taxon(taxon_id=config["GENOME"]["TAXONOMY_ID"])
+
+root_data: str = os.path.join(str(config["ROOTDIR"]), "data")
+root_temp: str = os.path.join(str(config["ROOTDIR"]), "temp")
 
 if config["GENOME"]["VERSION"] == "latest":
     ensembl_release_number = f"release-{Utilities.get_latest_release()}"
