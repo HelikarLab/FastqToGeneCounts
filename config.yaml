@@ -11,6 +11,7 @@
 MASTER_CONTROL: "controls/master_control.csv"
 
 # The location where results should be saved to
+# Subdirectories can be included by adding them as paths; Example: results/experiment-1
 ROOTDIR: "results"
 
 # The scratch location of your computer or cluster
