@@ -30,8 +30,14 @@ screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv", delimiter
 contaminant_genomes_root = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
 species_name = Utilities.get_species_from_taxon(taxon_id=config["GENOME"]["TAXONOMY_ID"])
 
-root_data: str = os.path.join(str(config["ROOTDIR"]), "data")
-root_temp: str = os.path.join(str(config["ROOTDIR"]), "temp")
+if "EXPERIMENT_NAME" in config and config["EXPERIMENT_NAME"] != "":
+    root_data: str = os.path.join(str(config["ROOTDIR"]), config["EXPERIMENT_NAME"], "data")
+    root_temp: str = os.path.join(str(config["ROOTDIR"]), config["EXPERIMENT_NAME"], "temp")
+    como_input: str = os.path.join("COMO_input", config["EXPERIMENT_NAME"])
+else:
+    root_data: str = os.path.join(str(config["ROOTDIR"]), "data")
+    root_temp: str = os.path.join(str(config["ROOTDIR"]), "temp")
+    como_input: str = "COMO_input"
 
 if config["GENOME"]["VERSION"] == "latest":
     ensembl_release_number = f"release-{Utilities.get_latest_release()}"
@@ -201,7 +207,7 @@ rule all:
             else []
         ),
         expand(
-            "COMO_input/{tissue_name}/geneCounts/{sample}/{tissue_name}_{tag}.tab",
+            f"{como_input}/{{tissue_name}}/geneCounts/{{sample}}/{{tissue_name}}_{{tag}}.tab",
             zip,
             tissue_name=get.tissue_name(config),
             tag=get.tags(config),
@@ -209,7 +215,7 @@ rule all:
         ),
         (
             expand(
-                "COMO_input/{tissue_name}/strandedness/{sample}/{tissue_name}_{tag}_strandedness.txt",
+                f"{como_input}/{{tissue_name}}/strandedness/{{sample}}/{{tissue_name}}_{{tag}}_strandedness.txt",
                 zip,
                 tissue_name=get.tissue_name(config),
                 sample=get.sample(config),
@@ -220,7 +226,7 @@ rule all:
         ),
         (
             expand(
-                "COMO_input/{tissue_name}/insertSizeMetrics/{sample}/{tissue_name}_{tag}_insert_size.txt",
+                f"{como_input}/{{tissue_name}}/insertSizeMetrics/{{sample}}/{{tissue_name}}_{{tag}}_insert_size.txt",
                 zip,
                 tissue_name=get.tissue_name(config),
                 tag=get.tags(config),
@@ -231,7 +237,7 @@ rule all:
         ),
         (
             expand(
-                "COMO_input/{tissue_name}/fragmentSizes/{sample}/{tissue_name}_{tag}_fragment_size.txt",
+                f"{como_input}/{{tissue_name}}/fragmentSizes/{{sample}}/{{tissue_name}}_{{tag}}_fragment_size.txt",
                 zip,
                 tissue_name=get.tissue_name(config),
                 tag=get.tags(config),
@@ -263,14 +269,14 @@ rule preroundup:
         for i in [
             os.path.join(root_data, wildcards.tissue_name, "layouts"),
             os.path.join(root_data, wildcards.tissue_name, "prepMethods"),
-            os.path.join("COMO_input", wildcards.tissue_name, "layouts", study),
-            os.path.join("COMO_input", wildcards.tissue_name, "prepMethods", study),
+            os.path.join(como_input, wildcards.tissue_name, "layouts", study),
+            os.path.join(como_input, wildcards.tissue_name, "prepMethods", study),
         ]:
             os.makedirs(name=i, exist_ok=True)
 
             # Write paired/single end or single cell to the appropriate location
         layouts_root: Path = Path(root_data, wildcards.tissue_name, "layouts", f"{params.sample_name}_layout.txt")
-        layouts_como: Path = Path("COMO_input", wildcards.tissue_name, "layouts", study, f"{params.sample_name}_layout.txt")
+        layouts_como: Path = Path(como_input, wildcards.tissue_name, "layouts", study, f"{params.sample_name}_layout.txt")
         with layouts_root.open("w") as layouts_write_root, layouts_como.open("w") as layouts_write_como:
             layout: str = str(sample_row["endtype"].values[0]).upper()  # PE, SE, or SLC
             if Layout[layout] == Layout.PE:
@@ -287,7 +293,7 @@ rule preroundup:
 
                 # Write mrna/total to the appropriate location
         prep_root: Path = Path(root_data, wildcards.tissue_name, "prepMethods", f"{params.sample_name}_prep_method.txt")
-        prep_como: Path = Path("COMO_input", wildcards.tissue_name, "prepMethods", study, f"{params.sample_name}_prep_method.txt")
+        prep_como: Path = Path(como_input, wildcards.tissue_name, "prepMethods", study, f"{params.sample_name}_prep_method.txt")
         with prep_root.open("w") as write_prep_root, prep_como.open("w") as write_prep_como:
             prep_method = str(sample_row["prep_method"].values[0]).lower()  # total or mrna
             if PrepMethod[prep_method] == PrepMethod.total:
@@ -924,7 +930,7 @@ rule copy_gene_counts:
     input:
         rules.star_align.output.gene_table,
     output:
-        os.path.join("COMO_input", "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab"),
+        os.path.join(como_input, "{tissue_name}", "geneCounts", "{sample}", "{tissue_name}_{tag}.tab")
     resources:
         mem_mb=512,
         runtime=1,
@@ -938,7 +944,7 @@ rule copy_rnaseq_metrics:
     input:
         rules.get_rnaseq_metrics.output.strand,
     output:
-        os.path.join("COMO_input", "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
+        os.path.join(como_input, "{tissue_name}", "strandedness", "{sample}", "{tissue_name}_{tag}_strandedness.txt"),
     resources:
         mem_mb=512,
         runtime=1,
@@ -952,7 +958,7 @@ rule copy_insert_size:
     input:
         rules.get_insert_size.output.txt,
     output:
-        os.path.join("COMO_input", "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
+        os.path.join(como_input, "{tissue_name}", "insertSizeMetrics", "{sample}", "{tissue_name}_{tag}_insert_size.txt"),
     resources:
         mem_mb=512,
         runtime=1,
@@ -966,7 +972,7 @@ rule copy_fragment_size:
     input:
         rules.get_fragment_size.output,
     output:
-        os.path.join("COMO_input", "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt"),
+        os.path.join(como_input, "{tissue_name}", "fragmentSizes", "{sample}", "{tissue_name}_{tag}_fragment_size.txt"),
     resources:
         mem_mb=512,
         runtime=1,
