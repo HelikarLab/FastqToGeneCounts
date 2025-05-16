@@ -359,26 +359,30 @@ rule star_index_genome:
         job_complete=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
     params:
         species_name=species_name,
+        output_dir=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star"),
     conda:
         "envs/star.yaml"
     threads: 10
     resources:
         mem_mb=51200,
         runtime=150,
-        tissue_name="",  # intentionally left blank, reference: github.com/jdblischak/smk-simple-slurm/issues/20
+        tissue_name="",  # intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
+    benchmark:
+        repeat(
+            # format is '2025-05-16T112835'
+            os.path.join("benchmarks", "star_index_genome", f"star_index_genome_{time.strftime('%Y-%m-%dT%H%M%S', time.localtime())}.benchmark"),
+            config["BENCHMARK_TIMES"],
+        )
     shell:
         """
-        genome_directory=$(dirname {output.job_complete})
-        mkdir -p "$genome_directory"
+        mkdir -p {params.output_dir}
 
         STAR --runMode genomeGenerate \
         --runThreadN {threads} \
-        --genomeDir "$genome_directory" \
+        --genomeDir {params.output_dir} \
         --genomeFastaFiles {input.primary_assembly} \
         --sjdbGTFfile {input.gtf_file} \
         --sjdbOverhang 99
-
-        echo "STAR genomeGenerate for species '{params.species_name}' finished at $(date)" > {output.job_complete}
         """
 
 
@@ -764,6 +768,7 @@ rule star_align:
         bam_file=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
     params:
         tissue_name="{tissue_name}",
+        genome_index_dir=os.path.dirname(rules.star_index_genome.output.genome),
         tag="{tag}",
         gene_table_output=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_ReadsPerGene.out.tab"),
         bam_output=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}_Aligned.sortedByCoord.out.bam"),
@@ -782,13 +787,11 @@ rule star_align:
         )
     shell:
         """
-        genome_directory=$(dirname {input.genome_index})
-
         STAR \
         --runThreadN {threads} \
         --readFilesCommand "zcat" \
         --readFilesIn {input.reads} \
-        --genomeDir "$genome_directory" \
+        --genomeDir {params.genome_index_dir} \
         --outFileNamePrefix {params.prefix} \
         --outSAMtype BAM SortedByCoordinate \
         --outSAMunmapped Within \
