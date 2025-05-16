@@ -21,7 +21,7 @@ LOCAL_FASTQ_FILES: "results/dump_fastq_input"
 
 # Quality Control Options
 # Should trimming of RNA sequencing adapters be performed before aligning? (default: True)
-PERFORM_TRIM: True
+PERFORM_TRIM: False
 
 # Should RNA sequences be screened for contamination? (default: True)
 PERFORM_SCREEN: True
