@@ -771,8 +771,8 @@ rule star_align:
         reads=alignment_input,
         genome_index=rules.star_index_genome.output.genome
     output:
-        gene_table=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
         bam_file=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.bam"),
+        gene_table=os.path.join(root_data, "{tissue_name}", "aligned_reads", "{tag}", "{tissue_name}_{tag}.tab"),
     params:
         tissue_name="{tissue_name}",
         genome_index_dir=os.path.dirname(rules.star_index_genome.output.genome),
@@ -835,10 +835,8 @@ rule index_bam_file:
 
 rule get_rnaseq_metrics:
     input:
-        # bam=rules.star_align.output.bam_file,
-        # tab=rules.star_align.output.gene_table,
-        bam=rules.hisat2_align.output.bam,
-        tab=rules.feature_counts.output.gene_tab,
+        bam=rules.star_align.output.bam_file,
+        tab=rules.star_align.output.gene_table,
         ref_flat=rules.download_genome.output.ref_flat,
         rrna_interval_list=rules.download_genome.output.rrna_interval_list,
     output:
