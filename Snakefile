@@ -784,8 +784,8 @@ rule star_align:
         "envs/star.yaml"
     threads: 10
     resources:
-        mem_mb=40960,
-        runtime=60,
+        mem_mb=32768,
+        runtime=15,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
@@ -845,9 +845,11 @@ rule get_rnaseq_metrics:
     conda:
         "envs/picard.yaml"
     threads: 4
+    conda: "envs/picard.yaml"
+    threads: 1
     resources:
-        mem_mb=6144,
-        runtime=90,
+        mem_mb=1024,
+        runtime=5,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
@@ -904,12 +906,11 @@ rule get_insert_size:
     output:
         txt=os.path.join(root_data, "{tissue_name}", "picard", "insert", "{tissue_name}_{tag}_insert_size.txt"),
         pdf=os.path.join(root_data, "{tissue_name}", "picard", "hist", "{tissue_name}_{tag}_insert_size_histo.pdf"),
-    conda:
-        "envs/picard.yaml"
-    threads: 4
+    conda: "envs/picard.yaml"
+    threads: 1
     resources:
         mem_mb=1024,
-        runtime=60,
+        runtime=5,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     benchmark:
         repeat(
