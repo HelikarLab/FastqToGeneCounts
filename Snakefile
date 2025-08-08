@@ -7,7 +7,7 @@ from pathlib import Path
 
 from utils import get, perform
 from utils.constants import Layout, PrepMethod
-from utils.genome_generation import Utilities
+from utils.download_genome import Utilities
 
 
 configfile: "config.yaml"
@@ -54,15 +54,10 @@ else:
 rule all:
     localrule: True
     input:
-        # Genome generation items + star genome index
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}.bed"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_genome_sizes.txt"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}.gtf"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_rrna.interval_list"),
+        # Download genome items + star genome index
         os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}_primary_assembly.fa.fai"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_ref_flat.txt"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}.gtf"),
+        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "Genome"),
         expand(
             f"{root_data}/{{tissue_name}}/layouts/{{tissue_name}}_{{tag}}_layout.txt",
             zip,
@@ -327,7 +322,7 @@ rule download_genome:
         tissue_name="",  # intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
     shell:
         """
-        python3 utils/genome_generation.py \
+        python3 utils/download_genome.py \
             --taxon-id {config[GENOME][TAXONOMY_ID]} \
             --release-number {config[GENOME][VERSION]} \
             --root-save-dir {config[GENOME][SAVE_DIR]}
@@ -351,11 +346,10 @@ rule star_index_genome:
         log=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "Log.out"),
         suffix_array=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "SA"),
         genome_index=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "SAindex"),
-        sjdb_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbInfo.txt"),
-        sjdb_list_from_gtf=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbList.fromGTF.out.tab"),
-        sjdb_list=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbList.out.tab"),
+        slice_juntion_db_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name,"star","sjdbInfo.txt"),
+        slice_juntion_db_from_gtf=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbList.fromGTF.out.tab"),
+        slice_juntion_db_list=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "sjdbList.out.tab"),
         transcript_info=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "transcriptInfo.tab"),
-        job_complete=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "job_complete.txt"),
     params:
         species_name=species_name,
         output_dir=os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star"),
@@ -629,7 +623,7 @@ rule contaminant_screen:
     priority: -1  # do not prioritize this rule
     conda:
         "envs/screen.yaml"
-    threads: 10
+    threads: 5
     resources:
         mem_mb=6144,
         runtime=30,
@@ -940,8 +934,7 @@ rule get_fragment_size:
     params:
         layout=os.path.join(root_data, "{tissue_name}", "layouts", "{tissue_name}_{tag}_layout.txt"),
         bed_filepath=rules.download_genome.output,
-    conda:
-        "envs/rseqc.yaml"
+    conda: "envs/rseqc.yaml"
     threads: 1
     resources:
         mem_mb=1024,
@@ -967,7 +960,7 @@ rule copy_gene_counts:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp --link {input} {output}"""
+        """cp {input} {output}"""
 
 
 rule copy_rnaseq_metrics:
@@ -981,7 +974,7 @@ rule copy_rnaseq_metrics:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp --link {input} {output}"""
+        """cp {input} {output}"""
 
 
 rule copy_insert_size:
@@ -995,7 +988,7 @@ rule copy_insert_size:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp --link {input} {output}"""
+        """cp {input} {output}"""
 
 
 rule copy_fragment_size:
@@ -1009,7 +1002,7 @@ rule copy_fragment_size:
         runtime=1,
         tissue_name=lambda wildcards: wildcards.tissue_name,
     shell:
-        """cp --link {input} {output}"""
+        """cp {input} {output}"""
 
 
 def multiqc_get_dump_fastq_data(wildcards):
