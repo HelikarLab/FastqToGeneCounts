@@ -357,7 +357,7 @@ checkpoint fasterq_dump:
         fastq=os.path.join(root_data,"{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
     conda:
         "envs/SRAtools.yaml"
-    threads: 10
+    threads: 5
     params:
         temp_filename=lambda wildcards: (
             f"{wildcards.tissue_name}_{wildcards.tag}_{wildcards.PE_SE}.fastq"
@@ -679,7 +679,7 @@ rule star_align:
         prefix=os.path.join(root_data,"{tissue_name}","aligned_reads","{tag}","{tissue_name}_{tag}_"),
     conda:
         "envs/star.yaml"
-    threads: 10
+    threads: 5
     resources:
         mem_mb=32768,
         runtime=15,
@@ -839,7 +839,7 @@ rule get_fragment_size:
         layout=os.path.join(root_data,"{tissue_name}","layouts","{tissue_name}_{tag}_layout.txt"),
         bed_filepath=rules.download_genome.output,
     conda: "envs/rseqc.yaml"
-    threads: 1
+    threads: 4
     resources:
         mem_mb=1024,
         runtime=120,
