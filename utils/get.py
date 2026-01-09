@@ -1,7 +1,7 @@
 import csv
 import os
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from snakemake import io as snakemake_io
 
@@ -65,12 +65,10 @@ def from_master_config(config: dict, attribute: Literal["SRR", "tissue", "tag", 
     return collect_attributes
 
 
-def srr_code(config: dict) -> Optional[list[str]]:
-    """
-    Only should be getting SRR values if we are performing prefetch
-    """
+def srr_code(config: dict) -> list[str] | None:
     if perform.trim(config=config):
         return from_master_config(config=config, attribute="SRR")
+    return None
 
 
 def tissue_name(config: dict) -> list[str]:
