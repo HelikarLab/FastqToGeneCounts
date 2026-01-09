@@ -113,16 +113,16 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
             gene_name = fields[3]
 
             exon_starts: list[int] = _calculate_exon_start(tx_start, fields)
-            exon_ends = _calculate_exon_end(exon_starts, fields)
-            gene_id = "\t".join([str(i) for i in (chrom, tx_start, tx_end, gene_name)])
-            exon_range = [[st + 1, end + 1] for st, end in zip(exon_starts, exon_ends, strict=True)]
+            exon_ends: list[int] = _calculate_exon_end(exon_starts, fields)
+            gene_id: str = "\t".join([str(i) for i in (chrom, tx_start, tx_end, gene_name)])
+            exon_range: list[tuple[int, int]] = list(zip(exon_starts, exon_ends, strict=True))
 
             frag_sizes = []
-            aligned_reads = sam_file.fetch(contig=get_contig(chrom_value=chrom), start=tx_start, stop=tx_end)
+            aligned_reads = alignment_file.fetch(contig=chrom, start=tx_start, stop=tx_end)
             for read in aligned_reads:
                 if (
-                    not read.is_paired  # single-end sequencing
-                    or read.is_read2  # reverse read
+                    not read.is_paired  # single-end sequencing, we only want paired-end
+                    or read.is_read2  # reverse read, we want forward read
                     or read.mate_is_unmapped  # paired read is not mapped
                     or read.is_qcfail  # low quality
                     or read.is_duplicate  # duplicate read
@@ -132,13 +132,17 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
                     continue
 
                 read_start = read.reference_start
-                mate_start = read.next_reference_start
-                if read_start > mate_start:
-                    read_start, mate_start = mate_start, read_start
-                if read_start < tx_start or mate_start > tx_end:
+                next_ref_start = read.next_reference_start
+                if read_start > next_ref_start:
+                    read_start, next_ref_start = next_ref_start, read_start
+                if read_start < tx_start or next_ref_start > tx_end:
                     continue
-                map_range = [[read_start + 1, mate_start]]
-                frag_sizes.append(overlap_length2(exon_range, map_range) + read.query_alignment_length)
+                
+                length = overlap_length2(exon_range, read_start=read_start, next_ref_start=next_ref_start) + read.query_alignment_length
+                frag_sizes.append(length)
+            
+            all_sizes.extend(frag_sizes)
+
             yield (
                 "\t".join([str(i) for i in (gene_id, len(frag_sizes), 0, 0, 0)])
                 if len(frag_sizes) < ncut
@@ -197,9 +201,10 @@ def main():
         o_stream.write("\n")
         for tmp in _fragment_size(
             reference_bed_filepath=options.refgene_bed,
-            input_bam_filepath=options.input_file,
+            bam_filepath=options.input_file,
             qcut=options.map_qual,
             ncut=options.fragment_num,
+            threads=4,
         ):
             o_stream.write(tmp + "\n")
 
