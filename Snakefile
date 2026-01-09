@@ -19,12 +19,32 @@ with open(config["MASTER_CONTROL"],"r") as i_stream:
     # Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
     delimiter = csv.Sniffer().sniff(i_stream.readline().rstrip("\n")).delimiter
 
-samples: pd.DataFrame = pd.read_csv(
-    filepath_or_buffer=str(config["MASTER_CONTROL"]),
-    header=0,
-    delimiter=str(delimiter),
-    names=["srr", "sample", "endtype", "prep_method"],
-)
+samples: pd.DataFrame = pd.read_csv(filepath_or_buffer=str(config["MASTER_CONTROL"]),header=0,delimiter=str(delimiter))
+# parse "<tissue>_<tag>" from the 'sample' column
+PAIRS = samples["sample"].astype(str).str.extract(r"^(?P<tissue>.+)_(?P<tag>S\d+R\d+(?:r\d+)?)$")
+if PAIRS.isnull().any().any():
+    raise ValueError("Some sample names in the MASTER_CONTROL file do not follow the expected format '<tissue>_<tag>' (e.g., effectorcd8_S1R1).")
+
+TISSUES = PAIRS["tissue"].tolist()
+TAGS = PAIRS["tag"].tolist()
+ENDTYPE = samples["endtype"].astype(str).str.upper().tolist()
+SAMPLES = PAIRS["tag"].str.extract(r"^(S\d+)")[0].tolist()
+
+# Per-row PE/SE expansion that matches per-sample
+TISSUE_ZIP, TAG_ZIP, PE_SE_ZIP, SAMPLE_ZIP = [], [], [], []
+for tissue, tag, end, sample in zip(TISSUES, TAGS, ENDTYPE, SAMPLES):
+    if end == "PE":
+        TISSUE_ZIP += [tissue, tissue]
+        TAG_ZIP += [tag, tag]
+        PE_SE_ZIP += ["1", "2"]
+        SAMPLE_ZIP += [sample, sample]
+    elif end == "SE":
+        TISSUE_ZIP.append(tissue)
+        TAG_ZIP.append(tag)
+        PE_SE_ZIP.append("S")
+        SAMPLE_ZIP.append(sample)
+    else:
+        raise ValueError(f"Expected the end type to be 'PE' or 'SE', got: {end}")
 
 config_file_basename: str = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
 screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv", delimiter=",", header=0)
