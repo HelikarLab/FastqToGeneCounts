@@ -12,6 +12,7 @@ import sys
 from collections.abc import Sequence
 from optparse import OptionParser
 from pathlib import Path
+from statistics import mean, median, pstdev
 
 import pysam
 from tqdm import tqdm
@@ -135,7 +136,7 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
             yield (
                 "\t".join([str(i) for i in (gene_id, len(frag_sizes), 0, 0, 0)])
                 if len(frag_sizes) < ncut
-                else "\t".join([str(i) for i in (gene_id, len(frag_sizes), mean(frag_sizes), median(frag_sizes), std(frag_sizes))])
+                else "\t".join([str(i) for i in (gene_id, len(frag_sizes), mean(frag_sizes), median(frag_sizes), pstdev(frag_sizes))])
             )
             pbar.update(line_bytes)
 
