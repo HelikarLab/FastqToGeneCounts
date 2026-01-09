@@ -1,5 +1,4 @@
-# ruff: noqa: S321
-
+# ruff: noqa: S321 T201
 import argparse
 import csv
 import ftplib
@@ -222,8 +221,6 @@ class NCBI:
         total_download_size: int = 0
 
         files = self._ftp.nlst(fasta_root)
-        if not files:
-            self._release_number
         for filename in self._ftp.nlst(fasta_root):
             if filename.endswith(primary_assembly_suffix):
                 primary_assembly_path = filename
@@ -278,6 +275,10 @@ class NCBI:
         shutil.move(Path(save_directory, txt_filename), final_output_filepath)
 
     def download_gtf_file(self, save_directory: str) -> None:
+        """Download a GTF file.
+
+        :param: save_directory: The directory to save the GTF file to.
+
         """
         save_directory: Path = Path(save_directory, self._species_name)
         final_output_filepath = Path(save_directory, f"{self._species_name}_{self._release_number}.gtf")
@@ -311,12 +312,10 @@ class NCBI:
 
 
 def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
-    """
-    This function will download the `refFlat.txt` file from the UCSC Genome Browser and save it as a file
+    """Download the `refFlat.txt` file from the UCSC Genome Browser and save it as a file.
 
-    Args:
-        taxon_id (TaxonID): The taxon ID to download the `refFlat.txt` file for
-        save_directory (str): The directory to save the `refFlat.txt` file
+    :param taxon_id: The taxon ID to download the `refFlat.txt` file for
+    :param save_directory: The directory to save the `refFlat.txt` file
     """
     species_name = Utilities.get_species_from_taxon(taxon_id)
     species_name_with_space = Utilities.get_species_from_taxon(taxon_id, replace_spaces=False)
@@ -337,7 +336,7 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
     genome_prefix: str = ""
     genome_version: int = -1
 
-    for genome_id in as_json["ucscGenomes"].keys():
+    for genome_id in as_json["ucscGenomes"]:
         genome_data: dict = as_json["ucscGenomes"][genome_id]
         ucsc_species_name = genome_data["scientificName"]
 
@@ -367,20 +366,17 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
 
 
 def rRNA_interval_list_creation(taxon_id: int, save_directory: str) -> None:
-    """
-    This function will create an interval list file suitable for CollectRnaSeqMetrics
+    """Create an interval file list suitable for CollectRnaSeqMetrics.
+
     It should be executed at the end of the genome generation process so the required `.fa` file is availale
 
     Initially created by Kamil Slowikowski (December 12, 2014)
     Modified by: Arindam Ghosh (July 24, 2019)
     Modified by: Josh Loecker (April 13, 2023)
 
-    Args:
-        taxon_id (TaxonID): The taxon ID to create the rRNA interval list for
-        save_directory (str): The directory to save the rRNA interval list
-
-    Raises:
-        FileNotFoundError: «The primary assembly file could not be found» if the primary assembly file is not found
+    :param taxon_id: The taxon ID to create the rRNA interval list for
+    :param save_directory: The directory to save the rRNA interval list
+    :raises FileNotFoundError: «The primary assembly file could not be found» if the primary assembly file is not found
     """
     species_name = Utilities.get_species_from_taxon(taxon_id)
     save_directory: Path = Path(save_directory, species_name)
@@ -446,13 +442,15 @@ def rRNA_interval_list_creation(taxon_id: int, save_directory: str) -> None:
 
 
 def bed_file_creation(taxon_id: int, save_directory: str) -> None:
-    """
-    This file will convert USCS refFlat.txt files into BED format
+    """Convert USCS refFlat.txt files into BED format.
 
     # The reference BED file built from the GTF for RSEQC option
     BED_FILE: "genome/mm10_RefSeq.bed"
 
     modified from: informationsea at https://gist.github.com/informationsea/439d4fc53ea2b17cfb05
+
+    :param taxon_id: The taxon ID to create the BED file for
+    :param save_directory: The directory to save the BED file
     """
     species_name = Utilities.get_species_from_taxon(taxon_id)
     save_directory: Path = Path(save_directory, species_name)
