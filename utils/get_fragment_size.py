@@ -13,7 +13,7 @@ from optparse import OptionParser
 from pathlib import Path
 
 import pysam
-from numpy import mean, median, std
+from tqdm import tqdm
 
 __author__ = "Liguo Wang"
 __copyright__ = "Copyleft"
@@ -80,9 +80,21 @@ def get_contig(chrom_value: str) -> str:
 
 def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, ncut: int, threads: int):
     """Calculate the fragment size for each gene."""
-    with reference_bed_filepath.open("r") as i_stream, pysam.AlignmentFile(input_bam_filepath.as_posix()) as sam_file:
-        for line in i_stream:
+    ref_size_bytes = reference_bed_filepath.stat().st_size
+    with (
+        reference_bed_filepath.open("r") as bed_stream,
+        pysam.AlignmentFile(bam_filepath.as_posix(), threads=threads) as alignment_file,
+        tqdm(total=ref_size_bytes, desc=f"Calculating fragment sizes: '{bam_filepath.name}'", unit="B", unit_scale=True, unit_divisor=1024) as pbar,
+    ):
+        all_sizes = []
+        references = set(alignment_file.references)
+        for i, line in enumerate(bed_stream):
+            if i == 100:
+                print(all_sizes)
+                break
+            line_bytes = len(line)
             if line.startswith(("#", "track", "browser")):
+                pbar.update(line_bytes)
                 continue
             fields = line.split()
             chrom = fields[0]
@@ -124,6 +136,7 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
                 if len(frag_sizes) < ncut
                 else "\t".join([str(i) for i in (gene_id, len(frag_sizes), mean(frag_sizes), median(frag_sizes), std(frag_sizes))])
             )
+            pbar.update(line_bytes)
 
 
 def main():
@@ -174,7 +187,7 @@ def main():
     with options.output_filepath.open("w") as o_stream:
         o_stream.write("\t".join([str(i) for i in ("chrom", "tx_start", "tx_end", "symbol", "frag_count", "frag_mean", "frag_median", "frag_std")]))
         o_stream.write("\n")
-        for tmp in fragment_size(
+        for tmp in _fragment_size(
             reference_bed_filepath=options.refgene_bed,
             input_bam_filepath=options.input_file,
             qcut=options.map_qual,
