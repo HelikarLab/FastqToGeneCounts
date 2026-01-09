@@ -1,12 +1,10 @@
 import csv
 import itertools
 import os
+import pandas as pd
 import re
-import tempfile
 import time
 from pathlib import Path
-
-import pandas as pd
 
 from utils import perform
 from utils.constants import Layout, PrepMethod
