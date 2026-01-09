@@ -100,7 +100,13 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
                 continue
             fields = line.split()
             chrom = fields[0]
-            contig = get_contig(chrom_value=chrom)
+            if chrom not in references:
+                alt_chrom = chrom.removeprefix("chr") if chrom.startswith("chr") else f"chr{chrom}"
+                if alt_chrom in references:
+                    chrom = alt_chrom
+                else:
+                    pbar.update(line_bytes)
+                    continue  # skip this record; contig doesn't exist in BAM file
 
             tx_start = int(fields[1])
             tx_end = int(fields[2])
