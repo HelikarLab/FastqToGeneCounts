@@ -166,14 +166,4 @@ def _main():
 
 
 if __name__ == "__main__":
-    # fmt: off
-    sys.argv.extend(
-        [
-            "--input", "/Users/joshl/Projects/FastqToGeneCounts/temp_data/notreatment_S1R1.bam",
-            "--refgene", "/Users/joshl/Projects/FastqToGeneCounts/temp_data/mus_musculus.bed",
-            "--bai", "/Users/joshl/Projects/FastqToGeneCounts/temp_data/notreatment_S1R1.bam.bai",
-            "--output", "/Users/joshl/Projects/FastqToGeneCounts/temp_data/notreatment_S1R1_fragment_size.txt",
-        ]
-    )
-    # fmt: on
     _main()

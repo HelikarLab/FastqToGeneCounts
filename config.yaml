@@ -11,7 +11,9 @@
 MASTER_CONTROL: "controls/master_control.csv"
 
 # The location where results should be saved to
+# Subdirectories can be included by adding them as paths; Example: results/experiment-1
 ROOTDIR: "results"
+EXPERIMENT_NAME: ""
 
 # The scratch location of your computer or cluster
 SCRATCH_DIR: "/scratch"
@@ -21,7 +23,7 @@ LOCAL_FASTQ_FILES: "results/dump_fastq_input"
 
 # Quality Control Options
 # Should trimming of RNA sequencing adapters be performed before aligning? (default: True)
-PERFORM_TRIM: True
+PERFORM_TRIM: False
 
 # Should RNA sequences be screened for contamination? (default: True)
 PERFORM_SCREEN: True
