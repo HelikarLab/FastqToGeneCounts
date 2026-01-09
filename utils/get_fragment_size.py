@@ -126,9 +126,8 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
             )
 
 
-def _main():
-    usage = "%prog [options]" + "\n" + __doc__ + "\n"
 def main():
+    usage = "%prog [options]" + "\n" + (__doc__ or "") + "\n"
     parser = OptionParser(usage, version="%prog " + __version__)
     parser.add_option("-i", "--input", action="store", type="string", dest="input_file", help="Input BAM file")
     parser.add_option(
