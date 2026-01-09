@@ -919,109 +919,106 @@ rule copy_fragment_size:
     shell:
         """cp {input} {output}"""
 
+def get_tissue_tags(tissue_name):
+    return PAIRS.loc[PAIRS["tissue"] == tissue_name, "tag"].unique().tolist()
+
+def get_tissue_zip_lists(tissue_name):
+    filtered_tags = []
+    filtered_pe_se = []
+    for _tissue, _tag, _pe_se in zip(TISSUE_ZIP, TAG_ZIP, PE_SE_ZIP):
+        if _tissue == tissue_name:
+            filtered_tags.append(_tag)
+            filtered_pe_se.append(_pe_se)
+    return filtered_tags, filtered_pe_se
 
 def multiqc_get_dump_fastq_data(wildcards):
-    return (
-        expand(
-            os.path.join(root_data, "{tissue_name}", "raw", "{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
+    if perform.prefetch(config):
+        _tags, _pe_ses = get_tissue_zip_lists(wildcards.tissue_name)
+        return expand(
+            os.path.join(root_data,"{tissue_name}","raw","{tissue_name}_{tag}_{PE_SE}.fastq.gz"),
             zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-            PE_SE=get.PE_SE(config),
+            tissue_name=[wildcards.tissue_name] * len(_tags),
+            tag=_tags,
+            PE_SE=_pe_ses,
         )
-        if perform.prefetch(config)
-        else list(Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{wildcards.tissue_name}*"))
-    )
+
+    files = []
+    root = Path(config["LOCAL_FASTQ_FILES"])
+    for _tissue, _tag, _endtype in zip(TISSUES,TAGS,ENDTYPE):
+        if _tissue != wildcards.tissue_name:
+            continue
+        if str(_endtype).upper() == "PE":
+            for pe in ("1", "2"):
+                p = root / f"{_tissue}_{_tag}_{pe}.fastq.gz"
+                if p.exists():
+                    files.append(p.as_posix())
+        else:
+            p = root / f"{_tissue}_{_tag}_S.fastq.gz"
+            if p.exists():
+                files.append(p.as_posix())
+
+    return files
 
 
 def multiqc_get_fastqc_data(wildcards):
-    output_files = (
-        expand(
-            rules.fastqc_trim.output.zip,
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-            PE_SE=get.PE_SE(config),
-        )
-        if perform.trim(config)
-        else expand(
-            rules.fastqc_dump_fastq.output,
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-            PE_SE=get.PE_SE(config),
-        )
-    )
-    return_files = [file for file in output_files if wildcards.tissue_name in file]
-    return return_files
+    _tags, _pe_ses = get_tissue_zip_lists(wildcards.tissue_name)
+    target_output = rules.fastqc_trim.output.zip if perform.trim(config) else rules.fastqc_dump_fastq.output
+    return list(set(expand(target_output, zip, tissue_name=[wildcards.tissue_name] * len(_tags), tag=_tags, PE_SE=_pe_ses)))
 
 
 def multiqc_get_star_data(wildcards):
-    output_files = expand(
-        rules.star_align.output.gene_table,
-        zip,
-        tissue_name=get.tissue_name(config),
-        tag=get.tags(config),
-    )
-    return_files = [file for file in output_files if wildcards.tissue_name in file]
-    return return_files
+    _tags = get_tissue_tags(wildcards.tissue_name)
+    return expand(rules.star_align.output.gene_table,tissue_name=wildcards.tissue_name, tag=_tags)
 
 
 def multiqc_get_screen_data(wildcards):
-    output_files = (
-        expand(
-            rules.contaminant_screen.output,
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-            PE_SE=get.PE_SE(config),
-        )
-        if perform.screen(config)
-        else []
+    if not perform.screen(config):
+        return []
+
+    _tags, _pe_ses = get_tissue_zip_lists(wildcards.tissue_name)
+    return expand(
+        rules.contaminant_screen.output,
+        zip,
+        tissue_name=[wildcards.tissue_name] * len(_tags),
+        tag=_tags,
+        PE_SE=_pe_ses,
     )
-    return_files = [file for file in output_files if wildcards.tissue_name in file]
-    return return_files
 
 
 def multiqc_get_insertsize_data(wildcards):
-    output_files = (
-        expand(
-            rules.get_insert_size.output.txt,
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-        )
-        if perform.get_insert_size(config)
-        else []
+    if not perform.get_insert_size(config):
+        return []
+
+    _tags = get_tissue_tags(wildcards.tissue_name)
+    return expand(
+        rules.get_insert_size.output.txt,
+        tissue_name=[wildcards.tissue_name] * len(_tags),
+        tag=_tags
     )
-    return_files = [file for file in output_files if wildcards.tissue_name in file] if perform.get_insert_size(config) else []
-    return return_files
 
 
 def multiqc_get_fragmentsize_data(wildcards):
-    output_files = (
-        expand(
-            rules.get_fragment_size.output,
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-        )
-        if perform.get_fragment_size(config)
-        else []
+    if not perform.get_fragment_size(config):
+        return []
+
+    _tags = get_tissue_tags(wildcards.tissue_name)
+    return expand(
+        rules.get_fragment_size.output,
+        tissue_name=[wildcards.tissue_name] * len(_tags),
+        tag=_tags
     )
-    return_files = [file for file in output_files if wildcards.tissue_name in file] if perform.get_fragment_size(config) else []
-    return return_files
 
 
 def multiqc_get_rnaseq_data(wildcards):
-    output_files = expand(
+    if not perform.get_rnaseq_metrics(config):
+        return []
+
+    _tags = get_tissue_tags(wildcards.tissue_name)
+    return expand(
         rules.get_rnaseq_metrics.output,
-        zip,
-        tissue_name=get.tissue_name(config),
-        tag=get.tags(config),
+        tissue_name=[wildcards.tissue_name] * len(_tags),
+        tag=_tags
     )
-    return_files = [file for file in output_files if wildcards.tissue_name in file]
-    return return_files
 
 
 rule multiqc:
@@ -1041,10 +1038,10 @@ rule multiqc:
             str(config_file_basename),
             f"{config_file_basename}_multiqc_report.html",
         ),
-        output_directory=directory(os.path.join(root_data, "{tissue_name}", "multiqc", str(config_file_basename))),
     params:
         config_file_basename=config_file_basename,
-        input_directory=os.path.join(root_data, "{tissue_name}"),
+        input_directory=os.path.join(root_data,"{tissue_name}"),
+        output_directory=directory(os.path.join(root_data,"{tissue_name}","multiqc",str(config_file_basename))),
     conda:
         "envs/multiqc.yaml"
     threads: 1
@@ -1059,7 +1056,12 @@ rule multiqc:
         )
     shell:
         """
-        mkdir -p "{output.output_directory}"
+        filename="$(basename {output})"
+        mkdir -p "{params.output_directory}"
 
-        multiqc --interactive --force --title "{wildcards.tissue_name}" --filename {params.config_file_basename}_multiqc_report.html --outdir "{output.output_directory}" "{params.input_directory}"
+        multiqc --interactive --force --title "{wildcards.tissue_name}" \
+          --filename {params.config_file_basename}_multiqc_report.html \
+          --outdir "{params.output_directory}" {input.fastqc_data} {input.star_data} \
+          {input.dump_fastq_data} {input.screen_data} {input.insertsize_data} \
+          {input.rnaseq_data} {input.fragment_size_data}
         """
