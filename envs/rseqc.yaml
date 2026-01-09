@@ -5,3 +5,4 @@ dependencies:
   - pip:
     - pysam
     - numpy
+    - tqdm
