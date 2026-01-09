@@ -47,17 +47,17 @@ for tissue, tag, end, sample in zip(TISSUES, TAGS, ENDTYPE, SAMPLES):
         raise ValueError(f"Expected the end type to be 'PE' or 'SE', got: {end}")
 
 config_file_basename: str = os.path.basename(config["MASTER_CONTROL"]).split(".")[0]
-screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv", delimiter=",", header=0)
-contaminant_genomes_root = os.path.join(config["ROOTDIR"], "FastQ_Screen_Genomes")
+screen_genomes: pd.DataFrame = pd.read_csv("utils/screen_genomes.csv",delimiter=",",header=0)
+contaminant_genomes_root = os.path.join(config["ROOTDIR"],"FastQ_Screen_Genomes")
 species_name = Utilities.get_species_from_taxon(taxon_id=config["GENOME"]["TAXONOMY_ID"])
 
 if "EXPERIMENT_NAME" in config and config["EXPERIMENT_NAME"] != "":
-    root_data: str = os.path.join(str(config["ROOTDIR"]), config["EXPERIMENT_NAME"], "data")
-    root_temp: str = os.path.join(str(config["ROOTDIR"]), config["EXPERIMENT_NAME"], "temp")
-    como_input: str = os.path.join("COMO_input", config["EXPERIMENT_NAME"])
+    root_data: str = os.path.join(str(config["ROOTDIR"]),config["EXPERIMENT_NAME"],"data")
+    root_temp: str = os.path.join(str(config["ROOTDIR"]),config["EXPERIMENT_NAME"],"temp")
+    como_input: str = os.path.join("COMO_input",config["EXPERIMENT_NAME"])
 else:
-    root_data: str = os.path.join(str(config["ROOTDIR"]), "data")
-    root_temp: str = os.path.join(str(config["ROOTDIR"]), "temp")
+    root_data: str = os.path.join(str(config["ROOTDIR"]),"data")
+    root_temp: str = os.path.join(str(config["ROOTDIR"]),"temp")
     como_input: str = "COMO_input"
 
 if config["GENOME"]["VERSION"] == "latest":
