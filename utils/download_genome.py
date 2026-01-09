@@ -6,13 +6,13 @@ import ftplib
 import gzip
 import io
 import json
-import os
 import re
 import shutil
 import subprocess
 import urllib.request
 from functools import cache
 from http.client import HTTPResponse
+from pathlib import Path
 
 _ncbi_url = "https://api.ncbi.nlm.nih.gov/datasets/v2alpha"
 _ensembl_url = "ftp.ensembl.org"
@@ -207,13 +207,13 @@ class NCBI:
         GENOME_FASTA_FILE: "genome/Mus_musculus.GRCm39.dna.primary_assembly.fa"
         GTF_FILE: "genome/Mus_musculus.GRCm39.111.gtf"
         """
-        final_output_filepath = os.path.join(save_directory, self._species_name, f"{self._species_name}_{self._release_number}_primary_assembly.fa")
-        if os.path.exists(final_output_filepath):
+        save_directory: Path = Path(save_directory)
+        final_output_filepath = Path(save_directory, self._species_name, f"{self._species_name}_{self._release_number}_primary_assembly.fa")
+        if final_output_filepath.exists():
             return
 
-        save_directory = os.path.join(save_directory, self._species_name)
-        if not os.path.exists(save_directory):
-            os.makedirs(save_directory, exist_ok=True)
+        save_directory = Path(save_directory, self._species_name)
+        save_directory.mkdir(exist_ok=True, parents=True)
 
         print(f"fasta file save directory: {save_directory}")
         fasta_root = f"/pub/{self._release_number}/fasta/{self._species_name}/dna"
@@ -235,7 +235,7 @@ class NCBI:
         # If the primary assembly path is not empty, we can download it
         if primary_assembly_path != "":
             primary_assembly_filename = primary_assembly_path.split("/")[-1]
-            with open(os.path.join(save_directory, primary_assembly_filename), "wb") as fasta_file:
+            with Path(save_directory, primary_assembly_filename).open("wb") as fasta_file:
                 self._ftp.retrbinary(f"RETR {primary_assembly_path}", fasta_file.write)
         # Otherwise we must download all *.dna.chromosome.*.fa.gz files and concatenate them
         else:
@@ -248,50 +248,43 @@ class NCBI:
                     primary_assembly_filename = filename.split("/")[-1].replace(".1.fa.gz", ".fa.gz")
 
             # TODO: add a progress bar to this download
-            print(f"Will save genome to '{os.path.join(save_directory, primary_assembly_filename)}'")
-            with open(os.path.join(save_directory, primary_assembly_filename), "wb") as fasta_file:
+            print(f"Will save genome to '{Path(save_directory, primary_assembly_filename).as_posix()}'")
+            with Path(save_directory, primary_assembly_filename).open("wb") as fasta_file:
                 for remote_chromosome in chromosome_files:
                     chromosome_filename = remote_chromosome.split("/")[-1]
-                    local_chromosome = f"{save_directory}/{chromosome_filename}"
-                    with open(local_chromosome, "wb") as chr_out:
+                    local_chromosome = Path(save_directory, chromosome_filename)
+                    file_size = self._ftp.size(remote_chromosome)
+                    with local_chromosome.open("wb") as chr_out:
                         self._ftp.retrbinary(f"RETR {remote_chromosome}", chr_out.write)
 
-                    with open(local_chromosome, "rb") as chr_in:
+                    with local_chromosome.open("rb") as chr_in:
                         fasta_file.write(chr_in.read())
 
             # Remove primary assembly files that are not the "primary_assembly"
-            for filename in os.listdir(save_directory):
+            for filename in save_directory.iterdir():
                 # Skip files not related to primary_assembly
-                if "primary_assembly" not in filename:
+                if "primary_assembly" not in filename.name:
                     continue
-                if not filename.endswith(".dna.primary_assembly.fa.gz"):
-                    os.remove(os.path.join(save_directory, filename))
+                if not filename.name.endswith(".dna.primary_assembly.fa.gz"):
+                    Path(save_directory, filename).unlink(missing_ok=True)
 
         # Once the primary assembly is downloaded/created, un-gzip it
         txt_filename = primary_assembly_filename.replace(".gz", "")
-        with gzip.open(f"{save_directory}/{primary_assembly_filename}", "rb") as f_in:
-            with open(f"{save_directory}/{txt_filename}", "wb",) as f_out:  # fmt: skip
-                shutil.copyfileobj(f_in, f_out)
+        with gzip.open(f"{save_directory}/{primary_assembly_filename}", "rb") as f_in, Path(save_directory, txt_filename).open("wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
 
         # Remove the gzipped file then convert file to lowercase name
-        os.remove(f"{save_directory}/{primary_assembly_filename}")
-        shutil.move(os.path.join(save_directory, txt_filename), final_output_filepath)
+        Path(save_directory, primary_assembly_filename).unlink()
+        shutil.move(Path(save_directory, txt_filename), final_output_filepath)
 
     def download_gtf_file(self, save_directory: str) -> None:
         """
-        # The full input path of the GTF file
-        GTF_FILE: "genome/Mus_musculus.GRCm39.111.gtf"
-        """
-        final_output_filepath = os.path.join(save_directory, self._species_name, f"{self._species_name}_{self._release_number}.gtf")
-        if os.path.exists(final_output_filepath):
+        save_directory: Path = Path(save_directory, self._species_name)
+        final_output_filepath = Path(save_directory, f"{self._species_name}_{self._release_number}.gtf")
+        if final_output_filepath.exists():
             print(f"GTF file exists, not creating! Checked path: '{final_output_filepath}'")
             return
-
-        save_directory = os.path.join(save_directory, self._species_name)
-        if not os.path.exists(save_directory):
-            os.makedirs(save_directory, exist_ok=True)
-
-        print(f"gtf file save directory: {save_directory}")
+        save_directory.mkdir(parents=True, exist_ok=True)
 
         gtf_root = f"/pub/{self._release_number}/gtf/{self._species_name}"
         gtf_suffix = f"{self._release_number.split('-')[-1]}.gtf.gz"
@@ -302,21 +295,19 @@ class NCBI:
         for filename in self._ftp.nlst(gtf_root):
             if filename.endswith(gtf_suffix):
                 gtf_filename = filename.split("/")[-1]
-                with open(f"{save_directory}/{gtf_filename}", "wb") as gtf_file:
+                with Path(save_directory, gtf_filename).open("wb") as gtf_file:
                     self._ftp.retrbinary(f"RETR {filename}", gtf_file.write)
 
         # ungzip the gtf file
         txt_filename = gtf_filename.replace(".gz", "")
+        txt_obj = Path(save_directory, txt_filename)
         with gzip.open(f"{save_directory}/{gtf_filename}", "rb") as f_in:
-            with open(f"{save_directory}/{txt_filename}", "wb") as f_out:  # fmt: skip
+            with txt_obj.open("wb") as f_out:
                 shutil.copyfileobj(f_in, f_out)
 
         # Remove the gzipped file then convert file to lowercase name
-        os.remove(f"{save_directory}/{gtf_filename}")
-        shutil.move(
-            os.path.join(save_directory, txt_filename),
-            final_output_filepath,
-        )
+        Path(save_directory, gtf_filename).unlink()
+        shutil.move(txt_obj, final_output_filepath)
 
 
 def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
@@ -329,12 +320,11 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
     """
     species_name = Utilities.get_species_from_taxon(taxon_id)
     species_name_with_space = Utilities.get_species_from_taxon(taxon_id, replace_spaces=False)
-    save_directory = os.path.join(save_directory, species_name)
-    if not os.path.exists(save_directory):
-        os.makedirs(save_directory, exist_ok=True)
+    save_directory: Path = Path(save_directory, species_name)
+    save_directory.mkdir(parents=True, exist_ok=True)
 
-    final_output_filepath = os.path.join(save_directory, f"{species_name}_ref_flat.txt")
-    if os.path.exists(final_output_filepath):
+    final_output_filepath = Path(save_directory, f"{species_name}_ref_flat.txt")
+    if final_output_filepath.exists():
         print(f"ref flat file exists, not creating! Checked path: '{final_output_filepath}'")
         return
 
@@ -364,13 +354,13 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
     # Download `ref_flat_url` and save it as a file without creating an intermeidate gzip file
     final_genome: str = f"{genome_prefix}{genome_version}"
     download_url = _ref_flat_url.format(final_genome=final_genome)
-    txt_file = f"{save_directory}/ref_flat_{final_genome}.txt"
+    txt_file = Path(save_directory, f"ref_flat_{final_genome}.txt")
 
     # TODO: add a progress bar for this download
     response = urllib.request.urlopen(download_url)
 
     with gzip.GzipFile(fileobj=io.BytesIO(response.read()), mode="rb") as decompressed:
-        with open(txt_file, "wb") as o_stream:
+        with txt_file.open("wb") as o_stream:
             o_stream.write(decompressed.read())
 
     shutil.move(txt_file, final_output_filepath)
@@ -393,30 +383,27 @@ def rRNA_interval_list_creation(taxon_id: int, save_directory: str) -> None:
         FileNotFoundError: «The primary assembly file could not be found» if the primary assembly file is not found
     """
     species_name = Utilities.get_species_from_taxon(taxon_id)
-    save_directory = os.path.join(save_directory, species_name)
-    if not os.path.exists(save_directory):
-        os.makedirs(save_directory, exist_ok=True)
+    save_directory: Path = Path(save_directory, species_name)
+    save_directory.mkdir(parents=True, exist_ok=True)
 
-    final_output_filepath = os.path.join(save_directory, f"{species_name}_rrna.interval_list")
-    if os.path.exists(final_output_filepath):
+    final_output_filepath = Path(save_directory, f"{species_name}_rrna.interval_list")
+    if final_output_filepath.exists():
         print(f"rRNA interval list exists, not creating! Checked path: '{final_output_filepath}'")
         return
 
     print(f"rRNA interval list save directory: {save_directory}")
 
-    genome_sizes = f"{save_directory}/{species_name}_genome_sizes.txt"
-    genes = [file for file in os.listdir(save_directory) if file.endswith(".gtf")][0]  # fmt: skip
-    primary_assembly_fa = [file for file in os.listdir(save_directory) if file.endswith(".fa")][0]  # fmt: skip
-    primary_assembly_fai = f"{primary_assembly_fa}.fai"
+    genome_sizes = Path(save_directory, f"{species_name}_genome_sizes.txt")
+    genes: str = next(file.name for file in save_directory.iterdir() if file.name.endswith(".gtf"))
+    primary_assembly_fa: str = next(file.name for file in save_directory.iterdir() if file.name.endswith(".fa"))
 
-    genes = os.path.join(save_directory, genes)
-    primary_assembly_fa = os.path.join(save_directory, primary_assembly_fa)
-    primary_assembly_fai = os.path.join(save_directory, primary_assembly_fai)
+    genes: Path = Path(save_directory, genes)
+    primary_assembly_fa: Path = Path(save_directory, primary_assembly_fa)
+    primary_assembly_fai: Path = Path(save_directory, f"{primary_assembly_fa}.fai")
 
-    rRNA_interval_list = f"{save_directory}/{species_name}_rrna.interval_list"
 
     # If primary_assembly_fa doesn't exist, show error and quit
-    if not os.path.exists(primary_assembly_fa):
+    if not primary_assembly_fa.exists():
         raise FileNotFoundError(f"The primary assembly file could not be found\nSearching for: '{primary_assembly_fa}'")  # fmt: skip
 
     # 1. Prepare chromosome sizes file  from fasta sequence if needed.
@@ -429,18 +416,18 @@ def rRNA_interval_list_creation(taxon_id: int, save_directory: str) -> None:
         check=False,
     )
 
-    primary_assembly_fai_in = open(primary_assembly_fai)
-    genome_sizes_out = open(genome_sizes, "w")
+    primary_assembly_fai_in = primary_assembly_fai.open(mode="r")
+    genome_sizes_out = genome_sizes.open(mode="w")
     for line in primary_assembly_fai_in:
         fields = line.split()
         genome_sizes_out.write(f"{fields[0]}\t{fields[1]}\n")
     primary_assembly_fai_in.close()
     genome_sizes_out.close()
 
-    genes_in = open(genes).readlines()
-    genome_sizes_in = open(genome_sizes).readlines()
-    genome_sizes_in = [line.strip() for line in genome_sizes_in]
-    rRNA_interval_list_out = open(rRNA_interval_list, "w")
+    rRNA_interval_list = Path(save_directory, f"{species_name}_rrna.interval_list")
+    genes_in = genes.read_text().split("\n")
+    genome_sizes_in = genome_sizes.read_text().split("\n")
+    rRNA_interval_list_out = rRNA_interval_list.open(mode="w")
     for line in genome_sizes_in:
         fields = line.split()
         rRNA_interval_list_out.write(f"@SQ\tSN:{fields[0]}\tLN:{fields[1]}\tUR:file:{primary_assembly_fa}\n")  # fmt: skip
@@ -468,22 +455,22 @@ def bed_file_creation(taxon_id: int, save_directory: str) -> None:
     modified from: informationsea at https://gist.github.com/informationsea/439d4fc53ea2b17cfb05
     """
     species_name = Utilities.get_species_from_taxon(taxon_id)
-    save_directory = os.path.join(save_directory, species_name)
-    bed_output_file = os.path.join(save_directory, f"{species_name}.bed")
-    if not os.path.exists(save_directory):
-        os.makedirs(save_directory, exist_ok=True)
+    save_directory: Path = Path(save_directory, species_name)
+    bed_output_file = Path(save_directory, f"{species_name}.bed")
+    save_directory.mkdir(parents=True, exist_ok=True)
 
-    if os.path.exists(bed_output_file):
+    if bed_output_file.exists():
         print(f"bed file exists, not creating! Checked path: '{bed_output_file}'")
         return
 
     print(f"bed file save directory: {save_directory}")
 
-    ref_flat_file = os.path.join(save_directory, f"{species_name}_ref_flat.txt")
-    assert os.path.exists(ref_flat_file), f"The refFlat file could not be found\nSearching for: '{ref_flat_file}'"
+    ref_flat_file = Path(save_directory, f"{species_name}_ref_flat.txt")
+    if not ref_flat_file.exists():
+        raise FileNotFoundError(f"The refFlat file could not be found\nSearching for: '{ref_flat_file}'")
 
-    reader = csv.reader(open(ref_flat_file), delimiter="\t", quotechar=None)
-    writer = csv.writer(open(bed_output_file, "w"), delimiter="\t", quotechar=None)
+    reader = csv.reader(ref_flat_file.open(mode="r"), delimiter="\t", quotechar=None)
+    writer = csv.writer(bed_output_file.open(mode="w"), delimiter="\t", quotechar=None)
     writer.writerow(['track name="refflat"'])
 
     for row in reader:
@@ -504,7 +491,7 @@ def bed_file_creation(taxon_id: int, save_directory: str) -> None:
             )
         )
 
-    shutil.move(bed_output_file, bed_output_file.lower())
+    shutil.move(bed_output_file, bed_output_file.as_posix().lower())
 
 
 def parse_args():
