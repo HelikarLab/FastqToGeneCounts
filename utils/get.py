@@ -74,34 +74,25 @@ def srr_code(config: dict) -> list[str] | None:
 def tissue_name(config: dict) -> list[str]:
     if perform.prefetch(config=config):
         return from_master_config(config=config, attribute="tissue")
-    else:
-        fastq_input = snakemake_io.glob_wildcards(
-            os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-        )
-        return fastq_input.tissue_name
+    fastq_input = snakemake_io.glob_wildcards(os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
+    return fastq_input.tissue_name
 
 
 def tags(config: dict) -> list[str]:
     if perform.prefetch(config=config):
         return from_master_config(config=config, attribute="tag")
-    else:
-        fastq_input = snakemake_io.glob_wildcards(
-            os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-        )
-        return fastq_input.tag
-
+    fastq_input = snakemake_io.glob_wildcards(os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
+    return fastq_input.tag
+    
 
 def PE_SE(config: dict) -> list[str]:
     if perform.prefetch(config=config):
         return from_master_config(config=config, attribute="PE_SE")
-    else:
-        fastq_input = snakemake_io.glob_wildcards(
-            os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-        )
-        return fastq_input.PE_SE
+    fastq_input = snakemake_io.glob_wildcards(os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
+    return fastq_input.PE_SE
 
 
-def tag_from_filename(file_path: Union[str, Path]) -> str:
+def tag_from_filename(file_path: str | Path) -> str:
     file_name = os.path.basename(file_path)
     purge_extension = file_name.split(".")[0]
     tag = purge_extension.split("_")[-1]
@@ -119,9 +110,7 @@ def sample(config: dict) -> list[str]:
     if perform.prefetch(config=config):
         tag = from_master_config(config=config, attribute="tag")
     else:
-        fastq_input = snakemake_io.glob_wildcards(
-            os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz")
-        )
+        fastq_input = snakemake_io.glob_wildcards(os.path.join(config["LOCAL_FASTQ_FILES"], "{tissue_name}_{tag}_{PE_SE}.fastq.gz"))
         tag = fastq_input.tag
 
     sample = []
