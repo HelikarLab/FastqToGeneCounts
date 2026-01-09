@@ -25,13 +25,31 @@ __email__ = "wang.liguo@mayo.edu"
 __status__ = "Production"
 
 
-def overlap_length2(lst1, lst2):
-    """Calculate the overlap length between two lists of intervals."""
-    length = 0
-    for x in lst1:
-        for y in lst2:
-            length += len(list(range(max(x[0], y[0]), min(x[-1], y[-1]) + 1)))
-    return length
+def overlap_length2(exons: Sequence[Sequence[int]], read_start: int, next_ref_start: int) -> int:
+    """Sum the overlap between sorted, non-overlapping exon intervals with inclusive coordinates.
+
+    :param exons: Sorted by start, non-overlapping: [(start_inclusive, end_inclusive), ...]
+    :param read_start: The start of the potential overlapping read
+    :param next_ref_start: The start if the read's paired mate
+    :return: The total overlap length
+    """
+    total = 0
+    for x1, x2 in exons:
+        if x2 <= read_start:  # exon is entirely before [start, end); skip it
+            continue
+
+        # exon starts at/after the next reference start
+        # because the exons are sorted, no exons after this can overlap
+        if x1 >= next_ref_start:
+            break
+
+        # compute the overlap of [x1, x2) with [a, b)
+        lo = max(read_start, x1)
+        hi = min(next_ref_start, x2)
+        if lo < hi:
+            total += hi - lo
+
+    return total
 
 
 def _calculate_exon_start(tx_start: int, fields: list[str]) -> list[int]:
