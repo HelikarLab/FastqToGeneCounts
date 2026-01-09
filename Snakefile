@@ -344,20 +344,9 @@ rule prefetch:
         )
     shell:
         """
-        echo Starting rule
-        rm -f {output}.lock
-
-        echo Making scratch directory
-        mkdir -p {config[SCRATCH_DIR]}
-
-        echo Starting prefetch
-        prefetch --max-size u --progress --output-file {params.temp_file} {params.srr_value}
-
-        echo Making output directory
-        mkdir -p "$(dirname {output})"
-
-        echo Moving files
-        mv {config[SCRATCH_DIR]}/* "$(dirname {output})/"
+        tempfile="{resources.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}.sra"
+        prefetch --max-size u --output-file "$tempfile" {params.srr_value}
+        mv "$tempfile" "{output}"
         """
 
 
