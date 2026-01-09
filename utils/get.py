@@ -54,11 +54,10 @@ def from_master_config(config: dict, attribute: Literal["SRR", "tissue", "tag", 
                 target_attribute = ["S"]
 
         # If we are doing anything else, simply append the column value the appropriate number of times
-        else:
-            if PE_SE_value in [Layout.PE, Layout.SLC]:
-                target_attribute = [line[index_value], line[index_value]]
-            elif PE_SE_value == Layout.SE:
-                target_attribute = [line[index_value]]
+        elif PE_SE_value in [Layout.PE, Layout.SLC]:
+            target_attribute = [line[index_value], line[index_value]]
+        elif PE_SE_value == Layout.SE:
+            target_attribute = [line[index_value]]
 
         collect_attributes += target_attribute
 
