@@ -59,7 +59,7 @@ class Utilities:
 
     @staticmethod
     @cache
-    def is_validate_release_number(release_number: str | int) -> bool:
+    def is_valid_release_number(release_number: str | int) -> bool:
         """Validate `release_number` exists in the ensembl_ftp_url.
 
         Args:
@@ -177,7 +177,7 @@ class NCBI:
             raise ValueError(
                 f"The provided taxon_id ({self._taxon_id}) is not valid.\nPlease validate your taxon ID at https://www.ncbi.nlm.nih.gov/Taxonomy"
             )
-        if self._release_number != "latest" and not Utilities.is_validate_release_number(self._release_number):
+        if self._release_number != "latest" and not Utilities.is_valid_release_number(self._release_number):
             raise ValueError(
                 f"The provided release number ({self._release_number}) is not valid. It should be in the format of `release-112` or `112`.\n"
                 f"Please validate your release number at https://ftp.ensembl.org/pub"
