@@ -71,198 +71,70 @@ else:
         "Invalid GENOME VERSION in config.yaml file. " "Valid options are: 'latest', 'release-###' (i.e., 'release-112'), or an integer (i.e., 112)"
     )
 
+GENOME_TARGETS = [
+    os.path.join(config["GENOME"]["SAVE_DIR"],species_name,"star","Genome"),
+    os.path.join(config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_{ensembl_release_number}.gtf"),
+    os.path.join(
+        config["GENOME"]["SAVE_DIR"],species_name,f"{species_name}_{ensembl_release_number}_primary_assembly.fa"
+    ),
+]
+CORE_TARGETS = [
+    expand(f"{como_input}/{{tissue_name}}/geneCounts/{{sample}}/{{tissue_name}}_{{tag}}.tab",zip,tissue_name=TISSUES,tag=TAGS,sample=SAMPLES),
+    expand(f"{root_data}/{{tissue_name}}/aligned_reads/{{tag}}/{{tissue_name}}_{{tag}}.bam",zip,tissue_name=TISSUES,tag=TAGS),
+    expand(f"{root_data}/{{tissue_name}}/aligned_reads/{{tag}}/{{tissue_name}}_{{tag}}.bam.bai",zip,tissue_name=TISSUES,tag=TAGS),
+    expand(f"{root_data}/{{tissue_name}}/aligned_reads/{{tag}}/{{tissue_name}}_{{tag}}.tab",zip,tissue_name=TISSUES,tag=TAGS),
+    expand(f"{root_data}/{{tissue_name}}/fastqc/untrimmed_reads/untrimmed_{{tissue_name}}_{{tag}}_{{PE_SE}}_fastqc.zip",zip,tissue_name=TISSUE_ZIP,tag=TAG_ZIP,PE_SE=PE_SE_ZIP),
+    expand(f"{root_data}/{{tissue_name}}/layouts/{{tissue_name}}_{{tag}}_layout.txt",zip,tissue_name=TISSUES,tag=TAGS),
+    expand(f"{root_data}/{{tissue_name}}/prepMethods/{{tissue_name}}_{{tag}}_prep_method.txt",zip,tissue_name=TISSUES,tag=TAGS),
+    expand(f"{root_data}/{{tissue_name}}/multiqc/{config_file_basename}/{config_file_basename}_multiqc_report.html",tissue_name=TISSUES),
+]
+
+OPTIONAL_TARGETS = []
+if perform.dump_fastq(config):
+    OPTIONAL_TARGETS.append(
+        expand(
+            f"{root_data}/{{tissue_name}}/raw/{{tissue_name}}_{{tag}}_{{PE_SE}}.fastq.gz",
+            zip,tissue_name=TISSUE_ZIP,tag=TAG_ZIP,PE_SE=PE_SE_ZIP
+        )
+    )
+if perform.screen(config):
+    OPTIONAL_TARGETS.append(
+        expand(f"{config['ROOTDIR']}/FastQ_Screen_Genomes/{{name}}",name=screen_genomes["name"].values)
+    )
+    OPTIONAL_TARGETS.append(
+        expand(
+            f"{root_data}/{{tissue_name}}/fq_screen/{{tissue_name}}_{{tag}}_{{PE_SE}}_screen.txt",
+            zip,tissue_name=TISSUE_ZIP,tag=TAG_ZIP,PE_SE=PE_SE_ZIP
+        )
+    )
+if perform.trim(config):
+    OPTIONAL_TARGETS.append(
+        expand(
+            f"{root_data}/{{tissue_name}}/trimmed_reads/trimmed_{{tissue_name}}_{{tag}}_{{PE_SE}}.fastq.gz",
+            zip,tissue_name=TISSUE_ZIP,tag=TAG_ZIP,PE_SE=PE_SE_ZIP
+        )
+    )
+if perform.get_fragment_size(config):
+    OPTIONAL_TARGETS += [
+        expand(f"{root_data}/{{tissue_name}}/fragmentSizes/{{tissue_name}}_{{tag}}_fragment_size.txt",zip,tissue_name=TISSUES,tag=TAGS),
+        expand(f"{como_input}/{{tissue_name}}/fragmentSizes/{{sample}}/{{tissue_name}}_{{tag}}_fragment_size.txt",zip,tissue_name=TISSUES,tag=TAGS,sample=SAMPLES),
+    ]
+if perform.get_rnaseq_metrics(config):
+    OPTIONAL_TARGETS += [
+        expand(f"{root_data}/{{tissue_name}}/picard/rnaseq/{{tissue_name}}_{{tag}}_rnaseq.txt",zip,tissue_name=TISSUES,tag=TAGS),
+        expand(f"{como_input}/{{tissue_name}}/strandedness/{{sample}}/{{tissue_name}}_{{tag}}_strandedness.txt",zip,tissue_name=TISSUES,tag=TAGS,sample=SAMPLES),
+    ]
+if perform.get_insert_size(config):
+    OPTIONAL_TARGETS += [
+        # expand(f"{root_data}/{{tissue_name}}/picard/insert/{{tissue_name}}_{{tag}}_insert_size.txt",zip,tissue_name=_TISSUES,tag=_TAGS),
+        # expand(f"{root_data}/{{tissue_name}}/picard/hist/{{tissue_name}}_{{tag}}_insert_size_histo.pdf",zip,tissue_name=_TISSUES,tag=_TAGS),
+        expand(f"{como_input}/{{tissue_name}}/insertSizeMetrics/{{sample}}/{{tissue_name}}_{{tag}}_insert_size.txt",zip,tissue_name=TISSUES,tag=TAGS,sample=SAMPLES),
+    ]
+
 
 rule all:
     localrule: True
-    input:
-        # Download genome items + star genome index
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}_primary_assembly.fa"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, f"{species_name}_{ensembl_release_number}.gtf"),
-        os.path.join(config["GENOME"]["SAVE_DIR"], species_name, "star", "Genome"),
-        expand(
-            f"{root_data}/{{tissue_name}}/layouts/{{tissue_name}}_{{tag}}_layout.txt",
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-        ),
-        expand(
-            f"{root_data}/{{tissue_name}}/prepMethods/{{tissue_name}}_{{tag}}_prep_method.txt",
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-        ),
-        expand(
-            f"{root_data}/{{tissue_name}}/fastqc/untrimmed_reads/untrimmed_{{tissue_name}}_{{tag}}_{{PE_SE}}_fastqc.zip",
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-            PE_SE=get.PE_SE(config),
-        ),
-        expand(
-            f"{root_data}/{{tissue_name}}/aligned_reads/{{tag}}/{{tissue_name}}_{{tag}}.tab",
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-        ),
-        expand(
-            f"{root_data}/{{tissue_name}}/aligned_reads/{{tag}}/{{tissue_name}}_{{tag}}.bam",
-            zip,
-            tissue_name=get.tissue_name(config=config),
-            tag=get.tags(config=config),
-        ),
-        expand(
-            f"{root_data}/{{tissue_name}}/aligned_reads/{{tag}}/{{tissue_name}}_{{tag}}.bam.bai",
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-        ),
-        expand(
-            f"{root_data}/{{tissue_name}}/multiqc/{config_file_basename}/{config_file_basename}_multiqc_report.html",
-            tissue_name=get.tissue_name(config),
-        ),
-        (
-            expand(
-                f"{root_temp}/prefetch/{{tissue_name}}/{{tissue_name}}_{{tag}}/{{tissue_name}}_{{tag}}.sra",
-                zip,
-                tissue_name=get.tissue_name(config=config),
-                tag=get.tags(config=config),
-            )
-            if perform.prefetch(config=config)
-            else []
-        ),
-        (
-            expand(
-                f"{config['ROOTDIR']}/FastQ_Screen_Genomes/{{name}}",
-                name=screen_genomes["name"].values,
-            )
-            if perform.screen(config=config)
-            else []
-        ),
-        (
-            expand(
-                f"{root_data}/{{tissue_name}}/raw/{{tissue_name}}_{{tag}}_{{PE_SE}}.fastq.gz",
-                zip,
-                tissue_name=get.tissue_name(config=config),
-                tag=get.tags(config=config),
-                PE_SE=get.PE_SE(config=config),
-            )
-            if perform.prefetch(config=config) or perform.dump_fastq(config=config)
-            else []
-        ),
-        (
-            expand(
-                f"{root_data}/{{tissue_name}}/trimmed_reads/trimmed_{{tissue_name}}_{{tag}}_{{PE_SE}}.fastq.gz",
-                zip,
-                tissue_name=get.tissue_name(config=config),
-                tag=get.tags(config=config),
-                PE_SE=get.PE_SE(config=config),
-            )
-            if perform.trim(config=config)
-            else []
-        ),
-        (
-            expand(
-                f"{root_data}/{{tissue_name}}/fragmentSizes/{{tissue_name}}_{{tag}}_fragment_size.txt",
-                zip,
-                tissue_name=get.tissue_name(config=config),
-                tag=get.tags(config=config),
-            )
-            if perform.get_fragment_size(config=config)
-            else []
-        ),
-        (
-            expand(
-                f"{root_data}/{{tissue_name}}/fq_screen/{{tissue_name}}_{{tag}}_{{PE_SE}}_screen.txt",
-                zip,
-                tissue_name=get.tissue_name(config=config),
-                tag=get.tags(config=config),
-                PE_SE=get.PE_SE(config=config),
-            )
-            if perform.screen(config=config)
-            else []
-        ),
-        (
-            expand(
-                f"{root_data}/{{tissue_name}}/fastqc/trimmed_reads/trimmed_{{tissue_name}}_{{tag}}_{{PE_SE}}_fastqc.zip",
-                zip,
-                tissue_name=get.tissue_name(config=config),
-                tag=get.tags(config=config),
-                PE_SE=get.PE_SE(config=config),
-            )
-            if perform.trim(config=config)
-            else []
-        ),
-        (
-            expand(
-                f"{root_data}/{{tissue_name}}/picard/rnaseq/{{tissue_name}}_{{tag}}_rnaseq.txt",
-                zip,
-                tissue_name=get.tissue_name(config),
-                tag=get.tags(config),
-            )
-            if perform.get_rnaseq_metrics(config)
-            else []
-        ),
-        (
-            expand(
-                f"{root_data}/{{tissue_name}}/picard/insert/{{tissue_name}}_{{tag}}_insert_size.txt",
-                zip,
-                tissue_name=get.tissue_name(config),
-                tag=get.tags(config),
-            )
-            if perform.get_insert_size(config)
-            else []
-        ),
-        (
-            expand(
-                f"{root_data}/{{tissue_name}}/picard/hist/{{tissue_name}}_{{tag}}_insert_size_histo.pdf",
-                zip,
-                tissue_name=get.tissue_name(config),
-                tag=get.tags(config),
-            )
-            if perform.get_insert_size(config)
-            else []
-        ),
-        expand(
-            f"{como_input}/{{tissue_name}}/geneCounts/{{sample}}/{{tissue_name}}_{{tag}}.tab",
-            zip,
-            tissue_name=get.tissue_name(config),
-            tag=get.tags(config),
-            sample=get.sample(config),
-        ),
-        (
-            expand(
-                f"{como_input}/{{tissue_name}}/strandedness/{{sample}}/{{tissue_name}}_{{tag}}_strandedness.txt",
-                zip,
-                tissue_name=get.tissue_name(config),
-                sample=get.sample(config),
-                tag=get.tags(config),
-            )
-            if perform.get_rnaseq_metrics(config)
-            else []
-        ),
-        (
-            expand(
-                f"{como_input}/{{tissue_name}}/insertSizeMetrics/{{sample}}/{{tissue_name}}_{{tag}}_insert_size.txt",
-                zip,
-                tissue_name=get.tissue_name(config),
-                tag=get.tags(config),
-                sample=get.sample(config),
-            )
-            if perform.get_insert_size(config)
-            else []
-        ),
-        (
-            expand(
-                f"{como_input}/{{tissue_name}}/fragmentSizes/{{sample}}/{{tissue_name}}_{{tag}}_fragment_size.txt",
-                zip,
-                tissue_name=get.tissue_name(config),
-                tag=get.tags(config),
-                sample=get.sample(config),
-            )
-            if perform.get_fragment_size(config)
-            else []
-        ),
-
+    input: list(itertools.chain(GENOME_TARGETS,*CORE_TARGETS,*OPTIONAL_TARGETS))
 
 rule preroundup:
     output:
