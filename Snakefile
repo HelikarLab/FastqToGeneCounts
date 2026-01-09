@@ -1,14 +1,16 @@
 import csv
+import itertools
 import os
-import pandas as pd
 import re
+import tempfile
 import time
 from pathlib import Path
 
-from utils import get, perform
+import pandas as pd
+
+from utils import perform
 from utils.constants import Layout, PrepMethod
 from utils.download_genome import Utilities
-
 
 configfile: "config.yaml"
 
