@@ -406,18 +406,28 @@ def fastqc_dump_fastq_input(wildcards):
     if perform.prefetch(config):
         if wildcards.PE_SE == "1":
             return [
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output[0],  # type: ignore
-                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output[0],  # type: ignore
+                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output.fastq,
+                checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output.fastq,
             ]
-        return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
+        elif wildcards.PE_SE == "2":
+            return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="2").output.fastq
+        elif wildcards.PE_SE == "S":
+            return checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="S").output.fastq
+        else:
+            raise ValueError(f"Invalid PE_SE value: {wildcards.PE_SE}")
 
     # Make sure we are able to load local FastQ files
+    sample_list: list[str] = samples["sample"].tolist()
     if "LOCAL_FASTQ_FILES" in config.keys() and os.path.exists(config["LOCAL_FASTQ_FILES"]):
+        sample_name = f"{wildcards.tissue_name}_{wildcards.tag}"
         for path, subdir, files in os.walk(config["LOCAL_FASTQ_FILES"]):
             for file in files:
-                if (wildcards.tissue_name in file) and (wildcards.tag in file) and (f"_{wildcards.PE_SE}" in file):
-                    file_one: str = str(os.path.join(path, file))
-                    return [file_one, file_one.replace("_1.fastq.gz", "_2.fastq.gz")] if str(wildcards.PE_SE) == "1" else file_one
+                if sample_name in sample_list and file.startswith("_".join(wildcards)):
+                    file_one: str = str(os.path.join(path,file))
+                    if str(wildcards.PE_SE) == "1":
+                        file_two: str = file_one.replace("_1.fastq.gz","_2.fastq.gz")
+                        return [file_one, file_two]
+                    return [file_one]
     return []
 
 
@@ -487,12 +497,13 @@ def contaminant_screen_input(wildcards):
 
     # If we have performed fasterq_dump, return its output
     if perform.dump_fastq(config):
-        return checkpoints.fasterq_dump.get(**wildcards).output  # type: ignore
+        return checkpoints.fasterq_dump.get(**wildcards).output.fastq  # type: ignore
 
     # Otherwise collect local files
     fastq_files = Path(config["LOCAL_FASTQ_FILES"])
     for file in fastq_files.rglob("{tissue_name}_{tag}_{PE_SE}.fastq.gz".format(**wildcards)):
-        return str(file)
+        if f"{wildcards.tissue_name}_{wildcards.tag}" in samples["sample"].tolist():
+            return str(file)
     return []
 
 
@@ -528,6 +539,7 @@ rule contaminant_screen:
 
 
 def get_trim_input(wildcards):
+    sample_name = f"{wildcards.tissue_name}_{wildcards.tag}"
     if perform.dump_fastq(config):
         if str(wildcards.PE_SE) in {"1", "2"}:
             return [
@@ -639,21 +651,21 @@ rule fastqc_trim:
 def alignment_input(wildcards):
     items = []
     sample_name: str = f"{wildcards.tissue_name}_{wildcards.tag}"
-
-    try:
-        is_paired_end: bool = "PE" == samples[samples["sample"] == sample_name]["endtype"].values[0]
-    except IndexError as e:
-        raise ValueError(f"Unable to find the sample '{sample_name}' in the control filepath '{config['MASTER_CONTROL']}'. Have you set the correct path for the 'MASTER_CONTROL' and/or 'LOCAL_FASTQ_FILES' variable(s)?") from e
+    sample_in_config = samples["sample"].eq(sample_name).any()
+    is_paired_end = sample_in_config and (
+                samples.loc[samples["sample"].eq(sample_name), "endtype"].astype(str).str.upper().iloc[0] == "PE")
 
     file_pattern = "_1.fastq.gz" if is_paired_end else "_S.fastq.gz"
-    if perform.trim(config) or perform.dump_fastq(config):
-        if is_paired_end:
-            return [
-                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="1").output,  # type: ignore
-                *checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="2").output,  # type: ignore
-            ]
-        else:
-            return checkpoints.trim.get(tissue_name=wildcards.tissue_name, tag=wildcards.tag, PE_SE="S").output  # type: ignore
+    if perform.dump_fastq(config):
+        return [
+            checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="1").output.fastq,
+            checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="2").output.fastq,
+        ] if is_paired_end else checkpoints.fasterq_dump.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="S").output.fastq
+    elif perform.trim(config):
+        return [
+            checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="1").output,
+            checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="2").output,
+        ] if is_paired_end else checkpoints.trim.get(tissue_name=wildcards.tissue_name,tag=wildcards.tag,PE_SE="S").output
     else:
         for file in Path(config["LOCAL_FASTQ_FILES"]).rglob(f"*{file_pattern}"):
             if wildcards.tissue_name in file.as_posix() and wildcards.tag in file.as_posix() and sample_in_config:
@@ -798,7 +810,7 @@ rule get_rnaseq_metrics:
 rule get_insert_size:
     input:
         bam=rules.star_align.output.bam_file,
-        preround=rules.preroundup.output.layout,
+        layout=rules.preroundup.output.layout,
     output:
         txt=os.path.join(root_data,"{tissue_name}","picard","insert","{tissue_name}_{tag}_insert_size.txt"),
         pdf=os.path.join(root_data,"{tissue_name}","picard","hist","{tissue_name}_{tag}_insert_size_histo.pdf"),
@@ -815,7 +827,7 @@ rule get_insert_size:
         )
     shell:
         """
-        layout=$(cat {input.preround})
+        layout=$(cat {input.layout})
         if [ $layout == "paired-end" ]; then
             picard CollectInsertSizeMetrics \
                 --VERBOSITY WARNING \
