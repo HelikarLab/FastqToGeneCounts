@@ -78,7 +78,7 @@ def get_contig(chrom_value: str) -> str:
     raise ValueError(f"Cannot parse chromosome name: {chrom_value}")
 
 
-def fragment_size(reference_bed_filepath: Path, input_bam_filepath: Path, qcut: int = 30, ncut: int = 5):
+def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, ncut: int, threads: int):
     """Calculate the fragment size for each gene."""
     with reference_bed_filepath.open("r") as i_stream, pysam.AlignmentFile(input_bam_filepath.as_posix()) as sam_file:
         for line in i_stream:
@@ -128,6 +128,7 @@ def fragment_size(reference_bed_filepath: Path, input_bam_filepath: Path, qcut: 
 
 def _main():
     usage = "%prog [options]" + "\n" + __doc__ + "\n"
+def main():
     parser = OptionParser(usage, version="%prog " + __version__)
     parser.add_option("-i", "--input", action="store", type="string", dest="input_file", help="Input BAM file")
     parser.add_option(
@@ -184,4 +185,4 @@ def _main():
 
 
 if __name__ == "__main__":
-    _main()
+    main()
