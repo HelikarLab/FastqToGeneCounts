@@ -128,6 +128,7 @@ class Utilities:
             str: The species name that corresponds to the ensembl species. For example: 9606 -> homo_sapiens
         """
         # Hardcode common, known species IDs
+        species = ""
         if taxon_id == MUS_MUSCULUS:
             species = "Mus musculus"
         elif taxon_id == HOMO_SAPIENS:
@@ -165,14 +166,21 @@ class NCBI:
         *,
         show_progress: bool,
     ) -> None:
+        """Initialize an NCBI connection.
+
+        :param taxon_id: The taxon ID to download the genome for
+        :param release_number: The Ensembl release number to download the genome for
+        :param show_progress: Whether to show a progress bar during downloads
+        """
         self._taxon_id: int = taxon_id
         self._release_number: str = release_number
         self._species_name: str = Utilities.get_species_from_taxon(self._taxon_id)
         self._progress: bool = show_progress
+        self._latest_release = Utilities.get_latest_release()
 
-        # Validate input arguments
-        if not self._release_number.startswith(("latest", "release-")):
-            raise ValueError("""release_number must start with 'latest' or 'release-'.\nExamples: "latest", "release-112""")  # fmt: skip
+        if not self._release_number.startswith(("latest", "release-")) and not self._release_number.isdigit():
+            raise ValueError("""release_number must be an integer or start with 'latest' or 'release-'.\nExamples: "115", "latest", "release-112""")
+
         if not Utilities.is_valid_taxon(self._taxon_id):
             raise ValueError(
                 f"The provided taxon_id ({self._taxon_id}) is not valid.\nPlease validate your taxon ID at https://www.ncbi.nlm.nih.gov/Taxonomy"
@@ -186,6 +194,8 @@ class NCBI:
         # Inputs are valid, we can now download the fasta primary assembly
         if self._release_number == "latest":
             self._release_number = f"release-{Utilities.get_latest_release()}"
+        elif self._release_number.isdigit():
+            self._release_number = f"release-{self._release_number}"
 
         self._ftp = ftplib.FTP(_ensembl_url)
         self._ftp.login()
