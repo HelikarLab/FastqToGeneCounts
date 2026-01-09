@@ -20,11 +20,11 @@ def from_master_config(config: dict, attribute: Literal["SRR", "tissue", "tag", 
     if index_value >= 2:
         index_value -= 1
 
-    control_lines = open(config["MASTER_CONTROL"], "r")
+    control_lines = open(config["MASTER_CONTROL"], mode="r")
     dialect = csv.Sniffer().sniff(control_lines.read(1024))
     control_lines.seek(0)
     reader = csv.reader(control_lines, delimiter=str(dialect.delimiter))
-
+    next(reader)  # skip header row
     for line in reader:
         # Get the column from master_control we are interested in
         column_value = line[index_value]
