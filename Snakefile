@@ -382,7 +382,7 @@ checkpoint fasterq_dump:
         )
     shell:
         """
-        command='fasterq-dump --force --progress --threads {threads} --temp {config[SCRATCH_DIR]} --outdir {config[SCRATCH_DIR]}'
+        command='fasterq-dump --force --threads {threads} --temp {resources.temp_dir} --outdir {resources.temp_dir}'
 
         # Set the split/concatenate based on paired end or single end data
         [[ "{params.split_files}" == "True" ]] && command+=' --split-files' || command+=' --concatenate-reads'
@@ -391,9 +391,8 @@ checkpoint fasterq_dump:
         command+=' {input.prefetch}'
 
         eval $command
-        ls -l {config[SCRATCH_DIR]}
-        pigz --synchronous --processes {threads} --force {config[SCRATCH_DIR]}/{params.temp_filename}
-        mv {config[SCRATCH_DIR]}/{params.gzip_file} {output.fastq}
+        pigz --synchronous --processes {threads} --force {resources.temp_dir}/{params.temp_filename}
+        mv {resources.temp_dir}/{params.gzip_file} {output.fastq}
         """
 
 
@@ -586,13 +585,13 @@ checkpoint trim:
 
         # process paired-end forward read
         if [[ "{wildcards.PE_SE}" == "1" ]]; then
-            trim_galore --paired --cores 4 -o {config[SCRATCH_DIR]} {input}
-            mv "{config[SCRATCH_DIR]}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz" "{output}"
+            trim_galore --paired --cores 4 -o {resources.temp_dir} {input}
+            mv "{resources.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_1_val_1.fq.gz" "{output}"
 
         # process paired-end reverse read
         elif [[ "{wildcards.PE_SE}" == "2" ]]; then
-            trim_galore --paired --cores 4 -o {config[SCRATCH_DIR]} {input}
-            mv "{config[SCRATCH_DIR]}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz" "{output}"
+            trim_galore --paired --cores 4 -o {resources.temp_dir} {input}
+            mv "{resources.temp_dir}/{wildcards.tissue_name}_{wildcards.tag}_2_val_2.fq.gz" "{output}"
 
         # process single-end reads
         elif [[ "{wildcards.PE_SE}" == "S" ]]; then
@@ -610,8 +609,8 @@ rule fastqc_trim:
         zip=os.path.join(root_data,"{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
         html=os.path.join(root_data,"{tissue_name}","fastqc","trimmed_reads","trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
     params:
-        temp_zip=os.path.join(config["SCRATCH_DIR"], "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip"),
-        temp_html=os.path.join(config["SCRATCH_DIR"], "trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html"),
+        temp_zip="trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.zip",
+        temp_html="trimmed_{tissue_name}_{tag}_{PE_SE}_fastqc.html",
     priority: -1  # do not prioritize this rule
     conda: "envs/fastqc.yaml"
     threads: 8
@@ -627,10 +626,13 @@ rule fastqc_trim:
         )
     shell:
         """
-        mkdir -p "$(dirname {output})" "{config[SCRATCH_DIR]}"
-        fastqc {input} --threads {threads} --outdir "{config[SCRATCH_DIR]}"
-        mv "{params.temp_zip}" "{output.zip}"
-        mv "{params.temp_html}" "{output.html}"
+        temp_zip="{resources.temp_dir}/{params.temp_zip}"
+        temp_html="{resources.temp_dir}/{params.temp_html}"
+        
+        mkdir -p "$(dirname {output.zip})"
+        fastqc {input} --threads {threads} --outdir {resources.temp_dir}
+        mv "{resources.temp_dir}/{params.temp_zip}" "{output.zip}"
+        mv "{resources.temp_dir}/{params.temp_html}" "{output.html}"
         """
 
 
