@@ -14,9 +14,8 @@ from utils.download_genome import Utilities
 
 configfile: "config.yaml"
 
-
-os.makedirs(config["ROOTDIR"], exist_ok=True)
-with open(config["MASTER_CONTROL"], "r") as i_stream:
+os.makedirs(config["ROOTDIR"],exist_ok=True)
+with open(config["MASTER_CONTROL"],"r") as i_stream:
     # Get the delimiter from the master control file; from: https://stackoverflow.com/questions/16312104
     delimiter = csv.Sniffer().sniff(i_stream.readline().rstrip("\n")).delimiter
 
