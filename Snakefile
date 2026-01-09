@@ -322,7 +322,7 @@ rule prefetch:
     input:
         config["MASTER_CONTROL"],
     output:
-        os.path.join(root_temp, "prefetch", "{tissue_name}", "{tissue_name}_{tag}", "{tissue_name}_{tag}.sra"),
+        temp(os.path.join(root_temp,"prefetch","{tissue_name}","{tissue_name}_{tag}","{tissue_name}_{tag}.sra")),
     conda:
         "envs/SRAtools.yaml"
     threads: 1
