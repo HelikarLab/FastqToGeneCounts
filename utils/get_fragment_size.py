@@ -9,6 +9,7 @@ For each transcript/gene, it Will report:
 
 import re
 import sys
+from collections.abc import Sequence
 from optparse import OptionParser
 from pathlib import Path
 
