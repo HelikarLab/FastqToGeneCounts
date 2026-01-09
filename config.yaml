@@ -15,9 +15,6 @@ MASTER_CONTROL: "controls/master_control.csv"
 ROOTDIR: "results"
 EXPERIMENT_NAME: ""
 
-# The scratch location of your computer or cluster
-SCRATCH_DIR: "/scratch"
-
 # If you are processing local FastQ items, set this to the location of your items
 LOCAL_FASTQ_FILES: "results/dump_fastq_input"
 

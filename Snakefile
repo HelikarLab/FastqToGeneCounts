@@ -331,12 +331,12 @@ rule prefetch:
             samples["sample"].eq(f"{wildcards.tissue_name}_{wildcards.tag}").idxmax(),
             "srr",
         ],
-        output_directory=os.path.join(root_temp, "prefetch", "{tissue_name}_{tag}"),
-        temp_file=os.path.join(config["SCRATCH_DIR"], "{tissue_name}_{tag}.sra"),
+        output_directory=os.path.join(root_temp,"prefetch","{tissue_name}_{tag}"),
     resources:
         mem_mb=16384,
         runtime=20,
         tissue_name=lambda wildcards: wildcards.tissue_name,
+        temp_dir=temp(tempfile.mkdtemp(suffix="prefetch"))
     benchmark:
         repeat(
             os.path.join("benchmarks","{tissue_name}","prefetch","{tissue_name}_{tag}.benchmark"),
@@ -385,6 +385,7 @@ checkpoint fasterq_dump:
         mem_mb=10240,
         runtime=45,
         tissue_name=lambda wildcards: wildcards.tissue_name,
+        temp_dir=temp(tempfile.mkdtemp(suffix="fasterq_dump"))
     benchmark:
         repeat(
             os.path.join("benchmarks","{tissue_name}","fasterq_dump","{tissue_name}_{tag}_{PE_SE}.benchmark"),
@@ -584,6 +585,7 @@ checkpoint trim:
         mem_mb=10240,
         runtime=120,
         tissue_name=lambda wildcards: wildcards.tissue_name,
+        temp_dir=temp(tempfile.mkdtemp(suffix="trim"))
     benchmark:
         repeat(
             os.path.join("benchmarks","{tissue_name}","trim","{tissue_name}_{tag}_{PE_SE}.benchmark"),
@@ -628,6 +630,7 @@ rule fastqc_trim:
         mem_mb=10240,
         runtime=150,
         tissue_name=lambda wildcards: wildcards.tissue_name,
+        temp_dir=temp(tempfile.mkdtemp(suffix="fastqc_trim")),
     benchmark:
         repeat(
             os.path.join("benchmarks","{tissue_name}","fastqc_trim","{tissue_name}_{tag}_{PE_SE}.benchmark"),
