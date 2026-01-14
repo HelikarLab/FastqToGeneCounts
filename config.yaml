@@ -16,25 +16,25 @@ ROOTDIR: "results"
 EXPERIMENT_NAME: ""
 
 # If you are processing local FastQ items, set this to the location of your items
-LOCAL_FASTQ_FILES: "results/dump_fastq_input"
+LOCAL_FASTQ_FILES: ""
 
-# Quality Control Options
-# Should trimming of RNA sequencing adapters be performed before aligning? (default: True)
-PERFORM_TRIM: False
-
-# Should RNA sequences be screened for contamination? (default: True)
-PERFORM_SCREEN: True
-
-# Should RNAseq metrics be collected to obtain more information about the reads? (default: True)
-PERFORM_GET_RNASEQ_METRICS: True
-
-# Prefetch SRA files before writing to FastQ (default: True)
+# Download SRA data from NCBI/GEO (default: True)
 # If you are processing local FastQ items, set to False
 PERFORM_PREFETCH: True
 
 # Get RNA information from SRA files (default: True)
 # If you are processing local FastQ items, set to False
 PERFORM_DUMP_FASTQ: True
+
+# Quality Control Options
+# Should trimming of RNA sequencing adapters be performed before aligning? (default: True)
+PERFORM_TRIM: True
+
+# Should RNA sequences be screened for contamination? (default: True)
+PERFORM_SCREEN: True
+
+# Should RNAseq metrics be collected to obtain more information about the reads? (default: True)
+PERFORM_GET_RNASEQ_METRICS: True
 
 # Determine insert sizes for fragment length calculation (default: True)
 PERFORM_GET_INSERT_SIZE: True
@@ -55,7 +55,11 @@ BYPASS_GENOME_VALIDATION: False
 # Benchmarks test the amount of time it takes to execute each rule on each file
 # By increasing this number, you will begin to execute each rule more than once per file
 # For example, if you have 1 input file, but set this to 3, that input file will go through the entire pipeline three times
+BENCHMARK_DIR: "benchmarks"
 BENCHMARK_TIMES: 1
+
+# The root filepath to the log directory
+LOG_DIR: "logs"
 
 # The following items dictate the location for the reference genome
 GENOME:
@@ -69,7 +73,7 @@ GENOME:
 
   # The full path where the genome generation data should be saved
   SAVE_DIR: "genome"
-  
+
   # The species of the genome to download
   # Get your species from https://www.ncbi.nlm.nih.gov/Taxonomy
   # Examples are:
@@ -77,13 +81,13 @@ GENOME:
   #   Mus Musculus: 10090
   #   Macaca Mulatta: 9544
   TAXONOMY_ID: 9606
-  
+
   # The version of the genome to download
   # "latest" will get the most recent version
   # If you want to use a specific version, find it from: https://ftp.ensembl.org/pub/
   # Examples are: "latest", "release-112", "release-111", etc.
-  VERSION: "latest"
-  
+  VERSION: "115"
+
   # Should the download progress be shown?
   # If False, no progress is shown.
   SHOW_PROGRESS: True
