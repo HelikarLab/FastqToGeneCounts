@@ -1,4 +1,5 @@
 # ruff: noqa: S321 T201
+
 import argparse
 import csv
 import ftplib
@@ -199,6 +200,14 @@ class NCBI:
         self._ftp = ftplib.FTP(_ensembl_url)
         self._ftp.login()
 
+    def __enter__(self):
+        """Enable use of `with` statement."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Enable use of `with` statement."""
+        self._ftp.quit()
+
     def download_fasta_file(self, save_directory: str) -> None:
         """Download the reference genome from the UCSC Genome Browser and save it as a FASTA file.
 
@@ -214,7 +223,7 @@ class NCBI:
         save_directory = Path(save_directory, self._species_name)
         save_directory.mkdir(exist_ok=True, parents=True)
 
-        print(f"fasta file save directory: {save_directory}")
+        print(f"Downloading FASTA file to: {final_output_filepath}")
         fasta_root = f"/pub/{self._release_number}/fasta/{self._species_name}/dna"
         primary_assembly_suffix = ".dna.primary_assembly.fa.gz"
         primary_assembly_path = ""
@@ -244,8 +253,6 @@ class NCBI:
                 if filename.endswith(".dna.primary_assembly.1.fa.gz"):
                     primary_assembly_filename = filename.split("/")[-1].replace(".1.fa.gz", ".fa.gz")
 
-            # TODO: add a progress bar to this download
-            print(f"Will save genome to '{Path(save_directory, primary_assembly_filename).as_posix()}'")
             with Path(save_directory, primary_assembly_filename).open("wb") as fasta_file:
                 for remote_chromosome in chromosome_files:
                     chromosome_filename = remote_chromosome.split("/")[-1]
@@ -283,8 +290,8 @@ class NCBI:
         save_directory: Path = Path(save_directory, self._species_name)
         final_output_filepath = Path(save_directory, f"{self._species_name}_{self._release_number}.gtf")
         if final_output_filepath.exists():
-            print(f"GTF file exists, not creating! Checked path: '{final_output_filepath}'")
             return
+        print(f"Downloading GTF file to: {final_output_filepath}")
         save_directory.mkdir(parents=True, exist_ok=True)
 
         gtf_root = f"/pub/{self._release_number}/gtf/{self._species_name}"
@@ -310,6 +317,39 @@ class NCBI:
         Path(save_directory, gtf_filename).unlink()
         shutil.move(txt_obj, final_output_filepath)
 
+    def download_cdna_fasta_file(self, save_directory: str) -> None:
+        """Download Ensembl cDNA FASTA (transcriptome) for a species + release."""
+        save_directory: Path = Path(save_directory)
+        save_directory.mkdir(parents=True, exist_ok=True)
+
+        final_output = Path(save_directory, self._species_name, f"{self._species_name}_{self._release_number}_cdna.fa")
+        if final_output.exists():
+            return
+
+        cdna_root = f"/pub/{self._release_number}/fasta/{self._species_name}/cdna"
+
+        # Prefer *.cdna.all.fa.gz (standard transcriptome)
+        cdna_gz_remote = None
+        for remote in self._ftp.nlst(cdna_root):
+            if remote.endswith(".cdna.all.fa.gz"):
+                cdna_gz_remote = remote
+                break
+        if cdna_gz_remote is None:
+            raise FileNotFoundError(
+                f"Could not find a .cdna.all.fa.gz file under {cdna_root} for {self._species_name} and release {self._release_number}"
+            )
+
+        gz_name = cdna_gz_remote.split("/")[-1]
+        local_gz = Path(save_directory, gz_name)
+        with local_gz.open("wb") as out:
+            self._ftp.retrbinary(f"RETR {cdna_gz_remote}", out.write)
+
+        # Un-zip to final_output
+        with gzip.open(local_gz, "rb") as f_in, final_output.open("wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+        local_gz.unlink(missing_ok=True)
+
 
 def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
     """Download the `refFlat.txt` file from the UCSC Genome Browser and save it as a file.
@@ -324,10 +364,9 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
 
     final_output_filepath = Path(save_directory, f"{species_name}_ref_flat.txt")
     if final_output_filepath.exists():
-        print(f"ref flat file exists, not creating! Checked path: '{final_output_filepath}'")
         return
 
-    print(f"ref flat file save directory: {save_directory}")
+    print(f"Saving Reference FLAT file to: {final_output_filepath}")
 
     # Get a list of genomes
     response: HTTPResponse = urllib.request.urlopen(f"{_ucsc_url}/list/ucscGenomes")
@@ -365,7 +404,7 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
     shutil.move(txt_file, final_output_filepath)
 
 
-def rRNA_interval_list_creation(taxon_id: int, save_directory: str) -> None:
+def r_rna_interval_list_creation(taxon_id: int, save_directory: str) -> None:
     """Create an interval file list suitable for CollectRnaSeqMetrics.
 
     It should be executed at the end of the genome generation process so the required `.fa` file is availale
@@ -384,10 +423,9 @@ def rRNA_interval_list_creation(taxon_id: int, save_directory: str) -> None:
 
     final_output_filepath = Path(save_directory, f"{species_name}_rrna.interval_list")
     if final_output_filepath.exists():
-        print(f"rRNA interval list exists, not creating! Checked path: '{final_output_filepath}'")
         return
 
-    print(f"rRNA interval list save directory: {save_directory}")
+    print(f"Saving rRNA interval list to: {final_output_filepath}")
 
     genome_sizes = Path(save_directory, f"{species_name}_genome_sizes.txt")
     genes: str = next(file.name for file in save_directory.iterdir() if file.name.endswith(".gtf"))
@@ -395,50 +433,44 @@ def rRNA_interval_list_creation(taxon_id: int, save_directory: str) -> None:
 
     genes: Path = Path(save_directory, genes)
     primary_assembly_fa: Path = Path(save_directory, primary_assembly_fa)
-    primary_assembly_fai: Path = Path(save_directory, f"{primary_assembly_fa}.fai")
-
+    primary_assembly_fai: Path = Path(f"{primary_assembly_fa}.fai")
 
     # If primary_assembly_fa doesn't exist, show error and quit
     if not primary_assembly_fa.exists():
         raise FileNotFoundError(f"The primary assembly file could not be found\nSearching for: '{primary_assembly_fa}'")  # fmt: skip
 
-    # 1. Prepare chromosome sizes file  from fasta sequence if needed.
-    # Create the .fai file
-    # Use a PIPE to prevent warnings from being shown
-    subprocess.run(
-        ["samtools", "faidx", primary_assembly_fa, primary_assembly_fai],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+    subprocess.run(  # noqa: S603
+        ["/usr/bin/env", "samtools", "faidx", primary_assembly_fa, primary_assembly_fai],
+        capture_output=True,
         check=False,
+        shell=False,
     )
 
-    primary_assembly_fai_in = primary_assembly_fai.open(mode="r")
-    genome_sizes_out = genome_sizes.open(mode="w")
-    for line in primary_assembly_fai_in:
-        fields = line.split()
-        genome_sizes_out.write(f"{fields[0]}\t{fields[1]}\n")
-    primary_assembly_fai_in.close()
-    genome_sizes_out.close()
-
-    rRNA_interval_list = Path(save_directory, f"{species_name}_rrna.interval_list")
-    genes_in = genes.read_text().split("\n")
-    genome_sizes_in = genome_sizes.read_text().split("\n")
-    rRNA_interval_list_out = rRNA_interval_list.open(mode="w")
-    for line in genome_sizes_in:
-        fields = line.split()
-        rRNA_interval_list_out.write(f"@SQ\tSN:{fields[0]}\tLN:{fields[1]}\tUR:file:{primary_assembly_fa}\n")  # fmt: skip
-    for line in genes_in:
-        if 'gene_biotype "rRNA"' in line:
+    with primary_assembly_fai.open(mode="r") as primary_assembly_fai_in, genome_sizes.open(mode="w") as genome_sizes_out:
+        for line in primary_assembly_fai_in:
             fields = line.split()
-            if fields[2] == "gene":
-                gene_id = fields[-1].split('"')[1]
-                rRNA_interval_list_out.write(f"{fields[0]}\t{fields[3]}\t{fields[4]}\t{fields[6]}\t{gene_id}\n")
+            genome_sizes_out.write(f"{fields[0]}\t{fields[1]}\n")
 
-    shutil.move(rRNA_interval_list, final_output_filepath)
+    r_rna_interval_list = Path(save_directory, f"{species_name}_rrna.interval_list")
+    with r_rna_interval_list.open(mode="w") as o_stream:
+        with genome_sizes.open(mode="r") as i_stream:
+            for line in i_stream:
+                fields = line.split()
+                o_stream.write(f"@SQ\tSN:{fields[0]}\tLN:{fields[1]}\tUR:file:{primary_assembly_fa}\n")  # fmt: skip
+
+        with genes.open(mode="r") as i_stream:
+            for line in i_stream:
+                if 'gene_biotype "rRNA"' in line:
+                    fields = line.split()
+                    if fields[2] == "gene":
+                        gene_id = fields[-1].split('"')[1]
+                        o_stream.write(f"{fields[0]}\t{fields[3]}\t{fields[4]}\t{fields[6]}\t{gene_id}\n")
+
+    shutil.move(r_rna_interval_list, final_output_filepath)
 
     # Sort the interval list
     # TODO: Is this needed? As of now, I don't think so
-    # subprocess.run(["sort", "-k1V", "-k2n", "-k3n", "-o", rRNA_interval_list, rRNA_interval_list])
+    # subprocess.run(["sort", "-k1V", "-k2n", "-k3n", "-o", r_rna_interval_list, r_rna_interval_list])
 
 
 def bed_file_creation(taxon_id: int, save_directory: str) -> None:
@@ -458,10 +490,9 @@ def bed_file_creation(taxon_id: int, save_directory: str) -> None:
     save_directory.mkdir(parents=True, exist_ok=True)
 
     if bed_output_file.exists():
-        print(f"bed file exists, not creating! Checked path: '{bed_output_file}'")
         return
 
-    print(f"bed file save directory: {save_directory}")
+    print(f"Saving BED file to: {bed_output_file}")
 
     ref_flat_file = Path(save_directory, f"{species_name}_ref_flat.txt")
     if not ref_flat_file.exists():
@@ -504,21 +535,19 @@ def parse_args():
     parser.add_argument("--root-save-directory", type=str, dest="root_save_directory")
     parser.add_argument("--show-progress", action="store_true", dest="show_progress", default=False)
 
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def main():
-    # fmt: off
     args = parse_args()
 
-    ncbi = NCBI(taxon_id=args.taxon_id, release_number=args.release_number, show_progress=args.show_progress)
-    ncbi.download_fasta_file(save_directory=args.root_save_directory)
-    ncbi.download_gtf_file(save_directory=args.root_save_directory)
-
-    ref_flat_file_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
-    rRNA_interval_list_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
-    bed_file_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
+    with NCBI(taxon_id=args.taxon_id, release_number=args.release_number, show_progress=args.show_progress) as ncbi:
+        ncbi.download_fasta_file(save_directory=args.root_save_directory)
+        ncbi.download_gtf_file(save_directory=args.root_save_directory)
+        ncbi.download_cdna_fasta_file(save_directory=args.root_save_directory)
+        ref_flat_file_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
+        r_rna_interval_list_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
+        bed_file_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
 
 
 if __name__ == "__main__":

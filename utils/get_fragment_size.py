@@ -10,9 +10,11 @@ For each transcript/gene, it Will report:
 import re
 import sys
 from collections.abc import Sequence
+from contextlib import nullcontext
 from optparse import OptionParser
 from pathlib import Path
 from statistics import mean, median, pstdev
+from typing import TextIO, reveal_type
 
 import pysam
 from tqdm import tqdm
@@ -80,20 +82,25 @@ def get_contig(chrom_value: str) -> str:
     raise ValueError(f"Cannot parse chromosome name: {chrom_value}")
 
 
-def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, ncut: int, threads: int):
+def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, ncut: int, threads: int, log: TextIO | None):
     """Calculate the fragment size for each gene."""
     ref_size_bytes = reference_bed_filepath.stat().st_size
     with (
         reference_bed_filepath.open("r") as bed_stream,
         pysam.AlignmentFile(bam_filepath.as_posix(), threads=threads) as alignment_file,
-        tqdm(total=ref_size_bytes, desc=f"Calculating fragment sizes: '{bam_filepath.name}'", unit="B", unit_scale=True, unit_divisor=1024) as pbar,
+        tqdm(
+            total=ref_size_bytes,
+            desc=f"Calculating fragment sizes: '{bam_filepath.name}'",
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+            file=log,
+            mininterval=1,
+        ) as pbar,
     ):
         all_sizes = []
         references = set(alignment_file.references)
         for i, line in enumerate(bed_stream):
-            if i == 100:
-                print(all_sizes)
-                break
             line_bytes = len(line)
             if line.startswith(("#", "track", "browser")):
                 pbar.update(line_bytes)
@@ -137,10 +144,10 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
                     read_start, next_ref_start = next_ref_start, read_start
                 if read_start < tx_start or next_ref_start > tx_end:
                     continue
-                
+
                 length = overlap_length2(exon_range, read_start=read_start, next_ref_start=next_ref_start) + read.query_alignment_length
                 frag_sizes.append(length)
-            
+
             all_sizes.extend(frag_sizes)
 
             yield (
@@ -149,7 +156,7 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
                 else "\t".join([str(i) for i in (gene_id, len(frag_sizes), mean(frag_sizes), median(frag_sizes), pstdev(frag_sizes))])
             )
             pbar.update(line_bytes)
-
+        pbar.total = ref_size_bytes
 
 def main():
     usage = "%prog [options]" + "\n" + (__doc__ or "") + "\n"
@@ -177,6 +184,7 @@ def main():
         "-n", "--frag-num", action="store", type="int", dest="fragment_num", default=3, help="Minimum number of fragment. default=%default"
     )
     parser.add_option("-o", "--output", action="store", type="string", dest="output_filepath", help="The output filepath.")
+    parser.add_option("-l", "--log", type="string", dest="log", help="The log location")
 
     (options, args) = parser.parse_args()
 
@@ -188,6 +196,7 @@ def main():
     options.refgene_bed = Path(options.refgene_bed)
     options.bai_file = Path(options.bai_file)
     options.output_filepath = Path(options.output_filepath)
+    options.log = Path(options.log) if options.log else None
 
     if not options.input_file.exists():
         raise FileNotFoundError(f"BAM file does not exist: '{options.input_file}'")
@@ -196,7 +205,7 @@ def main():
     if not options.refgene_bed.exists():
         raise FileNotFoundError(f"BED file does not exist: '{options.refgene_bed}'")
 
-    with options.output_filepath.open("w") as o_stream:
+    with options.output_filepath.open("w") as o_stream, Path(options.log).open("w") if options.log else nullcontext() as log_out:
         o_stream.write("\t".join([str(i) for i in ("chrom", "tx_start", "tx_end", "symbol", "frag_count", "frag_mean", "frag_median", "frag_std")]))
         o_stream.write("\n")
         for tmp in _fragment_size(
@@ -205,6 +214,7 @@ def main():
             qcut=options.map_qual,
             ncut=options.fragment_num,
             threads=4,
+            log=log_out,
         ):
             o_stream.write(tmp + "\n")
 
