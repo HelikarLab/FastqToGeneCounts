@@ -6,6 +6,7 @@ genome
 logs
 results
 controls
+config.yaml
 
 # General files
 **/__pycache__/
