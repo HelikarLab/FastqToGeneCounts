@@ -3,19 +3,20 @@
 
 executor: cluster-generic
 cluster-generic-submit-cmd:
-  mkdir -p logs/{rule}/{resources.tissue_name} &&
+  mkdir -p logs/{rule}/{resources.tissue} &&
   sbatch
     --job-name=smk-{rule}-{wildcards}
     --account=helikarlab
     --cpus-per-task={threads}
-    --output=logs/{rule}/{resources.tissue_name}/{rule}-{wildcards}.out
+    --output=logs/{rule}/{resources.tissue}/{rule}-{wildcards}.out
     --mem={resources.mem_mb}
     --time={resources.runtime}
     --parsable
 
 # Define tissue name
 default-resources:
-  - mem_mb=2048
+  mem_mb: 2048
+  network_slots: 5
 
 # Job submittion
 cores: 16  # max cores used in snakefile

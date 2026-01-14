@@ -1,0 +1,14 @@
+resources:
+  network_slots: 5
+
+default-resources:
+  mem_mb: 2048
+cores: 'all'
+
+# Other settings
+# printshellcmds: True
+rerun-incomplete: True
+keep-going: True
+
+# Do not change these settings. This pipeline will fail to execute or execute extremely slowly if they are changed
+use-conda: True
