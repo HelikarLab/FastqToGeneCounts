@@ -1,3 +1,0 @@
-[tool.snakefmt]
-line_length = 150
-include = '\.smk$|^Snakefile$'
