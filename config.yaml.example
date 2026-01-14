@@ -1,0 +1,93 @@
+# Instructions for gathering a reference genome can be found at the link below
+# https://helikarlab.github.io/FastqToGeneCounts/fastq_setup_genome.html
+
+# Modify these settings to reflect your paths
+# Only change values after the colon (':')
+
+# The CSV file to analyze
+# The file should have columns in the order: srr, friendly_name, layout, and method
+# For "layout", options are "PE" (paired-end sequencing) and "SE" (single-end sequencing)
+# For "method", options are "total" (total RNA sequencing) and "mrna" (mRNA/PolyA RNA sequencing)
+MASTER_CONTROL: "controls/samples.csv"
+
+# The location where results should be saved to
+# Subdirectories can be included by adding them as paths; Example: results/experiment-1
+ROOTDIR: "results"
+EXPERIMENT_NAME: ""
+
+# If you are processing local FastQ items, set this to the location of your items
+LOCAL_FASTQ_FILES: ""
+
+# Download SRA data from NCBI/GEO (default: True)
+# If you are processing local FastQ items, set to False
+PERFORM_PREFETCH: True
+
+# Get RNA information from SRA files (default: True)
+# If you are processing local FastQ items, set to False
+PERFORM_DUMP_FASTQ: True
+
+# Quality Control Options
+# Should trimming of RNA sequencing adapters be performed before aligning? (default: True)
+PERFORM_TRIM: True
+
+# Should RNA sequences be screened for contamination? (default: True)
+PERFORM_SCREEN: True
+
+# Should RNAseq metrics be collected to obtain more information about the reads? (default: True)
+PERFORM_GET_RNASEQ_METRICS: True
+
+# Determine insert sizes for fragment length calculation (default: True)
+PERFORM_GET_INSERT_SIZE: True
+
+# Determine fragment size; required for zFPKM calculation (default: True)
+PERFORM_GET_FRAGMENT_SIZE: True
+
+# If you are using this tool to generate files for COMO, single replicates are not allowed
+# For example, a "S1R1" sample will result in an error in COMO
+# If you are creating a constraint-based model with COMO, it is recommended to set this to False
+# https://github.com/HelikarLab/COMO
+BYPASS_REPLICATE_VALIDATION: False
+
+# This will check that genome-related files are able to be found before starting the pipeline (default: False)
+# It is recommended to not bypass this check, as errors will occur in the middle of the pipeline if these files are not found
+BYPASS_GENOME_VALIDATION: False
+
+# Benchmarks test the amount of time it takes to execute each rule on each file
+# By increasing this number, you will begin to execute each rule more than once per file
+# For example, if you have 1 input file, but set this to 3, that input file will go through the entire pipeline three times
+BENCHMARK_DIR: "benchmarks"
+BENCHMARK_TIMES: 1
+
+# The root filepath to the log directory
+LOG_DIR: "logs"
+
+# The following items dictate the location for the reference genome
+GENOME:
+  # The following files will be downloaded or created
+  #   - Genome FASTA file (i.e., primary assembly, downloaded from Ensembl)
+  #   - GTF file (i.e., gene annotation, downloaded from Ensembl)
+  #   - UCSC-style refFlat file (downloaded from UCSC)
+  #   - BED file (created from refFlat file)
+  #   - rRNA Interval List (created from GTF file)
+  #   - STAR index (created from FASTA file)
+
+  # The full path where the genome generation data should be saved
+  SAVE_DIR: "genome"
+
+  # The species of the genome to download
+  # Get your species from https://www.ncbi.nlm.nih.gov/Taxonomy
+  # Examples are:
+  #   Homo Sapiens: 9606
+  #   Mus Musculus: 10090
+  #   Macaca Mulatta: 9544
+  TAXONOMY_ID: 9606
+
+  # The version of the genome to download
+  # "latest" will get the most recent version
+  # If you want to use a specific version, find it from: https://ftp.ensembl.org/pub/
+  # Examples are: "latest", "release-112", "release-111", etc.
+  VERSION: "115"
+
+  # Should the download progress be shown?
+  # If False, no progress is shown.
+  SHOW_PROGRESS: True
