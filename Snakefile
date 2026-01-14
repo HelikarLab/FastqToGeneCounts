@@ -9,7 +9,6 @@ from utils.constants import Layout, PrepMethod
 from utils.parse import Config, SampleData
 
 configfile: "config.yaml"
-
 cfg: Config = Config.create(config)
 data: SampleData = SampleData(cfg.sample_filepath)
 
