@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - star=2.7.9a
+  - gffread=0.12.7

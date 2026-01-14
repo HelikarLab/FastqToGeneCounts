@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - star=2.7.9a
+  - salmon=1.10.3
