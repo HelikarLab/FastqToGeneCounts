@@ -317,6 +317,39 @@ class NCBI:
         Path(save_directory, gtf_filename).unlink()
         shutil.move(txt_obj, final_output_filepath)
 
+    def download_cdna_fasta_file(self, save_directory: str) -> None:
+        """Download Ensembl cDNA FASTA (transcriptome) for a species + release."""
+        save_directory: Path = Path(save_directory)
+        save_directory.mkdir(parents=True, exist_ok=True)
+
+        final_output = Path(save_directory, self._species_name, f"{self._species_name}_{self._release_number}_cdna.fa")
+        if final_output.exists():
+            return
+
+        cdna_root = f"/pub/{self._release_number}/fasta/{self._species_name}/cdna"
+
+        # Prefer *.cdna.all.fa.gz (standard transcriptome)
+        cdna_gz_remote = None
+        for remote in self._ftp.nlst(cdna_root):
+            if remote.endswith(".cdna.all.fa.gz"):
+                cdna_gz_remote = remote
+                break
+        if cdna_gz_remote is None:
+            raise FileNotFoundError(
+                f"Could not find a .cdna.all.fa.gz file under {cdna_root} for {self._species_name} and release {self._release_number}"
+            )
+
+        gz_name = cdna_gz_remote.split("/")[-1]
+        local_gz = Path(save_directory, gz_name)
+        with local_gz.open("wb") as out:
+            self._ftp.retrbinary(f"RETR {cdna_gz_remote}", out.write)
+
+        # Un-zip to final_output
+        with gzip.open(local_gz, "rb") as f_in, final_output.open("wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+        local_gz.unlink(missing_ok=True)
+
 
 def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
     """Download the `refFlat.txt` file from the UCSC Genome Browser and save it as a file.
