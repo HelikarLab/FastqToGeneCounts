@@ -446,27 +446,25 @@ def r_rna_interval_list_creation(taxon_id: int, save_directory: str) -> None:
         shell=False,
     )
 
-    primary_assembly_fai_in = primary_assembly_fai.open(mode="r")
-    genome_sizes_out = genome_sizes.open(mode="w")
-    for line in primary_assembly_fai_in:
-        fields = line.split()
-        genome_sizes_out.write(f"{fields[0]}\t{fields[1]}\n")
-    primary_assembly_fai_in.close()
-    genome_sizes_out.close()
-
-    rRNA_interval_list = Path(save_directory, f"{species_name}_rrna.interval_list")
-    genes_in = genes.read_text().split("\n")
-    genome_sizes_in = genome_sizes.read_text().split("\n")
-    rRNA_interval_list_out = rRNA_interval_list.open(mode="w")
-    for line in genome_sizes_in:
-        fields = line.split()
-        rRNA_interval_list_out.write(f"@SQ\tSN:{fields[0]}\tLN:{fields[1]}\tUR:file:{primary_assembly_fa}\n")  # fmt: skip
-    for line in genes_in:
-        if 'gene_biotype "rRNA"' in line:
+    with primary_assembly_fai.open(mode="r") as primary_assembly_fai_in, genome_sizes.open(mode="w") as genome_sizes_out:
+        for line in primary_assembly_fai_in:
             fields = line.split()
-            if fields[2] == "gene":
-                gene_id = fields[-1].split('"')[1]
-                rRNA_interval_list_out.write(f"{fields[0]}\t{fields[3]}\t{fields[4]}\t{fields[6]}\t{gene_id}\n")
+            genome_sizes_out.write(f"{fields[0]}\t{fields[1]}\n")
+
+    r_rna_interval_list = Path(save_directory, f"{species_name}_rrna.interval_list")
+    with r_rna_interval_list.open(mode="w") as o_stream:
+        with genome_sizes.open(mode="r") as i_stream:
+            for line in i_stream:
+                fields = line.split()
+                o_stream.write(f"@SQ\tSN:{fields[0]}\tLN:{fields[1]}\tUR:file:{primary_assembly_fa}\n")  # fmt: skip
+
+        with genes.open(mode="r") as i_stream:
+            for line in i_stream:
+                if 'gene_biotype "rRNA"' in line:
+                    fields = line.split()
+                    if fields[2] == "gene":
+                        gene_id = fields[-1].split('"')[1]
+                        o_stream.write(f"{fields[0]}\t{fields[3]}\t{fields[4]}\t{fields[6]}\t{gene_id}\n")
 
     shutil.move(r_rna_interval_list, final_output_filepath)
 
