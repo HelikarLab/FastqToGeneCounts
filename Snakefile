@@ -602,13 +602,39 @@ rule qc_trim_fastq_single:
         mv --verbose "$tmp_html" "{output.s_html}" 1>>{log} 2>&1
         """
 
+def align_input(wildcards):
+    sample_name = f"{wildcards.tissue}_{wildcards.tag}"
+
+    # find local files
+    if not cfg.perform.trim and not cfg.perform.dump_fastq:
+        return [i.as_posix() for i in cfg.local_fastq_filepath.rglob(f"{sample_name}_[12S].fastq.gz")]
+
+    _endtype: str = data.samples.loc[data.samples["sample"] == sample_name, "endtype"].values[0]
+    # Get files from trim_paired and trim_single
+    if cfg.perform.trim:
+        if _endtype == "PE":
+            return expand(rules.trim_paired.output.r1_fastq, **wildcards) + expand(rules.trim_paired.output.r2_fastq, **wildcards)
+        elif _endtype == "SE":
+            return expand(rules.trim_single.output.S_fastq, **wildcards)
+        else:
+            raise ValueError(f"Invalid endtype '{_endtype}' for sample '{sample_name}'. Must be one of 'PE' or 'SE'.")
+
+    # get files from dump_fastq_paired and dump_fastq_single
+    if cfg.perform.dump_fastq:
+        if _endtype == "PE":
+            return expand(rules.fastq_dump_paired.output.r1, **wildcards) + expand(rules.fastq_dump_paired.output.r2, **wildcards)
+        elif _endtype == "SE":
+            return expand(rules.fastq_dump_single.output.S, **wildcards)
+        else:
+            raise ValueError(f"Invalid endtype '{_endtype}' for sample '{sample_name}'. Must be one of 'PE' or 'SE'.")
+
+    print(f"Unable to find any files for `align` with tissue={wildcards.tissue}, tag={wildcards.tag}")
+    return []
+
+
 rule align:
     input:
-        files=lambda wildcards: (
-            rules.fastq_dump_paired.output
-            if all(data.samples.loc[data.samples["sample"] == f"{wildcards.tissue}_{wildcards.tag}", "endtype"] == "PE")
-            else rules.fastq_dump_single.output
-        ),
+        files=align_input,
         genome=rules.download_genome.output.primary_assembly
     output:  # Not all outputs listed are used, but they are listed so Snakemake knows to clean them up on workflow reruns
         bam_file=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}.bam",
@@ -635,10 +661,10 @@ rule align:
         r"""
         # remove any files not listed in the output
         rm -rf "$(dirname {output.gene_table})/*"
-        
+
         tmpdir=$(mktemp -d)
         trap "rm -rf $tmpdir" EXIT
-        
+
         STAR \
         --runThreadN {threads} \
         --readFilesCommand "zcat" \
@@ -649,7 +675,7 @@ rule align:
         --outSAMunmapped Within \
         --outSAMattributes Standard \
         --quantMode GeneCounts TranscriptomeSAM 1>{log} 2>&1
-        
+
         printf "\n\n" >> {log}
         mv --verbose $tmpdir/* "$(dirname {output.gene_table})/" 1>>{log} 2>&1
         mv --verbose {params.gene_table} {output.gene_table} 1>>{log} 2>&1
