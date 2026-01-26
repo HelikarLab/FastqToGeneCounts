@@ -1,4 +1,5 @@
 import sys
+from typing import Literal
 
 from utils.parse import Config, SampleData, print_key_value_table
 
@@ -14,7 +15,6 @@ onstart:
             [
                 ("Samples", cfg.sample_filepath),
                 ("Data", cfg.data_root),
-                ("Temporary", cfg.temp_root),
                 ("COMO", cfg.como_root),
                 ("Logging", cfg.logs_root),
                 ("Genome", cfg.genome.species_dir),
@@ -227,6 +227,7 @@ rule download_contaminant_genomes:
                 expected_files="${{expected_files[index]}}"
                 if [ $existing_files -eq $expected_files ]; then
                     echo "[fastq_screen] Skipping genome download for '$genome' because it is already present at '$outdir'" >> {log}
+                    touch "$outdir" "$outdir/*"
                     continue
                 fi
             fi
@@ -476,7 +477,7 @@ rule trim_paired:
         r2_fastq=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2.fastq.gz",
         r2_report=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2_trimming_report.txt",
     resources:
-        mem_mb=lambda wildcards, attempt: 1024 * attempt,
+        mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 45 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 4
@@ -771,7 +772,7 @@ rule contaminant_screen_paired:
     params:
         output_dir=f"{cfg.data_root}/{{tissue}}/fq_screen",
     resources:
-        mem_mb=lambda wildcards, attempt: 1024 * attempt,
+        mem_mb=lambda wildcards, attempt: 4069 * attempt,
         runtime=lambda wildcards, attempt: 10 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 5
@@ -824,7 +825,7 @@ rule contaminant_screen_single:
     params:
         output_dir=f"{cfg.data_root}/{{tissue}}/fq_screen"
     resources:
-        mem_mb=lambda wildcards, attempt: 1024 * attempt,
+        mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 20 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 5
