@@ -34,4 +34,3 @@ rerun-incomplete: True
 
 # Do not change these settings. This pipeline will fail to execute or execute extremely slowly if they are changed
 use-conda: True
-conda-frontend: mamba
