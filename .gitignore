@@ -8,6 +8,8 @@ results
 controls
 config.yaml
 gurobi.log
+.taxon_to_species.json
+.valid_release_numbers.txt
 
 # General files
 **/__pycache__/
