@@ -476,7 +476,7 @@ rule trim_paired:
         r2_fastq=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2.fastq.gz",
         r2_report=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2_trimming_report.txt",
     resources:
-        mem_mb=lambda wildcards, attempt: 1024 * attempt,
+        mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 45 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 4
@@ -771,7 +771,7 @@ rule contaminant_screen_paired:
     params:
         output_dir=f"{cfg.data_root}/{{tissue}}/fq_screen",
     resources:
-        mem_mb=lambda wildcards, attempt: 1024 * attempt,
+        mem_mb=lambda wildcards, attempt: 4069 * attempt,
         runtime=lambda wildcards, attempt: 10 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 5
@@ -824,7 +824,7 @@ rule contaminant_screen_single:
     params:
         output_dir=f"{cfg.data_root}/{{tissue}}/fq_screen"
     resources:
-        mem_mb=lambda wildcards, attempt: 1024 * attempt,
+        mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 20 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 5
