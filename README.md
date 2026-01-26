@@ -211,6 +211,12 @@ snakemake --profile profiles/local
 > Local execution may be slow for large datasets and, unless you are running this pipeline on a workstation, is not 
 > recommended for genome alignment due to memory constraints.
 
+### Additional Parameters
+If you would like to change any of the default parameters in the profile, you can either:
+1. Modify the profile to your liking; this will become the new default for all future pipeline workflows, or
+2. Override the parameters on a per-run basis by including them on the command line. Execute `snakemake --help` to 
+   view all options
+
 ## Running the Pipeline
 
 ### Dry Run
