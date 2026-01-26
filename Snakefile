@@ -712,7 +712,7 @@ rule salmon_quantification:
         outdir=f"{cfg.data_root}/{{tissue}}/read_quantification/salmon/{{tag}}"
     resources:
         mem_mb=lambda wildcards, attempt: 32768 * attempt,
-        runtime=lambda wildcards, attempt: 20 * attempt,
+        runtime=lambda wildcards, attempt: 40 * attempt,
         tissue=lambda wildcards: wildcards.tissue
     threads: 8
     conda: "envs/salmon.yaml"
