@@ -1,16 +1,32 @@
 import os
 import re
-import time
+import sys
 from pathlib import Path
+from typing import Literal
+
 import pandas as pd
 
-from utils import perform
 from utils.constants import Layout, PrepMethod
-from utils.parse import Config, SampleData
+from utils.parse import Config, SampleData, print_key_value_table
 
 configfile: "config.yaml"
 cfg: Config = Config.create(config)
 data: SampleData = SampleData(cfg.sample_filepath)
+
+# Only print the table if we are not calculating the dag (for png/svg creation, etc.) at the start
+onstart:
+    if "--rulegraph" not in sys.argv and "--dag" not in sys.argv:
+        print_key_value_table(
+            "Parsed Filepaths & Directories",
+            [
+                ("Samples", cfg.sample_filepath),
+                ("Data", cfg.data_root),
+                ("Temporary", cfg.temp_root),
+                ("COMO", cfg.como_root),
+                ("Logging", cfg.logs_root),
+                ("Genome", cfg.genome.species_dir),
+            ],
+        )
 
 rule all:
     input:
