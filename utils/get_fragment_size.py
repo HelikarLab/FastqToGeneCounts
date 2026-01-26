@@ -141,7 +141,7 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
                 if read_start < tx_start or next_ref_start > tx_end:
                     continue
 
-                length = overlap_length2(exon_range, read_start=read_start, next_ref_start=next_ref_start) + read.query_alignment_length
+                length = overlap_length2(exon_range, read_start=read_start, next_ref_start=next_ref_start)
                 frag_sizes.append(length)
 
             yield (
