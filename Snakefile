@@ -166,8 +166,8 @@ rule download_genome:
         genome_sizes=f"{cfg.genome.species_dir}/{cfg.species_name}_genome_sizes.txt",
         gtf_file=f"{cfg.genome.species_dir}/{cfg.species_name}_{cfg.genome.ensembl_release}.gtf",
         rrna_interval_list=f"{cfg.genome.species_dir}/{cfg.species_name}_rrna.interval_list",
-        primary_assembly=f"{cfg.genome.species_dir}/{cfg.species_name}_{cfg.genome.ensembl_release}_primary_assembly.fa",
-        primary_assembly_index=f"{cfg.genome.species_dir}/{cfg.species_name}_{cfg.genome.ensembl_release}_primary_assembly.fa.fai",
+        primary_assembly=f"{cfg.genome.species_dir}/{cfg.species_name}_{cfg.genome.ensembl_release}_{cfg.genome.type}.fa",
+        primary_assembly_index=f"{cfg.genome.species_dir}/{cfg.species_name}_{cfg.genome.ensembl_release}_{cfg.genome.type}.fa.fai",
     conda: "envs/generate_genome.yaml"
     threads: 1
     resources:
@@ -182,7 +182,8 @@ rule download_genome:
         python3 utils/download_genome.py \
             --taxon-id {cfg.genome.taxon_id} \
             --release-number {cfg.genome.version} \
-            --root-save-dir {cfg.genome.species_dir}
+            --type {cfg.genome.type} \
+            --root-save-dir {cfg.genome.species_dir} 1>{log} 2>&1
         """
 
 rule download_contaminant_genomes:
@@ -198,7 +199,8 @@ rule download_contaminant_genomes:
         tissue="",# intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
         network_slots=1
     conda: "envs/screen.yaml"
-    log: f"{cfg.logs_root}/download_contaminant_genomes.log"    benchmark: repeat(f"{cfg.benchmark_dir}/rule_download_contaminant_genomes_{cfg.species_name}.benchmark",cfg.benchmark_count)
+    log: f"{cfg.logs_root}/download_contaminant_genomes.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/rule_download_contaminant_genomes_{cfg.species_name}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         echo "" > {log}
