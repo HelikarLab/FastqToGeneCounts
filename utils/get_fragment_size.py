@@ -90,7 +90,6 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
             mininterval=1,
         ) as pbar,
     ):
-        all_sizes = []
         references = set(alignment_file.references)
         for i, line in enumerate(bed_stream):
             line_bytes = len(line)
@@ -139,8 +138,6 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
 
                 length = overlap_length2(exon_range, read_start=read_start, next_ref_start=next_ref_start) + read.query_alignment_length
                 frag_sizes.append(length)
-
-            all_sizes.extend(frag_sizes)
 
             yield (
                 "\t".join([str(i) for i in (gene_id, len(frag_sizes), 0, 0, 0)])
