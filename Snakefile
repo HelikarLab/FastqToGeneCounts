@@ -450,11 +450,26 @@ rule qc_raw_fastq_single:
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.zip" "{output.s_zip}" 1>>{log} 2>&1
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.html" "{output.s_html}" 1>>{log} 2>&1
         """
+def trim_paired_input(wildcards) -> dict[Literal["r1"] | Literal["r2"], str | list[str]]:
+    if cfg.perform.dump_fastq:
+        return {"r1": rules.fastq_dump_paired.output.r1, "r2": rules.fastq_dump_paired.output.r2}
+
+    if cfg.local_fastq_filepath and cfg.local_fastq_filepath.exists():
+        sample_name = f"{wildcards.tissue}_{wildcards.tag}"
+        sample_files = sorted(cfg.fastq_files(filter_by=sample_name))
+        if len(sample_files) != 2:
+            raise ValueError(
+                f"Expected 2 FASTQ files for sample '{sample_name}', but found {len(sample_files)} files. "
+                f"File(s): {','.join(i.as_posix() for i in sample_files)}"
+            )
+        return {"r1": sample_files[0].as_posix(),  "r2": sample_files[1].as_posix()}
+
+    print(f"Unable to find any files for `trim_paired` with tissue={wildcards.tissue}, tag={wildcards.tag}")
+    return {"r1": [], "r2": []}
 
 rule trim_paired:
     input:
-        r1=rules.fastq_dump_paired.output.r1,
-        r2=rules.fastq_dump_paired.output.r2
+        unpack(trim_paired_input),  # gives 'r1' and 'r2' keywords
     output:
         r1=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_1.fastq.gz",
         r2=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2.fastq.gz",
@@ -474,8 +489,8 @@ rule trim_paired:
         r"""
         tmpdir=$(mktemp -d)
         trap "rm -rf $tmpdir" EXIT
-        trim_galore --paired --cores 4 -o "$tmpdir" {input} 1>{log} 2>&1
-        
+        trim_galore --paired --cores 4 -o "$tmpdir" {input.r1} {input.r2} 1>{log} 2>&1
+
         printf "\n\n" >> {log}
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_val_1.fq.gz" "{output.r1_fastq}" 1>>{log} 2>&1
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1.fastq.gz_trimming_report.txt" "{output.r1_report}" 1>>{log} 2>&1
@@ -484,9 +499,27 @@ rule trim_paired:
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2.fastq.gz_trimming_report.txt" "{output.r2_report}" 1>>{log} 2>&1
         """
 
+
+def trim_single_input(wildcards) -> list[str]:
+    if cfg.perform.dump_fastq:
+        return [rules.fastq_dump_single.output.S]
+
+    if cfg.local_fastq_filepath and cfg.local_fastq_filepath.exists():
+        sample_name = f"{wildcards.tissue}_{wildcards.tag}"
+        sample_files = cfg.fastq_files(filter_by=sample_name)
+        if len(sample_files) != 1:
+            raise ValueError(
+                f"Expected 1 FASTQ files for sample '{sample_name}', but found {len(sample_files)} files. "
+                f"File(s): {','.join(i.as_posix() for i in sample_files)}"
+            )
+        return [sample_files[0].as_posix()]
+
+    print(f"Unable to find any files for `trim_single` with tissue={wildcards.tissue}, tag={wildcards.tag}")
+    return []
+
 rule trim_single:
     input:
-        rules.fastq_dump_single.output.S
+        S=trim_single_input
     output:
         S=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_S.fastq.gz"
     # See the trim_galore `--cores` setting for details on why 16 was chosen
@@ -501,13 +534,14 @@ rule trim_single:
     benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/trim_single/trim_single_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
-        tmpdir=$(mktemp -d)
+        tmpdir="$(mktemp -d)"
         trap "rm -rf $tmpdir" EXIT
-        trim_galore --cores 4 -o "$tmpdir" {input} 1>{log} 2>&1
-        
-        printf "\n\n" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_trimmed.fq.gz' to '{output.S}'" >> {log}
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_trimmed.fq.gz" "{output.S}"
+
+        trim_galore --cores 4 --output_dir "$tmpdir" {input.S} 1>{log} 2>&1
+
+        mkdir --verbose -p "$(dirname {output.S_fastq})" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_trimmed.fq.gz" "{output.S_fastq}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S.fastq.gz_trimming_report.txt" "{output.S_report}" 1>>{log} 2>&1
         """
 
 rule qc_trim_fastq_paired:
