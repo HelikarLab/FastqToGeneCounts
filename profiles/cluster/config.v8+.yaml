@@ -29,7 +29,7 @@ latency-wait: 60
 jobs: 250
 
 # Other settings
-printshellcmds: True
+printshellcmds: False
 rerun-incomplete: True
 
 # Do not change these settings. This pipeline will fail to execute or execute extremely slowly if they are changed

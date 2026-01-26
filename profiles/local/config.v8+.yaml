@@ -6,8 +6,8 @@ default-resources:
 cores: 'all'
 
 # Other settings
-# printshellcmds: True
 retries: 3
+printshellcmds: False
 rerun-incomplete: True
 keep-going: True
 
