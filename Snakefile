@@ -997,19 +997,35 @@ rule copy_gene_counts:
         tissue=lambda wildcards: wildcards.tissue,
     benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/copy_gene_counts/copy_gene_counts_{{sample}}/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
-        """cp {input} {output}"""
+        """cp --verbose {input} {output}"""
+
+
+def multiqc_contamination_input(wildcards) -> list[str]:
+    if not cfg.perform.contaminant_screen:
+        return []
+
+    pe_samples = data.samples.loc[(data.samples["sample"].str.contains(wildcards.tissue)) & (data.samples["endtype"] == "PE")]
+    se_samples = data.samples.loc[(data.samples["sample"].str.contains(wildcards.tissue)) & (data.samples["endtype"] == "SE")]
+    files: list[str] = []
+    if not pe_samples.empty:
+        tissues, tags = pe_samples["sample"].str.split(n=1, pat="_", expand=True).T.values
+        files += expand(rules.contaminant_screen_paired.output.r1, zip, tissue=tissues, tag=tags)
+        files += expand(rules.contaminant_screen_paired.output.r2, zip, tissue=tissues, tag=tags)
+    if not se_samples.empty:
+        tissues, tags = se_samples["sample"].str.split(n=1, pat="_", expand=True).T.values
+        files += expand(rules.contaminant_screen_single.output.S, zip, tissue=tissues, tag=tags)
+    return files
 
 
 rule multiqc:
     input:
-        raw_fastq=expand(f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
-        trimmed_fastq=expand(f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
+        raw_fastq=lambda wildcards: [] if not cfg.perform.dump_fastq else expand(f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
+        trimmed_fastq=lambda wildcards: [] if not cfg.perform.trim else expand(f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
         aligned_fastq=expand(rules.align.output.bam_file, zip, tissue=data.tissues, tag=data.tags),
-        contamination_paired=expand(rules.contaminant_screen_paired.output,zip,tissue=data.tissues_paired,tag=data.tags_paired),
-        contamination_single=expand(rules.contaminant_screen_single.output,zip,tissue=data.tissues_paired,tag=data.tags_paired),
-        insert_sizes=expand(rules.insert_size.output.txt, zip, tissue=data.tissues, tag=data.tags),
-        rnaseq_metrics=expand(rules.rnaseq_metrics.output.metrics, zip, tissue=data.tissues, tag=data.tags),
-        fragment_sizes=expand(rules.fragment_size.output, zip, tissue=data.tissues, tag=data.tags),
+        contaminantion=multiqc_contamination_input,
+        insert_sizes=lambda wildcards: [] if not cfg.perform.insert_size else expand(rules.insert_size.output.txt,zip,tissue=data.tissues,tag=data.tags),
+        rnaseq_metrics=lambda wildcards: [] if not cfg.perform.rnaseq_metrics else expand(rules.rnaseq_metrics.output.metrics, zip, tissue=data.tissues, tag=data.tags),
+        fragment_sizes=lambda wildcards: [] if not cfg.perform.fragment_size else expand(rules.fragment_size.output, zip, tissue=data.tissues, tag=data.tags),
         salmon_quant=expand(rules.salmon_quantification.output.quant, zip, tissue=data.tissues, tag=data.tags),
     output:
         output_file=f"{cfg.data_root}/{{tissue}}/multiqc/{cfg.sample_filepath.stem}/{cfg.sample_filepath.stem}_multiqc_report.html",
