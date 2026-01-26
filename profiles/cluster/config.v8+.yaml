@@ -22,7 +22,7 @@ default-resources:
 retries: 3
 cluster-generic-cancel-cmd: scancel
 cluster-generic-cancel-nargs: 50
-restart-times: 0
+cluster-generic-status-cmd: status.sh
 max-jobs-per-second: 10
 max-status-checks-per-second: 5
 latency-wait: 60
