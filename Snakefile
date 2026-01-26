@@ -117,7 +117,7 @@ rule preroundup:
     benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/preroundup/preroundup_{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
     run:
         # example row: SRR12873784,effectorcd8_S1R1,PE,total
-        sample_row: pd.Series = samples[samples["sample"].eq(params.sample_name)]
+        sample_row: pd.Series = data.samples[data.samples["sample"].eq(params.sample_name)]
         endtype: str = sample_row["endtype"].values[0].upper()
         prep_method: str = sample_row["prep_method"].values[0].lower()
         study = re.match(r"S\d+",wildcards.tag).group()
