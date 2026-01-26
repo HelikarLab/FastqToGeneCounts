@@ -386,11 +386,13 @@ def qc_raw_fastq_paired_input(wildcards):
         for path, subdir, files in os.walk(cfg.local_fastq_filepath):
             for file in files:
                 if sample_name in data.sample_names and file.startswith("_".join(wildcards)):
-                    forward_read = str(path / file)
+                    forward_read = f"{path}/{file}"
                     reverse_read = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
                     return [forward_read, reverse_read]
     else:
-        print("Unable to find directory 'LOCAL_FASTQ_FILES' defined in 'config.yaml'.")
+        raise FileNotFoundError(f"Unable to find directory 'LOCAL_FASTQ_FILES' defined in 'config.yaml'. Attempted searching: {cfg.local_fastq_filepath}")
+
+    print(f"Unable to find files for `qc_raw_fastq_paired` for tissue={wildcards.tissue}, tag={wildcards.tag}")
     return []
 
 rule qc_raw_fastq_paired:
