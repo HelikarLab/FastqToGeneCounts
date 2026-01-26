@@ -100,6 +100,17 @@ rule all:
             otherwise=[]
         )
 
+rule copy_config:
+    input:
+        "config.yaml"
+    output:
+        f"{cfg.data_root}/{{tissue}}/{{tissue}}_config.yaml"
+    resources:
+        mem_mb=32,
+        runtime=1,
+        tissue=""  # intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
+    shell: "cp {input} {output}"
+
 rule preroundup:
     output:
         layout=f"{cfg.data_root}/{{tissue}}/layouts/{{tissue}}_{{tag}}_layout.txt",
