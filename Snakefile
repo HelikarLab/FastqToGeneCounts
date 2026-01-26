@@ -30,9 +30,9 @@ onstart:
 
 rule all:
     input:
-        f"{cfg.genome.species_dir}/{cfg.species_name}_{cfg.genome.ensembl_release}_primary_assembly.fa",
+        expand(f"{cfg.data_root}/{{tissue}}/{{tissue}}_config.yaml", tissue=set(data.tissues)),
+        f"{cfg.genome.species_dir}/{cfg.species_name}_{cfg.genome.ensembl_release}_{cfg.genome.type}.fa",
         f"{cfg.genome.contaminants_dir}/.download_complete",
-
         f"{cfg.genome.species_dir}/star/Log.out",
         f"{cfg.genome.species_dir}/transcriptome.fa",
 
@@ -40,41 +40,42 @@ rule all:
         expand(f"{cfg.data_root}/{{tissue}}/prepMethods/{{tissue}}_{{tag}}_prep_method.txt",zip,tissue=data.tissues,tag=data.tags),
         expand(f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}.bam",zip,tissue=data.tissues,tag=data.tags),
         expand(f"{cfg.como_root}/{{tissue}}/geneCounts/{{study}}/{{tissue}}_{{tag}}.tab",zip,tissue=data.tissues,study=data.studies,tag=data.tags),
-        expand(f"{cfg.como_root}/{{tissue}}/strandedness/{{study}}/{{tissue}}_{{tag}}_strandedness.txt",zip,tissue=data.tissues,study=data.studies,tag=data.tags),
-        expand(f"{cfg.como_root}/{{tissue}}/insertSizeMetrics/{{study}}/{{tissue}}_{{tag}}_insert_size.txt",zip,tissue=data.tissues,study=data.studies,tag=data.tags),
-        expand(f"{cfg.data_root}/{{tissue}}/multiqc/{cfg.sample_filepath.stem}/{cfg.sample_filepath.stem}_multiqc_report.html",tissue=data.tissues),
-        expand(
-            f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",
-            zip,
-            tissue=data.tissues_paired,
-            tag=data.tags_paired,
-            end=data.ends_paired
-        ),
-        expand(
-            f"{cfg.data_root}/{{tissue}}/fastqc/raw/raw_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",
-            zip,
-            tissue=data.tissues_paired,
-            tag=data.tags_paired,
-            end=data.ends_paired
-        ),
-
+        expand(f"{cfg.data_root}/{{tissue}}/multiqc/{cfg.sample_filepath.stem}/{cfg.sample_filepath.stem}_multiqc_report.html",tissue=set(data.tissues)),
         branch(
-            perform.dump_fastq(config),
-            then=expand(f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
+            cfg.perform.dump_fastq,
+            then=[
+                expand(f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
+                expand(
+                    f"{cfg.data_root}/{{tissue}}/fastqc/raw/raw_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",
+                    zip,
+                    tissue=data.tissues_paired,
+                    tag=data.tags_paired,
+                    end=data.ends_paired
+                ),
+            ],
             otherwise=[],
         ),
         branch(
-            perform.trim(config),
-            then=expand(f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
+            cfg.perform.trim,
+            then=[
+                expand(f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
+                expand(
+                    f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",
+                    zip,
+                    tissue=data.tissues_paired,
+                    tag=data.tags_paired,
+                    end=data.ends_paired
+                ),
+            ],
             otherwise=[],
         ),
         branch(
-            perform.screen(config),
+            cfg.perform.contaminant_screen,
             then=f"{cfg.genome.contaminants_dir}/fastq_screen.conf",
             otherwise=[],
         ),
         branch(
-            perform.get_fragment_size(config),
+            cfg.perform.fragment_size,
             then=[
                 expand(f"{cfg.data_root}/{{tissue}}/fragmentSizes/{{tissue}}_{{tag}}_fragment_size.txt", zip, tissue=data.tissues, tag=data.tags),
                 expand(f"{cfg.como_root}/{{tissue}}/fragmentSizes/{{study}}/{{tissue}}_{{tag}}_fragment_size.txt",zip,tissue=data.tissues,study=data.studies,tag=data.tags)
@@ -82,7 +83,7 @@ rule all:
             otherwise=[]
         ),
         branch(
-            perform.get_rnaseq_metrics(config),
+            cfg.perform.rnaseq_metrics,
             then=[
                 expand(f"{cfg.data_root}/{{tissue}}/picard/rnaseq/{{tissue}}_{{tag}}_rnaseq.txt", zip, tissue=data.tissues, tag=data.tags),
                 expand(f"{cfg.como_root}/{{tissue}}/strandedness/{{study}}/{{tissue}}_{{tag}}_strandedness.txt",zip,tissue=data.tissues,tag=data.tags,study=data.studies),
@@ -90,7 +91,7 @@ rule all:
             otherwise=[],
         ),
         branch(
-            perform.get_insert_size(config),
+            cfg.perform.insert_size,
             then=[
                 expand(f"{cfg.data_root}/{{tissue}}/picard/insert/{{tissue}}_{{tag}}_insert_size.txt",zip,tissue=data.tissues,tag=data.tags),
                 expand(f"{cfg.data_root}/{{tissue}}/picard/hist/{{tissue}}_{{tag}}_insert_size_histo.pdf",zip,tissue=data.tissues,tag=data.tags),
