@@ -58,18 +58,8 @@ def overlap_length2(exons: Sequence[Sequence[int]], read_start: int, next_ref_st
     return total
 
 
-def _calculate_exon_start(tx_start: int, fields: list[str]) -> list[int]:
-    exon_starts: list[int] = list(map(int, fields[11].rstrip(",\n").split(",")))
-    return [i + tx_start for i in exon_starts]
-
-
-def _calculate_exon_end(exon_starts: list[int], fields: list[str]) -> list[int]:
-    exon_ends: list[int] = list(map(int, fields[10].rstrip(",\n").split(",")))
-    return [x + y for x, y in zip(exon_starts, exon_ends, strict=True)]
-
-
 def get_contig(chrom_value: str) -> str:
-    chromosome_match = re.match(r"^chr(\d+)$", chrom_value)
+    chromosome_match = re.match(RE_CHROMOSOME_MATCH, chrom_value)
     if chromosome_match:
         return chromosome_match.group(1)
     if chrom_value.endswith(("X", "Y")):
@@ -121,10 +111,10 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
             tx_end = int(fields[2])
             gene_name = fields[3]
 
-            exon_starts: list[int] = _calculate_exon_start(tx_start, fields)
-            exon_ends: list[int] = _calculate_exon_end(exon_starts, fields)
             gene_id: str = "\t".join([str(i) for i in (chrom, tx_start, tx_end, gene_name)])
-            exon_range: list[tuple[int, int]] = list(zip(exon_starts, exon_ends, strict=True))
+            exon_starts = map(int, fields[11].split(","))
+            exon_ends = map(int, fields[10].split(","))
+            exon_range = [(s + tx_start, s + tx_start + e) for s, e in zip(exon_starts, exon_ends, strict=True)]
 
             frag_sizes = []
             aligned_reads = alignment_file.fetch(contig=chrom, start=tx_start, stop=tx_end)
@@ -159,6 +149,7 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
             )
             pbar.update(line_bytes)
         pbar.total = ref_size_bytes
+
 
 def main():
     usage = "%prog [options]" + "\n" + (__doc__ or "") + "\n"
