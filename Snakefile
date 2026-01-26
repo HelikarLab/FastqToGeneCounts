@@ -471,12 +471,10 @@ rule trim_paired:
     input:
         unpack(trim_paired_input),  # gives 'r1' and 'r2' keywords
     output:
-        r1=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_1.fastq.gz",
-        r2=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2.fastq.gz",
-    # See the trim_galore `--cores` setting for details on why 16 was chosen
-    # https://github.com/FelixKrueger/TrimGalore/blob/master/Docs/Trim_Galore_User_Guide.md
-    threads: 16
-    log: f"{cfg.logs_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_trim.log"
+        r1_fastq=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_1.fastq.gz",
+        r1_report=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_1_trimming_report.txt",
+        r2_fastq=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2.fastq.gz",
+        r2_report=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2_trimming_report.txt",
     resources:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
         runtime=lambda wildcards, attempt: 45 * attempt,
@@ -521,7 +519,8 @@ rule trim_single:
     input:
         S=trim_single_input
     output:
-        S=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_S.fastq.gz"
+        S_fastq=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_S.fastq.gz",
+        S_report=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_S_trimming_report.txt"
     # See the trim_galore `--cores` setting for details on why 16 was chosen
     # https://github.com/FelixKrueger/TrimGalore/blob/master/Docs/Trim_Galore_User_Guide.md
     resources:
@@ -546,8 +545,8 @@ rule trim_single:
 
 rule qc_trim_fastq_paired:
     input:
-        r1=rules.trim_paired.output.r1,
-        r2=rules.trim_paired.output.r2
+        r1=rules.trim_paired.output.r1_fastq,
+        r2=rules.trim_paired.output.r2_fastq
     output:
         r1_zip=f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_1_fastqc.zip",
         r1_html=f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_1_fastqc.html",
@@ -577,7 +576,7 @@ rule qc_trim_fastq_paired:
 
 rule qc_trim_fastq_single:
     input:
-        rules.trim_single.output,
+        rules.trim_single.output.S_fastq,
     output:
         s_zip=f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_S_fastqc.zip",
         s_html=f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_S_fastqc.html"
