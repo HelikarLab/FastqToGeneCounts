@@ -15,7 +15,6 @@ onstart:
             [
                 ("Samples", cfg.sample_filepath),
                 ("Data", cfg.data_root),
-                ("Temporary", cfg.temp_root),
                 ("COMO", cfg.como_root),
                 ("Logging", cfg.logs_root),
                 ("Genome", cfg.genome.species_dir),
