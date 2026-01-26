@@ -1,49 +1,19 @@
-# ruff: noqa: D102
-
+# ruff: noqa: D102 T201
 import csv
 import re
+import shutil
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 
-from utils.download_genome import Utilities
-
-
-@dataclass(frozen=True, slots=True)
-class Genome:
-    species_dir: Path
-    contaminants_dir: Path
-    taxon_id: int
-    version: str
-    show_progress: bool
-    _ensembl_release: str = field(init=False)
-
-    @property
-    def ensembl_release(self):
-        return self._ensembl_release
-
-    def __post_init__(self):
-        """Post initialization to set the ensembl_release attribute."""
-        if self.version == "latest":
-            val = f"release-{Utilities.get_latest_release()}"
-        elif self.version.startswith("release"):
-            val = self.version
-        elif self.version.isdigit():
-            val = f"release-{self.version}"
-        else:
-            raise ValueError(
-                "Invalid GENOME VERSION in config.yaml file. "
-                "Valid options are: 'latest', 'release-###' (i.e., 'release-112'), or an integer (i.e., 112)."
-            )
-
-        object.__setattr__(self, "_ensembl_release", val)
+from utils.download_genome import get_latest_release, species_from_taxon
 
 
 @dataclass(frozen=True, slots=True)
 class Perform:
-    prefetch: bool
     dump_fastq: bool
     trim: bool
     contaminant_screen: bool
@@ -56,6 +26,76 @@ class Perform:
 class Validation:
     bypass_replicate_validation: bool
     bypass_genome_validation: bool
+
+
+def print_key_value_table(title: str, rows: Iterable[tuple[str, object]], *, center_block: bool = True) -> None:
+    rows = [(str(k), "" if v is None else str(v)) for k, v in rows]
+    outer_pad = 5
+    left_width = max((len(k) for k, _ in rows), default=0)
+    right_width = max((len(v) for _, v in rows), default=0)
+
+    body_lines: list[str] = []
+    for k, v in rows:
+        new_k = f"|{' ' * outer_pad}{k:<{left_width}}"
+        new_v = f"{v:<{right_width}}{' ' * outer_pad} |"
+        body_lines.append(f"{new_k}: {new_v}")
+
+    # body_lines = [f"| {k:<{left_width}}: {v:<{right_width}} |" for k, v in rows]
+    interior_width = 1 + left_width + right_width + 1 + (outer_pad * 2) - 1  # " " + left + ": " + right + " "
+    title = f"| {title:^{interior_width}} |"
+
+    width = max([len(title), *(len(s) for s in body_lines)], default=len(title))
+    top = "=" * width
+    mid = f"| {'-' * interior_width} |"
+
+    lines = [top, title, mid, *body_lines, top]
+    prefix = ""
+    if center_block:
+        cols = shutil.get_terminal_size(fallback=(80, 24)).columns
+        pad = max((cols - width) // 2, 0)
+        prefix = " " * pad
+    lines = [prefix + line for line in lines]
+    print()
+    print("\n".join(lines))
+    print()
+
+
+@dataclass(frozen=True, slots=True)
+class Genome:
+    species_dir: Path
+    contaminants_dir: Path
+    taxon_id: int
+    version: str
+    show_progress: bool
+    type: Literal["primary_assembly", "toplevel"]
+    _ensembl_release: str = field(init=False)
+
+    @property
+    def ensembl_release(self):
+        return self._ensembl_release
+
+    def __post_init__(self):
+        """Post initialization to set the ensembl_release attribute."""
+        if self.version == "latest":
+            val = f"release-{get_latest_release()}"
+        elif self.version.startswith("release"):
+            val = self.version
+        elif self.version.isdigit():
+            val = f"release-{self.version}"
+        else:
+            raise ValueError(
+                "Invalid GENOME VERSION in config.yaml file. "
+                "Valid options are: 'latest', 'release-###' (i.e., 'release-112'), or an integer (i.e., 112)."
+            )
+
+        if self.type not in ["primary_assembly", "toplevel"]:
+            raise ValueError(
+                f"Invalid GENOME FASTA_TYPE in config.yaml file. Valid options are: 'primary_assembly' or 'toplevel'; got: '{self.type}'."
+            )
+
+        object.__setattr__(self, "_ensembl_release", val)
+        # Append `-{release-value}` to the species directory
+        object.__setattr__(self, "species_dir", Path(self.species_dir.as_posix() + f"_{self.ensembl_release}"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,30 +114,75 @@ class Config:
     genome: Genome
     species_name: str
     benchmark_dir: Path
+    _fastq_files: list[Path] = field(default_factory=list, init=False)
+
+    @staticmethod
+    def _validate_config(config: dict[str, Any]):  # noqa: C901
+        if config["MASTER_CONTROL"] == "":
+            raise ValueError("MASTER_CONTROL cannot be an empty string.")
+        if not Path(config["MASTER_CONTROL"]).exists():
+            raise FileNotFoundError(f"MASTER_CONTROL path does not exist: {config['MASTER_CONTROL']}")
+        
+        if not str(config["BENCHMARK_TIMES"]).isdigit() or int(config["BENCHMARK_TIMES"]) < 0:
+            raise ValueError("BENCHMARK_TIMES must be a non-negative integer.")
+
+        if config["LOCAL_FASTQ_FILES"] != "" and not Path(config["LOCAL_FASTQ_FILES"]).exists():
+            raise FileNotFoundError(f"LOCAL_FASTQ_FILES path does not exist: {config['LOCAL_FASTQ_FILES']}")
+
+        if not str(config["GENOME"]["TAXONOMY_ID"]).isdigit():
+            raise ValueError("GENOME TAXONOMY_ID must be an integer.")
+
+        str_true_false = ["true", "false"]
+        if str(config["PERFORM_DUMP_FASTQ"]).lower() not in str_true_false:
+            raise ValueError("PERFORM_DUMP_FASTQ must be 'true' or 'false'.")
+        if str(config["PERFORM_TRIM"]).lower() not in str_true_false:
+            raise ValueError("PERFORM_TRIM must be 'true' or 'false'.")
+        if str(config["PERFORM_SCREEN"]).lower() not in str_true_false:
+            raise ValueError("PERFORM_SCREEN must be 'true' or 'false'.")
+        if str(config["PERFORM_GET_RNASEQ_METRICS"]).lower() not in str_true_false:
+            raise ValueError("PERFORM_GET_RNASEQ_METRICS must be 'true' or 'false'.")
+        if str(config["PERFORM_GET_INSERT_SIZE"]).lower() not in str_true_false:
+            raise ValueError("PERFORM_GET_INSERT_SIZE must be 'true' or 'false'.")
+        if str(config["PERFORM_GET_FRAGMENT_SIZE"]).lower() not in str_true_false:
+            raise ValueError("PERFORM_GET_FRAGMENT_SIZE must be 'true' or 'false'.")
+        if str(config["BYPASS_REPLICATE_VALIDATION"]).lower() not in str_true_false:
+            raise ValueError("BYPASS_REPLICATE_VALIDATION must be 'true' or 'false'.")
+        if str(config["BYPASS_GENOME_VALIDATION"]).lower() not in str_true_false:
+            raise ValueError("BYPASS_GENOME_VALIDATION must be 'true' or 'false'.")
+        if str(config["GENOME"]["SHOW_PROGRESS"]).lower() not in str_true_false:
+            raise ValueError("GENOME SHOW_PROGRESS must be 'true' or 'false'.")
 
     @classmethod
     def create(cls, config: dict[str, Any]) -> "Config":
         """Create a configuration object."""
+        Config._validate_config(config)
+
         root = Path(config["ROOTDIR"])
         experiment_name = config["EXPERIMENT_NAME"]
         fastq_files = config["LOCAL_FASTQ_FILES"]
         taxon_id: int = int(config["GENOME"]["TAXONOMY_ID"])
-        species_name: str = Utilities.get_species_from_taxon(taxon_id=taxon_id)
+        species_name: str = species_from_taxon(taxon_id=taxon_id)
+
+        sample_filepath = Path(config["MASTER_CONTROL"])
+        data_root = Path(root, experiment_name, "data")
+        temp_root = Path(root, experiment_name, "temp")
+        como_root = Path("COMO_input", experiment_name)
+        logs_root = Path(config["LOG_DIR"], experiment_name)
+        species_dir = Path(config["GENOME"]["SAVE_DIR"], species_name)
 
         return cls(
             sample_filepath=Path(config["MASTER_CONTROL"]),
             root=root,
-            data_root=Path(root, experiment_name, "data"),
-            temp_root=Path(root, experiment_name, "temp"),
-            como_root=Path("COMO_input", experiment_name),
-            logs_root=Path(config["LOG_DIR"], experiment_name),
+            data_root=data_root,
+            temp_root=temp_root,
+            como_root=como_root,
+            logs_root=logs_root,
             experiment_name=experiment_name,
             local_fastq_filepath=Path(fastq_files) if fastq_files else None,
             species_name=species_name,
-            benchmark_count=config["BENCHMARK_TIMES"],
-            benchmark_dir=Path(config["BENCHMARK_DIR"]),
+            benchmark_count=int(config["BENCHMARK_TIMES"]),
+            benchmark_dir=Path(config["BENCHMARK_DIR"], experiment_name),
             perform=Perform(
-                prefetch=config["PERFORM_PREFETCH"],
                 dump_fastq=config["PERFORM_DUMP_FASTQ"],
                 trim=config["PERFORM_TRIM"],
                 contaminant_screen=config["PERFORM_SCREEN"],
@@ -110,24 +195,34 @@ class Config:
                 bypass_genome_validation=config["BYPASS_GENOME_VALIDATION"],
             ),
             genome=Genome(
-                species_dir=Path(config["GENOME"]["SAVE_DIR"], species_name),
+                species_dir=species_dir,
                 contaminants_dir=Path(config["ROOTDIR"], "FastQ_Screen_Genomes"),
                 taxon_id=taxon_id,
                 version=config["GENOME"]["VERSION"],
+                type=config["GENOME"]["FASTA_TYPE"],
                 show_progress=config["GENOME"]["SHOW_PROGRESS"],
             ),
         )
 
     def __post_init__(self):
         """Post initialization checks."""
-        if not self.sample_filepath.exists():
-            raise FileNotFoundError(f"Control file path does not exist: {self.sample_filepath}")
-        if self.benchmark_count < 0:
-            raise ValueError("Benchmark count must be non-negative.")
-        if self.local_fastq_filepath and not self.local_fastq_filepath.exists():
-            raise FileNotFoundError(f"Local FASTQ file path does not exist: {self.local_fastq_filepath}")
-
+        if self.local_fastq_filepath is not None:
+            object.__setattr__(
+                self,
+                "_fastq_files",
+                list(self.local_fastq_filepath.rglob("*.fastq")) + list(self.local_fastq_filepath.rglob("*.fastq.gz")),
+            )
         self.root.mkdir(parents=True, exist_ok=True)
+
+    def fastq_files(self, filter_by: str = "") -> list[Path]:
+        """Return a list of filepaths matching an optional filter value.
+
+        If `filter` is an empty string, all files will be returned.
+        The filter is a simple `if filter in str`, and does not support regex, glob, etc.
+        """
+        if not filter_by:
+            return self._fastq_files
+        return [i for i in self._fastq_files if filter_by in i.as_posix()]
 
 
 class SampleData:
@@ -142,8 +237,11 @@ class SampleData:
 
         self._pairs: pd.DataFrame = self._sample_df["sample"].astype(str).str.extract(r"^(?P<tissue>.+)_(?P<tag>S\d+R\d+(?:r\d+)?)$")
         if self._pairs.isna().any().any():
+            na_value = self._sample_df[self._pairs.isna().any(axis=1)]
+            print(na_value)
             raise ValueError(
-                "Some sample names in the MASTER_CONTROL file do not follow the expected format '<tissue>_<tag>' (e.g., effectorcd8_S1R1)."
+                "Some sample names in the MASTER_CONTROL file do not follow the expected format '<tissue>_<tag>' (e.g., effectorcd8_S1R1). "
+                "The items have been printed on the previous line."
             )
 
         self._sample_names: list[str] = self._sample_df["sample"].to_list()
@@ -219,7 +317,3 @@ class SampleData:
     @property
     def ends_paired(self) -> list[str]:
         return self._ends_paired
-
-
-if __name__ == "__main__":
-    SampleData(Path("/Users/joshl/Projects/FastqToGeneCounts/controls/application_note.csv"))
