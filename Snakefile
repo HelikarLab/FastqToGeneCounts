@@ -846,7 +846,6 @@ rule rnaseq_metrics:
         """
 
 rule copy_fragment_size:
-    localrule: True
     input:
         rules.fragment_size.output,
     output:
@@ -860,7 +859,6 @@ rule copy_fragment_size:
         """cp --verbose {input} {output}"""
 
 rule copy_insert_size:
-    localrule: True
     input:
         rules.insert_size.output.txt,
     output:
@@ -874,7 +872,6 @@ rule copy_insert_size:
         """cp --verbose {input} {output}"""
 
 rule copy_rnaseq_metrics:
-    localrule: True
     input:
         rules.rnaseq_metrics.output.strand,
     output:
@@ -889,7 +886,6 @@ rule copy_rnaseq_metrics:
 
 
 rule copy_gene_counts:
-    localrule: True
     input:
         rules.align.output.gene_table,
     output:
