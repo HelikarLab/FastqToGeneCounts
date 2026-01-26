@@ -735,26 +735,36 @@ rule salmon_quantification:
         mv --verbose {params.outdir}/cmd_info.json {output.meta} 1>>{log} 2>&1
         """
 
-def contaminant_screen_input(wildcards):
-    if not perform.screen(config):
-        return []
 
-    if perform.dump_fastq(config):
-        if all(data.samples.loc[data.samples["sample"] == f"{wildcards.tissue}_{wildcards.tag}", "endtype"] == "PE"):
-            return rules.fastq_dump_paired.output
+def contaminant_screen_input_paired(wildcards) -> dict[Literal["screen_config"] | Literal["files"], list[str]]:
+    returns: dict[Literal["screen_config"] | Literal["files"], list[str]] = {"screen_config": [], "files": []}
+    if not cfg.perform.contaminant_screen:
+        return returns
+
+    sample_name = f"{wildcards.tissue}_{wildcards.tag}"
+    pe_samples: pd.DataFrame = data.samples[(data.samples["sample"] == sample_name) & (data.samples["endtype"] == "PE")]
+    if pe_samples.empty:
+        return returns
+
+    if cfg.perform.trim:
+        returns["screen_config"] = [rules.download_contaminant_genomes.output.config]
+        returns["files"] = [rules.trim_paired.output.r1_fastq, rules.trim_paired.output.r2_fastq]
+    elif cfg.perform.dump_fastq:
+        returns["screen_config"] = [rules.download_contaminant_genomes.output.config]
+        returns["files"] = [rules.fastq_dump_paired.output.r1, rules.fastq_dump_paired.output.r2]
+    else:
+        files = [i.as_posix() for i in cfg.local_fastq_filepath.rglob(f"{sample_name}_[12].fastq.gz")]
+        if files:
+            returns["screen_config"] = [rules.download_contaminant_genomes.output.config]
+            returns["files"] = files
         else:
-            return rules.fastq_dump_single.output
+            raise FileNotFoundError(f"Unable to find paired-end FASTQ files for sample '{sample_name}' in directory '{cfg.local_fastq_filepath}'")
 
-    files: list[str] = []
-    for file in cfg.local_fastq_filepath.rglob("{tissue}_{tag}_{PE_SE}.fastq.gz".format(**wildcards)):
-        if f"{wildcards.tissue}_{wildcards.tag}" in data.samples["sample"].tolist():
-            files.append(file.as_posix())
-    return files
+    return returns
 
 rule contaminant_screen_paired:
     input:
-        files=contaminant_screen_input,
-        screen_config = rules.download_contaminant_genomes.output.config,
+        unpack(contaminant_screen_input_paired)
     output:
         r1=f"{cfg.data_root}/{{tissue}}/fq_screen/{{tissue}}_{{tag}}_1_screen.txt",
         r2=f"{cfg.data_root}/{{tissue}}/fq_screen/{{tissue}}_{{tag}}_2_screen.txt"
@@ -775,10 +785,40 @@ rule contaminant_screen_paired:
         fastq_screen --force --aligner Bowtie2 --threads {threads} --conf {input.screen_config} --outdir "$outdir" {input.files} 1>{log} 2>&1
         """
 
+
+def contaminant_screen_input_single(wildcards) -> dict[Literal["screen_config"] | Literal["files"], list[str]]:
+    returns: dict[Literal["screen_config"] | Literal["files"], list[str]] = {"screen_config": [], "files": []}
+    if not cfg.perform.contaminant_screen:
+        return returns
+
+    sample_name = f"{wildcards.tissue}_{wildcards.tag}"
+    se_samples: pd.DataFrame = data.samples[(data.samples["sample"] == sample_name) & (data.samples["endtype"] == "SE")]
+    if se_samples.empty:
+        return returns
+
+    if cfg.perform.trim:
+        returns["screen_config"] = [rules.download_contaminant_genomes.output.config]
+        returns["files"] = [rules.trim_single.output.S_fastq]
+        return returns
+    elif cfg.perform.dump_fastq:
+        returns["screen_config"] = [rules.download_contaminant_genomes.output.config]
+        returns["files"] = [rules.fastq_dump_single.output.S]
+        return returns
+    else:
+        files = [i.as_posix() for i in cfg.local_fastq_filepath.rglob(f"{sample_name}_S.fastq.gz")]
+        if files:
+            returns["screen_config"] = [rules.download_contaminant_genomes.output.config]
+            returns["files"] = files
+            return returns
+        else:
+            raise FileNotFoundError(f"Unable to find single-end FASTQ file for sample '{sample_name}' in directory '{cfg.local_fastq_filepath}'")
+
+    print(f"Unable to find any files for `contaminant_screen_single` with tissue={wildcards.tissue}, tag={wildcards.tag}")
+    return returns
+
 rule contaminant_screen_single:
     input:
-        files=contaminant_screen_input,
-        screen_config=rules.download_contaminant_genomes.output.config
+        unpack(contaminant_screen_input_single)  # gives `input.screen_config` and `input.files`
     output:
         S=f"{cfg.data_root}/{{tissue}}/fq_screen/{{tissue}}_{{tag}}_S_screen.txt"
     params:
