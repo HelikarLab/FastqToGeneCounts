@@ -200,7 +200,7 @@ def main():
     if not options.refgene_bed.exists():
         raise FileNotFoundError(f"BED file does not exist: '{options.refgene_bed}'")
 
-    with options.output_filepath.open("w") as o_stream, Path(options.log).open("w") if options.log else nullcontext() as log_out:
+    with options.output_filepath.open("w") as o_stream, options.log.open("w") if options.log else nullcontext() as log_out:
         o_stream.write("\t".join([str(i) for i in ("chrom", "tx_start", "tx_end", "symbol", "frag_count", "frag_mean", "frag_median", "frag_std")]))
         o_stream.write("\n")
         for tmp in _fragment_size(
@@ -209,7 +209,7 @@ def main():
             qcut=options.map_qual,
             ncut=options.fragment_num,
             threads=4,
-            log=log_out,
+            log=log_out if log_out else sys.stderr,
         ):
             o_stream.write(tmp + "\n")
 
