@@ -97,6 +97,9 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
                 pbar.update(line_bytes)
                 continue
             fields = line.split()
+            if len(fields) < 12:  # we assume a 12-column BED format
+                pbar.update(line_bytes)
+                continue
             chrom = fields[0]
             if chrom not in references:
                 alt_chrom = chrom.removeprefix("chr") if chrom.startswith("chr") else f"chr{chrom}"
