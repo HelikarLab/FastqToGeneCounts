@@ -227,6 +227,7 @@ rule download_contaminant_genomes:
                 expected_files="${{expected_files[index]}}"
                 if [ $existing_files -eq $expected_files ]; then
                     echo "[fastq_screen] Skipping genome download for '$genome' because it is already present at '$outdir'" >> {log}
+                    touch "$outdir" "$outdir/*"
                     continue
                 fi
             fi
