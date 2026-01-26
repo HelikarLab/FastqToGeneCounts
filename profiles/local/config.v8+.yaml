@@ -7,6 +7,7 @@ cores: 'all'
 
 # Other settings
 # printshellcmds: True
+retries: 3
 rerun-incomplete: True
 keep-going: True
 
