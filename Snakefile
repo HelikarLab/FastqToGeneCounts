@@ -376,12 +376,12 @@ rule fastq_dump_single:
 
 
 def qc_raw_fastq_paired_input(wildcards):
-    if perform.prefetch(config):
+    if cfg.perform.dump_fastq:
         # We will get data from NCBI, therefore we can get results from fastq_dump_paired directly
         return [rules.fastq_dump_paired.output.r1, rules.fastq_dump_paired.output.r2]
 
     # Otherwise, we must search the local directory for fiels and return those
-    if "LOCAL_FASTQ_FILES" in config and exists(cfg.local_fastq_filepath):
+    if cfg.local_fastq_filepath:
         sample_name = f"{wildcards.tissue}_{wildcards.tag}"
         for path, subdir, files in os.walk(cfg.local_fastq_filepath):
             for file in files:
