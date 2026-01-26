@@ -204,7 +204,7 @@ rule download_contaminant_genomes:
     shell:
         r"""
         echo "" > {log}
-        
+
         # get the line that does not have Bisulfite in it
         genome_location=$(curl --silent "https://www.bioinformatics.babraham.ac.uk/projects/fastq_screen/genome_locations.txt" | grep -v "Bisulfite" | head -n 1)
         if [[ "$genome_location" != http*://* ]]; then
@@ -306,55 +306,36 @@ rule generate_transcriptome_fasta:
     benchmark: repeat(f"{cfg.benchmark_dir}/rule_generate_transcriptome_{cfg.species_name}.benchmark",cfg.benchmark_count)
     shell: "gffread -w {output.transcriptome} -g {input.genome} {input.gtf} 1>{log} 2>&1"
 
-rule prefetch:
+rule fastq_dump_paired:
     input:
-        cfg.sample_filepath,
+        cfg.sample_filepath
     output:
-        temp(f"{cfg.data_root}/{{tissue}}/.prefetch/{{tissue}}_{{tag}}.sra"),
-    conda:
-        "envs/SRAtools.yaml"
+        r1=f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_1.fastq.gz",
+        r2=f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_2.fastq.gz",
     params:
-        output_directory=f"{cfg.data_root}/prefetch/{{tissue}}_{{tag}}",
-        srr=lookup(query="sample == '{tissue}_{tag}'",within=data.samples,cols="srr"),
-    threads: 1
-    log: f"{cfg.logs_root}/{{tissue}}/prefetch/{{tissue}}_{{tag}}_prefetch.log"
+        srr=lookup(query="sample == '{tissue}_{tag}'", within=data.samples, cols="srr")
+    threads: 5
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 45 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
         network_slots=1
-    shell:
-        """
-        tmpdir=$(mktemp -d)
-        trap "rm -rf $tmpdir" EXIT
-        sra_temp="$tmpdir/{wildcards.tissue}_{wildcards.tag}.sra"
-
-        prefetch --max-size u --progress --output-file "$sra_temp" {params.srr} 1>{log} 2>&1
-        mv "$sra_temp" {output}
-        """
-
-rule fastq_dump_paired:
-    input:
-        rules.prefetch.output
-    output:
-        r1=f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_1.fastq.gz",
-        r2=f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_2.fastq.gz",
-    threads: 5
+    conda: "envs/SRAtools.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/fastq_dump/{{tissue}}_{{tag}}_fastq_dump.log"
-    resources:
-        mem_mb=10240,
-        runtime=45,
-        tissue=lambda wildcards: wildcards.tissue
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/fastq_dump_paired/fastq_dump_paired_{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
     shell:
         r"""
         tmpdir=$(mktemp -d)
         trap "rm -rf $tmpdir" EXIT
-        
+
+        sra_temp="$tmpdir/{wildcards.tissue}_{wildcards.tag}.sra"
+        prefetch --max-size u --progress --log-level info --output-file "$sra_temp" {params.srr} 1>{log} 2>&1
+
         tmp_forward="$tmpdir/{wildcards.tissue}_{wildcards.tag}_1.fastq"
         tmp_reverse="$tmpdir/{wildcards.tissue}_{wildcards.tag}_2.fastq"
-        fasterq-dump --force --split-files --progress --threads {threads} --temp "$tmpdir" --outdir "$tmpdir" {input} 1>{log} 2>&1
+        fasterq-dump --force --split-files --progress --threads {threads} --temp "$tmpdir" --outdir "$tmpdir" "$sra_temp" 1>>{log} 2>&1
         pigz --processes {threads} --force "$tmp_forward" "$tmp_reverse"
-        
+
         printf "\n\n" >> {log}
         mv --verbose "$tmp_forward.gz" "{output.r1}"  1>>{log} 2>&1 &
         mv --verbose "$tmp_reverse.gz" "{output.r2}"  1>>{log} 2>&1 &
@@ -364,10 +345,11 @@ rule fastq_dump_paired:
 
 rule fastq_dump_single:
     input:
-        rules.prefetch.output
+        cfg.sample_filepath
     output:
         S=f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_S.fastq.gz"
-    threads: 4
+    params:
+        srr=lookup(query="sample == '{tissue}_{tag}'",within=data.samples,cols="srr")
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 30 * attempt,
@@ -380,14 +362,16 @@ rule fastq_dump_single:
         r"""
         tmpdir=$(mktemp -d)
         trap "rm -rf $tmpdir" EXIT
-        
-        tmpfile="$tmpdir/{wildcards.tissue}_{wildcards.tag}_S.fastq"
-        fasterq-dump --force --concatenate-reads --progress --threads {threads} --temp "$tmpdir" --outdir "$tmpdir" {input} 1>{log} 2>&1
-        pigz --processes 4 --force "$tmpfile"
-        
-        printf "\n\n" >> {log}
-        echo "Moving '$tmpfile' to '{output.S}'" >> {log}
-        mv "$tmpfile" {output.S}
+
+        sra_temp="$tmpdir/{wildcards.tissue}_{wildcards.tag}.sra"
+        prefetch --max-size u --progress --log-level info --output-file "$sra_temp" {params.srr} 1>>{log} 2>&1
+
+        tmpfile="$tmpdir/{wildcards.tissue}_{wildcards.tag}.fastq"
+        fasterq-dump --force --concatenate-reads --progress --threads {threads} --temp "$tmpdir" --outdir "$tmpdir" "$sra_temp" 1>>{log} 2>&1
+        printf "\nGzipping $tmpfile file\n\n" >> {log}
+        pigz -6 --processes 4 --force "$tmpfile"
+
+        mv --verbose "$tmpfile.gz" {output.S} 1>>{log} 2>&1
         """
 
 
