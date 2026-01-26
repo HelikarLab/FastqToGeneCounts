@@ -114,6 +114,7 @@ rule preroundup:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
         runtime=lambda wildcards, attempt: 1 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/preroundup/preroundup_{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
     run:
         # example row: SRR12873784,effectorcd8_S1R1,PE,total
         sample_row: pd.Series = samples[samples["sample"].eq(params.sample_name)]
@@ -174,6 +175,8 @@ rule download_genome:
         runtime=lambda wildcards, attempt: 30 * attempt,
         tissue="",# intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
         network_slots=1
+    log: f"{cfg.logs_root}/rule_download_genome_{cfg.species_name}_{cfg.genome.ensembl_release}.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/rule_download_genome_{cfg.species_name}_{cfg.genome.ensembl_release}.benchmark", cfg.benchmark_count)
     shell:
         """
         python3 utils/download_genome.py \
@@ -186,8 +189,6 @@ rule download_contaminant_genomes:
     output:
         done=f"{cfg.genome.contaminants_dir}/.download_complete",
         config=f"{cfg.genome.contaminants_dir}/fastq_screen.conf",
-    conda:
-        "envs/screen.yaml"
     threads: 1
     params:
         root_output=directory(cfg.genome.contaminants_dir),
@@ -196,7 +197,8 @@ rule download_contaminant_genomes:
         runtime=lambda wildcards, attempt: 30 * attempt,
         tissue="",# intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
         network_slots=1
-    log: f"{cfg.logs_root}/download_contaminant_genomes.log"
+    conda: "envs/screen.yaml"
+    log: f"{cfg.logs_root}/download_contaminant_genomes.log"    benchmark: repeat(f"{cfg.benchmark_dir}/rule_download_contaminant_genomes_{cfg.species_name}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         echo "" > {log}
@@ -266,21 +268,15 @@ rule star_index_genome:
         transcript_info=f"{cfg.genome.species_dir}/star/transcriptInfo.tab",
     params:
         output_dir=f"{cfg.genome.species_dir}/star",
-    conda:
-        "envs/star.yaml"
     threads: 10
     resources:
         # +50% of base memory per attempt
         mem_mb=lambda wildcards, attempt: int(51200 * (1 + 0.5 * (attempt - 1))),
         runtime=lambda wildcards, attempt: 150 * attempt,
         tissue="",# intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
+    conda: "envs/star.yaml"
     log: f"{cfg.logs_root}/star_index_genome.log"
-    benchmark:
-        repeat(
-            # format is '2025-05-16T112835'
-            f"{cfg.benchmark_dir}/star_index_genome/star_index_genome_{time.strftime('%Y-%m-%dT%H%M%S',time.localtime())}.benchmark",
-            cfg.benchmark_count,
-        )
+    benchmark: repeat(f"{cfg.benchmark_dir}/star_index_genome/star_index_genome_{cfg.species_name}.benchmark",cfg.benchmark_count)
     shell:
         """
         mkdir -p {params.output_dir}
@@ -299,15 +295,13 @@ rule generate_transcriptome_fasta:
         gtf=rules.download_genome.output.gtf_file
     output:
         transcriptome=f"{cfg.genome.species_dir}/transcriptome.fa"
-    conda:
-        "envs/gffread.yaml"
-    log: f"{cfg.logs_root}/generate_transcriptome_fasta.log"
     resources:
-        mem_mb=4096,
-        time=10,
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 10 * attempt,
         tissue="",# intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
+    conda: "envs/gffread.yaml"
+    log: f"{cfg.logs_root}/generate_transcriptome_fasta.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/rule_generate_transcriptome_{cfg.species_name}.benchmark",cfg.benchmark_count)
     shell: "gffread -w {output.transcriptome} -g {input.genome} {input.gtf} 1>{log} 2>&1"
 
 rule prefetch:
@@ -376,7 +370,10 @@ rule fastq_dump_single:
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 30 * attempt,
         tissue=lambda wildcards: wildcards.tissue
+    threads: 4
+    conda: "envs/SRAtools.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/fastq_dump/{{tissue}}_{{tag}}_fastq_dump.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/fastq_dump_single/fastq_dump_single_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         tmpdir=$(mktemp -d)
@@ -423,11 +420,9 @@ rule qc_raw_fastq_paired:
         runtime=lambda wildcards, attempt: 30 * attempt,
         tissue=lambda wildcards: wildcards.tissue
     threads: 4
+    conda: "envs/fastqc.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/fastqc/raw/{{tissue}}_{{tag}}_fastqc.log"
-    resources:
-        mem_mb=4096,
-        runtime=150,
-        tissue=lambda wildcards: wildcards.tissue
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/qc_raw_fastq_paired/qc_raw_fastq_paired_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         tmpdir=$(mktemp -d)
@@ -455,10 +450,7 @@ rule qc_raw_fastq_single:
     conda: "envs/fastqc.yaml"
     threads: 4
     log: f"{cfg.logs_root}/{{tissue}}/fastqc/raw/{{tissue}}_{{tag}}_fastqc.log"
-    resources:
-        mem_mb=4096,
-        runtime=150,
-        tissue=lambda wildcards: wildcards.tissue
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/qc_raw_fastq_single/qc_raw_fastq_single_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         tmpdir=$(mktemp -d)
@@ -486,6 +478,10 @@ rule trim_paired:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
         runtime=lambda wildcards, attempt: 45 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
+    threads: 4
+    conda: "envs/trim.yaml"
+    log: f"{cfg.logs_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_S_trim.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/trim_paired/trim_paired_{{tissue}}_{{tag}}_S.benchmark",cfg.benchmark_count)
     shell:
         r"""
         tmpdir=$(mktemp -d)
@@ -507,12 +503,14 @@ rule trim_single:
         S=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_S.fastq.gz"
     # See the trim_galore `--cores` setting for details on why 16 was chosen
     # https://github.com/FelixKrueger/TrimGalore/blob/master/Docs/Trim_Galore_User_Guide.md
-    threads: 16
-    log: f"{cfg.logs_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_trim.log"
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 45 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
+    threads: 4
+    conda: "envs/trim.yaml"
+    log: f"{cfg.logs_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_trim.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/trim_single/trim_single_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         tmpdir=$(mktemp -d)
@@ -533,12 +531,14 @@ rule qc_trim_fastq_paired:
         r1_html=f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_1_fastqc.html",
         r2_zip=f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_2_fastqc.zip",
         r2_html=f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_2_fastqc.html",
-    threads: 4
-    log: f"{cfg.logs_root}/{{tissue}}/fastqc/trimmed/{{tissue}}_{{tag}}_fastqc.log"
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 30 * attempt,
         tissue=lambda wildcards: wildcards.tissue
+    conda: "envs/trim.yaml"
+    threads: 4
+    log: f"{cfg.logs_root}/{{tissue}}/fastqc/trimmed/{{tissue}}_{{tag}}_fastqc.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/qc_trim_fastq_paired/qc_trim_fastq_paired_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         tmpdir=$(mktemp -d)
@@ -559,12 +559,14 @@ rule qc_trim_fastq_single:
     output:
         s_zip=f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_S_fastqc.zip",
         s_html=f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_S_fastqc.html"
-    threads: 4
-    log: f"{cfg.logs_root}/{{tissue}}/fastqc/trimmed/{{tissue}}_{{tag}}_fastqc.log"
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 30 * attempt,
         tissue=lambda wildcards: wildcards.tissue
+    conda: "envs/trim.yaml"
+    threads: 4
+    log: f"{cfg.logs_root}/{{tissue}}/fastqc/trimmed/{{tissue}}_{{tag}}_fastqc.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/qc_trim_fastq_single/qc_trim_fastq_single_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         tmpdir=$(mktemp -d)
@@ -595,19 +597,19 @@ rule align:
         splice_junctions=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}_SJ.out.tab",
         gene_table=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}.tab",
         tx_bam=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}.toTranscriptome.bam"
-    conda:
-        "envs/star.yaml"
     params:
         star_genome=f"{cfg.genome.species_dir.as_posix().removesuffix('/')}/star",
         gene_table=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}_ReadsPerGene.out.tab",
         bam_output=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}_Aligned.sortedByCoord.out.bam",
         tx_bam_output=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}_Aligned.toTranscriptome.out.bam",
-    threads: 5
-    log: f"{cfg.logs_root}/{{tissue}}/align/{{tissue}}_{{tag}}_star_align.log"
     resources:
         mem_mb=lambda wildcards, attempt: 40960 * attempt,
         runtime=lambda wildcards, attempt: 60 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
+    threads: 5
+    conda: "envs/star.yaml"
+    log: f"{cfg.logs_root}/{{tissue}}/align/{{tissue}}_{{tag}}_star_align.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/align/align_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         # remove any files not listed in the output
@@ -644,13 +646,9 @@ rule index_bam_file:
         runtime=lambda wildcards, attempt: 5 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 4
+    conda: "envs/samtools.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/align/{{tissue}}_{{tag}}_index_bam.log"
-    resources:
-        mem_mb=1024,
-        runtime=10,
-        tissue=lambda wildcards: wildcards.tissue,
-    benchmark:
-        repeat(f"{cfg.benchmark_dir}/{{tissue}}/index_bam_file/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/index_bam_file/index_bam_filepath_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         """
         samtools index -@ {threads} {input} {output} 1>{log} 2>&1
@@ -665,16 +663,14 @@ rule salmon_quantification:
         meta=f"{cfg.data_root}/{{tissue}}/read_quantification/salmon/{{tag}}/{{tissue}}_{{tag}}_meta_info.json"
     params:
         outdir=f"{cfg.data_root}/{{tissue}}/read_quantification/salmon/{{tag}}"
-    conda:
-        "envs/salmon.yaml"
-    threads: 8
-    log: f"{cfg.logs_root}/{{tissue}}/salmon_quant/{{tissue}}_{{tag}}_salmon_quant.log"
     resources:
         mem_mb=lambda wildcards, attempt: 32768 * attempt,
         runtime=lambda wildcards, attempt: 20 * attempt,
         tissue=lambda wildcards: wildcards.tissue
-    benchmark:
-        repeat(f"{cfg.benchmark_dir}/{{tissue}}/salmon_quant/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
+    threads: 8
+    conda: "envs/salmon.yaml"
+    log: f"{cfg.logs_root}/{{tissue}}/salmon_quant/{{tissue}}_{{tag}}_salmon_quant.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/salmon_quantification/salmon_quantification_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         mkdir -p {params.outdir}
@@ -722,16 +718,9 @@ rule contaminant_screen_paired:
         runtime=lambda wildcards, attempt: 10 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 5
+    conda: "envs/screen.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/contaminant_screen/{{tissue}}_{{tag}}_fastq_screen.log"
-    resources:
-        mem_mb=6144,
-        runtime=30,
-        tissue=lambda wildcards: wildcards.tissue,
-    benchmark:
-        repeat(
-            f"{cfg.benchmark_dir}/{{tissue}}/contaminant_screen/{{tissue}}_{{tag}}_paired.benchmark",
-            cfg.benchmark_count
-        )
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/contaminant_screen_paired/contaminant_screen_paired_{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
     shell:
         """
         outdir=$(dirname {output.r1})
@@ -747,16 +736,14 @@ rule contaminant_screen_single:
         S=f"{cfg.data_root}/{{tissue}}/fq_screen/{{tissue}}_{{tag}}_S_screen.txt"
     params:
         output_dir=f"{cfg.data_root}/{{tissue}}/fq_screen"
-    conda:
-        "envs/screen.yaml"
-    threads: 5
-    log: f"{cfg.logs_root}/{{tissue}}/contaminant_screen/{{tissue}}_{{tag}}_fastq_screen.log"
     resources:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
         runtime=lambda wildcards, attempt: 20 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
-    benchmark:
-        repeat(f"{cfg.benchmark_dir}/{{tissue}}/contaminant_screen/{{tissue}}_{{tag}}_single.benchmark", cfg.benchmark_count)
+    threads: 5
+    conda: "envs/screen.yaml"
+    log: f"{cfg.logs_root}/{{tissue}}/contaminant_screen/{{tissue}}_{{tag}}_fastq_screen.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/contaminant_screen_single/contaminant_screen_single{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
     shell:
         """
         outdir=$(dirname {output.S})
@@ -781,14 +768,8 @@ rule fragment_size:
     conda: "envs/rseqc.yaml"
     threads: 4
     log: f"{cfg.logs_root}/{{tissue}}/fragment_size/{{tissue}}_{{tag}}_fragment_size.log"
-    resources:
-        mem_mb=1024,
-        runtime=120,
-        tissue=lambda wildcards: wildcards.tissue,
-    benchmark:
-        repeat(f"{cfg.benchmark_dir}/{{tissue}}/get_fragment_size/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
-    shell:
-        "python3 utils/get_fragment_size.py --input {input.bam} --bai {input.bai} --refgene {input.bed_file} --log {log} --output {output}"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/fragment_size/fragment_size_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
+    shell: "python3 utils/get_fragment_size.py --input {input.bam} --bai {input.bai} --refgene {input.bed_file} --log {log} --output {output}"
 
 
 rule insert_size:
@@ -798,15 +779,14 @@ rule insert_size:
     output:
         txt=f"{cfg.data_root}/{{tissue}}/picard/insert/{{tissue}}_{{tag}}_insert_size.txt",
         pdf=f"{cfg.data_root}/{{tissue}}/picard/hist/{{tissue}}_{{tag}}_insert_size_histo.pdf",
-    conda: "envs/picard.yaml"
-    threads: 1
-    log: f"{cfg.logs_root}/{{tissue}}/picard/insert/{{tissue}}_{{tag}}_insert_size.log"
     resources:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
         runtime=lambda wildcards, attempt: 10 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
-    benchmark:
-        repeat(f"{cfg.benchmark_dir}/{{tissue}}/get_insert_size/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
+    threads: 1
+    conda: "envs/picard.yaml"
+    log: f"{cfg.logs_root}/{{tissue}}/picard/insert/{{tissue}}_{{tag}}_insert_size.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/insert_size/insert_size_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         """
         layout=$(cat {input.layout})
@@ -839,12 +819,7 @@ rule rnaseq_metrics:
     conda: "envs/picard.yaml"
     threads: 1
     log: f"{cfg.logs_root}/{{tissue}}/picard/rnaseq/{{tissue}}_{{tag}}_rnaseq_metrics.log"
-    resources:
-        mem_mb=1024,
-        runtime=5,
-        tissue=lambda wildcards: wildcards.tissue,
-    benchmark:
-        repeat(f"{cfg.benchmark_dir}/{{tissue}}/get_rnaseq_metrics/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/rnaseq_metrics/rnaseq_metrics_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         """
         # Get the column sums and store them in unst, forw, and rev, respectively
@@ -894,6 +869,7 @@ rule copy_fragment_size:
         mem_mb=256,
         runtime=1,
         tissue=lambda wildcards: wildcards.tissue,
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/copy_fragment_size/copy_fragment_size_{{sample}}/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         """cp --verbose {input} {output}"""
 
@@ -907,6 +883,7 @@ rule copy_insert_size:
         mem_mb=256,
         runtime=1,
         tissue=lambda wildcards: wildcards.tissue,
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/copy_insert_size/copy_insert_size_{{sample}}/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         """cp --verbose {input} {output}"""
 
@@ -920,6 +897,7 @@ rule copy_rnaseq_metrics:
         mem_mb=256,
         runtime=1,
         tissue=lambda wildcards: wildcards.tissue,
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/copy_rnaseq_metrics/copy_rnaseq_metrics_{{sample}}/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         """cp --verbose {input} {output}"""
 
@@ -934,6 +912,7 @@ rule copy_gene_counts:
         mem_mb=256,
         runtime=1,
         tissue=lambda wildcards: wildcards.tissue,
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/copy_gene_counts/copy_gene_counts_{{sample}}/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         """cp {input} {output}"""
 
@@ -955,16 +934,14 @@ rule multiqc:
         config_file_basename=cfg.sample_filepath.stem,
         input_directory=f"{cfg.data_root}/{{tissue}}",
         output_directory=directory(f"{cfg.data_root}/{{tissue}}/multiqc/{cfg.sample_filepath.stem}"),
-    conda:
-        "envs/multiqc.yaml"
-    threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: 1024 * attempt,
         runtime=lambda wildcards, attempt: 30 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
+    threads: 1
+    conda: "envs/multiqc.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/multiqc/{{tissue}}_multiqc.log"
-    benchmark:
-        repeat(f"{cfg.benchmark_dir}/{{tissue}}/multiqc/{{tissue}}.benchmark",cfg.benchmark_count)
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/multiqc/multiqc_{{tissue}}.benchmark",cfg.benchmark_count)
     shell:
         """
         filename="$(basename {output})"
