@@ -103,7 +103,6 @@ class Config:
     sample_filepath: Path
     root: Path
     data_root: Path
-    temp_root: Path
     como_root: Path
     logs_root: Path
     experiment_name: str
@@ -163,20 +162,13 @@ class Config:
         taxon_id: int = int(config["GENOME"]["TAXONOMY_ID"])
         species_name: str = species_from_taxon(taxon_id=taxon_id)
 
-        sample_filepath = Path(config["MASTER_CONTROL"])
-        data_root = Path(root, experiment_name, "data")
-        temp_root = Path(root, experiment_name, "temp")
-        como_root = Path("COMO_input", experiment_name)
-        logs_root = Path(config["LOG_DIR"], experiment_name)
-        species_dir = Path(config["GENOME"]["SAVE_DIR"], species_name)
 
         return cls(
             sample_filepath=Path(config["MASTER_CONTROL"]),
             root=root,
-            data_root=data_root,
-            temp_root=temp_root,
-            como_root=como_root,
-            logs_root=logs_root,
+            data_root=Path(root, experiment_name),
+            como_root=Path("COMO_input", experiment_name),
+            logs_root=Path(config["LOG_DIR"], experiment_name),
             experiment_name=experiment_name,
             local_fastq_filepath=Path(fastq_files) if fastq_files else None,
             species_name=species_name,
@@ -195,8 +187,8 @@ class Config:
                 bypass_genome_validation=config["BYPASS_GENOME_VALIDATION"],
             ),
             genome=Genome(
-                species_dir=species_dir,
-                contaminants_dir=Path(config["ROOTDIR"], "FastQ_Screen_Genomes"),
+                species_dir=Path(config["GENOME"]["SAVE_DIR"], species_name),
+                contaminants_dir=Path(config["ROOTDIR"], "fastq_screen_genome"),
                 taxon_id=taxon_id,
                 version=config["GENOME"]["VERSION"],
                 type=config["GENOME"]["FASTA_TYPE"],
