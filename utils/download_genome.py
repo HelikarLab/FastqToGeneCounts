@@ -1,18 +1,19 @@
-# ruff: noqa: S321 T201
-
+# ruff: noqa: S310 S321 T201
 import argparse
 import csv
 import ftplib
 import gzip
+import http
 import io
 import json
 import re
 import shutil
 import subprocess
+import time
+import urllib.error
 import urllib.request
-from functools import cache
-from http.client import HTTPResponse
 from pathlib import Path
+from typing import Literal
 
 _ncbi_url = "https://api.ncbi.nlm.nih.gov/datasets/v2alpha"
 _ensembl_url = "ftp.ensembl.org"
@@ -26,136 +27,133 @@ MACACA_MULATTA: int = 9544
 MIN_ENSEMBL_RELEASE: int = 19
 
 
-class Utilities:
-    _latest_release: int | None = None
-    _species_name: str | None = None
+def _get_cache_dir() -> Path:
+    curr_dir = Path(__file__)
+    parent = curr_dir.parent
+    while "Snakefile" not in [i.name for i in parent.iterdir()]:
+        parent = parent.parent
+        if parent.as_posix() == "/":
+            raise FileNotFoundError(f"Unable to find Snakemake file. Search started in: {curr_dir}")
+    return parent
 
-    @staticmethod
-    def get_latest_release() -> int:
-        """Identify the latest `release-###` from ensembl.
 
-        Returns:
-            int: An integer matching the release number. For example, if the latest release is `release-112`, this function returns `112`
-        """
-        if Utilities._latest_release is not None:
-            return Utilities._latest_release
+def _get_species_taxon_cache_file() -> Path:
+    cache_file = _get_cache_dir() / ".taxon_to_species.json"
+    cache_file.touch(exist_ok=True)
+    return cache_file
 
-        pub_root: ftplib.FTP = ftplib.FTP(_ensembl_url)
-        pub_root.login()
 
-        latest_release: int = -1
-        release: str
-        for release in pub_root.nlst("/pub"):
-            if release.startswith("/pub/release-") and not release.endswith(".txt"):
-                release_number: int = int(release.split("-")[-1])
-                latest_release = max(latest_release, release_number)
+def get_latest_release(*, print_warning: bool = True) -> int:
+    pub_root: ftplib.FTP = ftplib.FTP(_ensembl_url)
+    pub_root.login()
+    latest_release: int = -1
+    release: str
+    for release in pub_root.nlst("/pub"):
+        if release.startswith("/pub/release-") and not release.endswith(".txt"):
+            release_number: int = int(release.split("-")[-1])
+            latest_release = max(latest_release, release_number)
 
-        while not pub_root.nlst(f"/pub/release-{latest_release}/") and latest_release > 0:
+    retries = 3
+    while not pub_root.nlst(f"/pub/release-{latest_release}/README") and retries > 0:
+        if print_warning:
             print(f"❗❗❗ WARNING ❗❗❗ Could not find files for release 'release-{latest_release}', moving to 'release-{latest_release - 1}'")
-            latest_release -= 1
+        latest_release -= 1
+        retries -= 1
+    return latest_release
 
-        Utilities._latest_release = latest_release
-        return latest_release
 
-    @staticmethod
-    @cache
-    def is_valid_release_number(release_number: str | int) -> bool:
-        """Validate `release_number` exists in the ensembl_ftp_url.
+def species_from_taxon(
+    taxon_id: int,
+    replace_with: str = "_",
+    *,
+    lowercase: bool = True,
+    replace_spaces: bool = True,
+) -> str:
+    """Get the species name from the provided taxon ID.
 
-        Args:
-            release_number (str): The release number to check.
-                If a string is provided, it should be in the format of (for example) `release-112`.
-                If an integer is provided, it should only be the number (for example) `112`
+    It assumes the taxon ID is valid, as defined by `_is_valid_taxon`
+    It will first read from a JSON cache that is located in the same directory as the Snakemake file.
 
-        Returns:
-            bool: True if the release number is valid, False otherwise
-        """
+    Args:
+        taxon_id: The taxon ID to convert to species name
+        lowercase: If True, the species name will be returned in lowercase
+        replace_spaces: If True, spaces will be replaced with underscores
+        replace_with: The character to replace spaces with
+
+    Returns:
+        str: The species name that corresponds to the ensembl species. For example: 9606 -> homo_sapiens
+    """
+    cache_file = _get_species_taxon_cache_file()
+    cache_dict = {}
+    if cache_file.exists():
+        text = cache_file.read_text().rstrip("\n")
+        cache_dict = json.loads(text) if text else {}
+
+    key = str(taxon_id)
+    if key in cache_dict:
+        species = cache_dict[key].replace("_", " ").title()
+        species = species.replace(" ", replace_with) if replace_spaces else species
+        return species.lower() if lowercase else species
+
+    invalid_taxon_error = f"The taxonomy name you specified ({taxon_id}) is not a recognized NCBI Taxonomy name."
+    backoff = 2.0
+    for attempt in range(6):
         try:
-            if isinstance(release_number, str):
-                release_number = int(release_number.split("-")[-1]) if release_number.startswith("release-") else int(release_number)
-        except ValueError:  # Unable to convert to an integer
-            return False
+            req = urllib.request.Request(f"{_ncbi_url}/taxonomy/taxon/{taxon_id}/name_report")  # noqa: S310
+            with urllib.request.urlopen(req, timeout=30) as response:  # noqa: S310
+                as_json = json.loads(response.read().decode("utf-8"))
 
-        latest_release = Utilities.get_latest_release()
-        return MIN_ENSEMBL_RELEASE <= release_number <= latest_release  # 19 is the earliest release number
+            # If we get an invalid taxon, set the species to a null/empty value
+            is_valid = True
+            for response_list in as_json["reports"]:
+                if "errors" in response_list:
+                    error_keys, error_values = response_list["errors"][0].items()
+                    if ("reason" in error_keys) and (invalid_taxon_error in error_values):
+                        is_valid = False
 
-    @staticmethod
-    @cache
-    def is_valid_taxon(taxon_id: int) -> bool:
-        """Validate the provided species is correct by checking it against NCBI's Taxonomy database.
+            species = ""
+            if is_valid:
+                species = as_json["reports"][0]["taxonomy"]["current_scientific_name"]["name"]
+                species = species.lower() if lowercase else species
+                species = species.replace(" ", replace_with) if replace_spaces else species
 
-        Args:
-            taxon_id (int): The NCBI Taxonomy ID
-
-        Returns:
-            bool: True if the species is valid, False otherwise
-        """
-        invalid_taxon_error = f"The taxonomy name you specified ({taxon_id}) is not a recognized NCBI Taxonomy name."
-        response: HTTPResponse = urllib.request.urlopen(f"{_ncbi_url}/taxonomy/taxon/{taxon_id}/name_report")  # noqa: S310
-        as_json: dict = json.loads(response.read())
-
-        is_valid = True
-        for response_list in as_json["reports"]:
-            if "errors" in response_list:
-                error_keys = response_list["errors"][0].keys()
-                error_values = response_list["errors"][0].values()
-
-                if ("reason" in error_keys) and (invalid_taxon_error in error_values):
-                    is_valid = False
-
-        return is_valid
-
-    @staticmethod
-    @cache
-    def get_species_from_taxon(
-        taxon_id: int,
-        *,
-        lowercase: bool = True,
-        replace_spaces: bool = True,
-        replace_with: str = "_",
-    ) -> str:
-        """Get the species name from the provided taxon ID.
-
-        It assumes the taxon ID is valid, as defined by `_is_valid_taxon`
-
-        Args:
-            taxon_id (TaxonID): The taxon ID to convert to species name
-            lowercase (bool): If True, the species name will be returned in lowercase
-            replace_spaces (bool): If True, spaces will be replaced with underscores
-            replace_with (str): The character to replace spaces with
-
-        Returns:
-            str: The species name that corresponds to the ensembl species. For example: 9606 -> homo_sapiens
-        """
-        # Hardcode common, known species IDs
-        species = ""
-        if taxon_id == MUS_MUSCULUS:
-            species = "Mus musculus"
-        elif taxon_id == HOMO_SAPIENS:
-            species = "Homo sapiens"
-        elif taxon_id == MACACA_MULATTA:
-            species = "Macaca mulatta"
-
-        if species in {"Mus musculus", "Homo sapiens", "Macaca mulatta"}:
-            if lowercase:
-                species = species.lower()
-            if replace_spaces:
-                species = species.replace(" ", replace_with)
+            cache_dict[key] = species
+            cache_file.write_text(json.dumps(cache_dict, indent=2, sort_keys=True))
+        except urllib.error.HTTPError as e:  # noqa: PERF203
+            status = http.HTTPStatus(e.code)
+            if status.is_client_error and attempt < 5:  # noqa: PLR2004
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+            raise
+        except urllib.error.URLError:
+            raise
+        else:
             return species
+    raise RuntimeError("Failed to resolve species after 5 retries.")
 
-        if Utilities._species_name is None:
-            response: HTTPResponse = urllib.request.urlopen(f"{_ncbi_url}/taxonomy/taxon/{taxon_id}/name_report")  # noqa: S310
-            as_json = json.loads(response.read())
-            species = as_json["reports"][0]["taxonomy"]["current_scientific_name"]["name"]
 
-            if lowercase:
-                species = species.lower()
-            if replace_spaces:
-                species = species.replace(" ", replace_with)
+def is_valid_release_number(release_number: str | int) -> bool:
+    cache_file = _get_cache_dir() / ".valid_release_numbers.txt"
+    cache_file.touch(exist_ok=True)
+    releases: list[str] = cache_file.read_text().rstrip("\n").split("\n")
+    if "" in releases:
+        releases.remove("")
+    try:
+        if isinstance(release_number, str):
+            release_number = int(release_number.split("-")[-1]) if release_number.startswith("release-") else int(release_number)
+    except ValueError:  # Unable to convert to an integer
+        return False
 
-            Utilities._species_name = species
+    if str(release_number) in releases:
+        return True
 
-        return Utilities._species_name
+    latest_release = str(get_latest_release(print_warning=False))
+    if latest_release not in releases:
+        releases.append(latest_release)
+    sorted_releaes = sorted(int(i) for i in releases)
+    cache_file.write_text("\n".join(str(i) for i in sorted_releaes))
+    return True
 
 
 class NCBI:
@@ -163,6 +161,7 @@ class NCBI:
         self,
         taxon_id: int,
         release_number: str,
+        fasta_type: Literal["primary_assembly", "toplevel"],
         *,
         show_progress: bool,
     ) -> None:
@@ -174,18 +173,20 @@ class NCBI:
         """
         self._taxon_id: int = taxon_id
         self._release_number: str = release_number
-        self._species_name: str = Utilities.get_species_from_taxon(self._taxon_id)
+        self._species_name: str = species_from_taxon(self._taxon_id)
         self._progress: bool = show_progress
-        self._latest_release = Utilities.get_latest_release()
+        self._type: Literal["primary_assembly", "toplevel"] = fasta_type
 
         if not self._release_number.startswith(("latest", "release-")) and not self._release_number.isdigit():
             raise ValueError("""release_number must be an integer or start with 'latest' or 'release-'.\nExamples: "115", "latest", "release-112""")
 
-        if not Utilities.is_valid_taxon(self._taxon_id):
+        taxon_valid = species_from_taxon(taxon_id=taxon_id)  # we will get an empty string or the species name
+        if not taxon_valid:
             raise ValueError(
                 f"The provided taxon_id ({self._taxon_id}) is not valid.\nPlease validate your taxon ID at https://www.ncbi.nlm.nih.gov/Taxonomy"
             )
-        if self._release_number != "latest" and not Utilities.is_valid_release_number(self._release_number):
+
+        if self._release_number != "latest" and not is_valid_release_number(self._release_number):
             raise ValueError(
                 f"The provided release number ({self._release_number}) is not valid. It should be in the format of `release-112` or `112`.\n"
                 f"Please validate your release number at https://ftp.ensembl.org/pub"
@@ -193,7 +194,7 @@ class NCBI:
 
         # Inputs are valid, we can now download the fasta primary assembly
         if self._release_number == "latest":
-            self._release_number = f"release-{Utilities.get_latest_release()}"
+            self._release_number = f"release-{get_latest_release()}"
         elif self._release_number.isdigit():
             self._release_number = f"release-{self._release_number}"
 
@@ -208,7 +209,7 @@ class NCBI:
         """Enable use of `with` statement."""
         self._ftp.quit()
 
-    def download_fasta_file(self, save_directory: str) -> None:
+    def download_primary_assembly(self, save_directory: str) -> None:
         """Download the reference genome from the UCSC Genome Browser and save it as a FASTA file.
 
         # The full input path of the genome fasta file
@@ -216,48 +217,51 @@ class NCBI:
         GTF_FILE: "genome/Mus_musculus.GRCm39.111.gtf"
         """
         save_directory: Path = Path(save_directory)
-        final_output_filepath = Path(save_directory, self._species_name, f"{self._species_name}_{self._release_number}_primary_assembly.fa")
+        final_output_filepath = Path(save_directory, f"{self._species_name}_{self._release_number}_{self._type}.fa")
         if final_output_filepath.exists():
             return
 
-        save_directory = Path(save_directory, self._species_name)
         save_directory.mkdir(exist_ok=True, parents=True)
 
         print(f"Downloading FASTA file to: {final_output_filepath}")
-        fasta_root = f"/pub/{self._release_number}/fasta/{self._species_name}/dna"
-        primary_assembly_suffix = ".dna.primary_assembly.fa.gz"
-        primary_assembly_path = ""
+        fasta_root = f"/pub/{self._release_number}/fasta/{self._species_name}/dna/"
+        assembly_suffix = f".dna.{self._type}.fa.gz"
+        assembly_path = ""
         total_download_size: int = 0
 
-        files = self._ftp.nlst(fasta_root)
+        print(f"Searching: {fasta_root}")
+        print(f"{assembly_suffix=}")
         for filename in self._ftp.nlst(fasta_root):
-            if filename.endswith(primary_assembly_suffix):
-                primary_assembly_path = filename
+            print(f"\tFile: {filename}")
+            if filename.endswith(assembly_suffix):
+                assembly_path = filename
 
                 size = self._ftp.size(filename)
                 if size is not None:
                     total_download_size += size
+                break
 
         # If the primary assembly path is not empty, we can download it
-        if primary_assembly_path != "":
-            primary_assembly_filename = primary_assembly_path.split("/")[-1]
-            with Path(save_directory, primary_assembly_filename).open("wb") as fasta_file:
-                self._ftp.retrbinary(f"RETR {primary_assembly_path}", fasta_file.write)
+        if assembly_path != "":
+            assembly_filename = assembly_path.split("/")[-1]
+            with Path(save_directory, assembly_filename).open("wb") as fasta_file:
+                self._ftp.retrbinary(f"RETR {assembly_path}", fasta_file.write)
         # Otherwise we must download all *.dna.chromosome.*.fa.gz files and concatenate them
         else:
-            primary_assembly_filename = ""
+            assembly_filename = ""
             chromosome_files = []
             for filename in self._ftp.nlst(fasta_root):
-                if ".dna.primary_assembly." in filename:
+                if f".dna.{self._type}.fa.gz" in filename:
                     chromosome_files.append(filename)
-                if filename.endswith(".dna.primary_assembly.1.fa.gz"):
-                    primary_assembly_filename = filename.split("/")[-1].replace(".1.fa.gz", ".fa.gz")
+                if filename.endswith(f".dna.{self._type}.1.fa.gz"):
+                    assembly_filename = filename.split("/")[-1].replace(".1.fa.gz", ".fa.gz")
 
-            with Path(save_directory, primary_assembly_filename).open("wb") as fasta_file:
+            output_fasta_file = Path(save_directory, assembly_filename)
+            print(f"Output fasta file will be: {output_fasta_file}")
+            with output_fasta_file.open("wb") as fasta_file:
                 for remote_chromosome in chromosome_files:
                     chromosome_filename = remote_chromosome.split("/")[-1]
                     local_chromosome = Path(save_directory, chromosome_filename)
-                    file_size = self._ftp.size(remote_chromosome)
                     with local_chromosome.open("wb") as chr_out:
                         self._ftp.retrbinary(f"RETR {remote_chromosome}", chr_out.write)
 
@@ -267,18 +271,18 @@ class NCBI:
             # Remove primary assembly files that are not the "primary_assembly"
             for filename in save_directory.iterdir():
                 # Skip files not related to primary_assembly
-                if "primary_assembly" not in filename.name:
+                if self._type not in filename.name:
                     continue
-                if not filename.name.endswith(".dna.primary_assembly.fa.gz"):
+                if not filename.name.endswith(f".dna.{self._type}.fa.gz"):
                     Path(save_directory, filename).unlink(missing_ok=True)
 
         # Once the primary assembly is downloaded/created, un-gzip it
-        txt_filename = primary_assembly_filename.replace(".gz", "")
-        with gzip.open(f"{save_directory}/{primary_assembly_filename}", "rb") as f_in, Path(save_directory, txt_filename).open("wb") as f_out:
+        txt_filename = assembly_filename.replace(".gz", "")
+        with gzip.open(f"{save_directory}/{assembly_filename}", "rb") as f_in, Path(save_directory, txt_filename).open("wb") as f_out:
             shutil.copyfileobj(f_in, f_out)
 
         # Remove the gzipped file then convert file to lowercase name
-        Path(save_directory, primary_assembly_filename).unlink()
+        Path(save_directory, assembly_filename).unlink()
         shutil.move(Path(save_directory, txt_filename), final_output_filepath)
 
     def download_gtf_file(self, save_directory: str) -> None:
@@ -287,7 +291,7 @@ class NCBI:
         :param: save_directory: The directory to save the GTF file to.
 
         """
-        save_directory: Path = Path(save_directory, self._species_name)
+        save_directory: Path = Path(save_directory)
         final_output_filepath = Path(save_directory, f"{self._species_name}_{self._release_number}.gtf")
         if final_output_filepath.exists():
             return
@@ -305,6 +309,7 @@ class NCBI:
                 gtf_filename = filename.split("/")[-1]
                 with Path(save_directory, gtf_filename).open("wb") as gtf_file:
                     self._ftp.retrbinary(f"RETR {filename}", gtf_file.write)
+                break
 
         # ungzip the gtf file
         txt_filename = gtf_filename.replace(".gz", "")
@@ -322,7 +327,7 @@ class NCBI:
         save_directory: Path = Path(save_directory)
         save_directory.mkdir(parents=True, exist_ok=True)
 
-        final_output = Path(save_directory, self._species_name, f"{self._species_name}_{self._release_number}_cdna.fa")
+        final_output = Path(save_directory, f"{self._species_name}_{self._release_number}_cdna.fa")
         if final_output.exists():
             return
 
@@ -357,9 +362,9 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
     :param taxon_id: The taxon ID to download the `refFlat.txt` file for
     :param save_directory: The directory to save the `refFlat.txt` file
     """
-    species_name = Utilities.get_species_from_taxon(taxon_id)
-    species_name_with_space = Utilities.get_species_from_taxon(taxon_id, replace_spaces=False)
-    save_directory: Path = Path(save_directory, species_name)
+    species_name_with_space = species_from_taxon(taxon_id, replace_spaces=False)
+    species_name = species_name_with_space.replace(" ", "_")
+    save_directory: Path = Path(save_directory)
     save_directory.mkdir(parents=True, exist_ok=True)
 
     final_output_filepath = Path(save_directory, f"{species_name}_ref_flat.txt")
@@ -367,10 +372,10 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
         return
 
     print(f"Saving Reference FLAT file to: {final_output_filepath}")
-
     # Get a list of genomes
-    response: HTTPResponse = urllib.request.urlopen(f"{_ucsc_url}/list/ucscGenomes")
-    as_json = json.loads(response.read())
+    req = urllib.request.Request(f"{_ucsc_url}/list/ucscGenomes")
+    with urllib.request.urlopen(req, timeout=30) as response:
+        as_json = json.loads(response.read())
 
     genome_prefix: str = ""
     genome_version: int = -1
@@ -389,22 +394,28 @@ def ref_flat_file_creation(taxon_id: int, save_directory: str) -> None:
                     genome_version = version
                     genome_prefix = prefix.group()
 
+    if genome_version == -1 and genome_prefix == "":
+        raise ValueError(f"Could not find UCSC genome for taxon ID: {taxon_id}")
+
     # Download `ref_flat_url` and save it as a file without creating an intermeidate gzip file
     final_genome: str = f"{genome_prefix}{genome_version}"
     download_url = _ref_flat_url.format(final_genome=final_genome)
     txt_file = Path(save_directory, f"ref_flat_{final_genome}.txt")
 
     # TODO: add a progress bar for this download
-    response = urllib.request.urlopen(download_url)
+    try:
+        response = urllib.request.urlopen(download_url)
+    except urllib.error.HTTPError:
+        print(f"Unable to find url: '{download_url}'")
+        raise
 
-    with gzip.GzipFile(fileobj=io.BytesIO(response.read()), mode="rb") as decompressed:
-        with txt_file.open("wb") as o_stream:
-            o_stream.write(decompressed.read())
+    with gzip.GzipFile(fileobj=io.BytesIO(response.read()), mode="rb") as decompressed, txt_file.open("wb") as o_stream:
+        o_stream.write(decompressed.read())
 
     shutil.move(txt_file, final_output_filepath)
 
 
-def r_rna_interval_list_creation(taxon_id: int, save_directory: str) -> None:
+def r_rna_interval_list_creation(taxon_id: int, fasta_type: Literal["primary_assembly", "toplevel"], save_directory: str) -> None:
     """Create an interval file list suitable for CollectRnaSeqMetrics.
 
     It should be executed at the end of the genome generation process so the required `.fa` file is availale
@@ -414,11 +425,12 @@ def r_rna_interval_list_creation(taxon_id: int, save_directory: str) -> None:
     Modified by: Josh Loecker (April 13, 2023)
 
     :param taxon_id: The taxon ID to create the rRNA interval list for
+    :param fasta_type: The type of FASTA file to use (either "primary_assembly" or "toplevel")
     :param save_directory: The directory to save the rRNA interval list
     :raises FileNotFoundError: «The primary assembly file could not be found» if the primary assembly file is not found
     """
-    species_name = Utilities.get_species_from_taxon(taxon_id)
-    save_directory: Path = Path(save_directory, species_name)
+    species_name = species_from_taxon(taxon_id)
+    save_directory: Path = Path(save_directory)
     save_directory.mkdir(parents=True, exist_ok=True)
 
     final_output_filepath = Path(save_directory, f"{species_name}_rrna.interval_list")
@@ -429,7 +441,7 @@ def r_rna_interval_list_creation(taxon_id: int, save_directory: str) -> None:
 
     genome_sizes = Path(save_directory, f"{species_name}_genome_sizes.txt")
     genes: str = next(file.name for file in save_directory.iterdir() if file.name.endswith(".gtf"))
-    primary_assembly_fa: str = next(file.name for file in save_directory.iterdir() if file.name.endswith(".fa"))
+    primary_assembly_fa: str = next(file.name for file in save_directory.iterdir() if file.name.endswith(f"{fasta_type}.fa"))
 
     genes: Path = Path(save_directory, genes)
     primary_assembly_fa: Path = Path(save_directory, primary_assembly_fa)
@@ -440,7 +452,7 @@ def r_rna_interval_list_creation(taxon_id: int, save_directory: str) -> None:
         raise FileNotFoundError(f"The primary assembly file could not be found\nSearching for: '{primary_assembly_fa}'")  # fmt: skip
 
     subprocess.run(  # noqa: S603
-        ["/usr/bin/env", "samtools", "faidx", primary_assembly_fa, primary_assembly_fai],
+        ["/usr/bin/env", "samtools", "faidx", primary_assembly_fa],
         capture_output=True,
         check=False,
         shell=False,
@@ -484,8 +496,8 @@ def bed_file_creation(taxon_id: int, save_directory: str) -> None:
     :param taxon_id: The taxon ID to create the BED file for
     :param save_directory: The directory to save the BED file
     """
-    species_name = Utilities.get_species_from_taxon(taxon_id)
-    save_directory: Path = Path(save_directory, species_name)
+    species_name = species_from_taxon(taxon_id)
+    save_directory: Path = Path(save_directory)
     bed_output_file = Path(save_directory, f"{species_name}.bed")
     save_directory.mkdir(parents=True, exist_ok=True)
 
@@ -523,7 +535,7 @@ def bed_file_creation(taxon_id: int, save_directory: str) -> None:
     shutil.move(bed_output_file, bed_output_file.as_posix().lower())
 
 
-def parse_args():
+def _parse_args():
     parser = argparse.ArgumentParser(
         prog="genome_generation.py",
         description="A script to generate species-specific genome-related files",
@@ -533,22 +545,22 @@ def parse_args():
     parser.add_argument("--taxon-id", type=int, dest="taxon_id")
     parser.add_argument("--release-number", type=str, dest="release_number")
     parser.add_argument("--root-save-directory", type=str, dest="root_save_directory")
+    parser.add_argument("--type", type=str)
     parser.add_argument("--show-progress", action="store_true", dest="show_progress", default=False)
-
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
+def _main():
+    args = _parse_args()
 
-    with NCBI(taxon_id=args.taxon_id, release_number=args.release_number, show_progress=args.show_progress) as ncbi:
-        ncbi.download_fasta_file(save_directory=args.root_save_directory)
+    with NCBI(taxon_id=args.taxon_id, release_number=args.release_number, fasta_type=args.type, show_progress=args.show_progress) as ncbi:
+        ncbi.download_primary_assembly(save_directory=args.root_save_directory)
         ncbi.download_gtf_file(save_directory=args.root_save_directory)
         ncbi.download_cdna_fasta_file(save_directory=args.root_save_directory)
         ref_flat_file_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
-        r_rna_interval_list_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
+        r_rna_interval_list_creation(taxon_id=args.taxon_id, fasta_type=args.type, save_directory=args.root_save_directory)
         bed_file_creation(taxon_id=args.taxon_id, save_directory=args.root_save_directory)
 
 
 if __name__ == "__main__":
-    main()
+    _main()

@@ -18,20 +18,19 @@ default-resources:
   mem_mb: 2048
   network_slots: 5
 
-# Job submittion
-cores: 16  # max cores used in snakefile
+# Default job submittion
+retries: 3
 cluster-generic-cancel-cmd: scancel
 cluster-generic-cancel-nargs: 50
-restart-times: 0
+cluster-generic-status-cmd: status.sh
 max-jobs-per-second: 10
 max-status-checks-per-second: 5
 latency-wait: 60
 jobs: 250
 
 # Other settings
-printshellcmds: True
+printshellcmds: False
 rerun-incomplete: True
 
 # Do not change these settings. This pipeline will fail to execute or execute extremely slowly if they are changed
 use-conda: True
-conda-frontend: mamba

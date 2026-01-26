@@ -14,7 +14,7 @@ from contextlib import nullcontext
 from optparse import OptionParser
 from pathlib import Path
 from statistics import mean, median, pstdev
-from typing import TextIO, reveal_type
+from typing import TextIO
 
 import pysam
 from tqdm import tqdm
@@ -27,6 +27,8 @@ __version__ = "5.0.1"
 __maintainer__ = "Liguo Wang"
 __email__ = "wang.liguo@mayo.edu"
 __status__ = "Production"
+
+RE_CHROMOSOME_MATCH = re.compile(r"^chr(\d+)$")
 
 
 def overlap_length2(exons: Sequence[Sequence[int]], read_start: int, next_ref_start: int) -> int:
@@ -56,18 +58,8 @@ def overlap_length2(exons: Sequence[Sequence[int]], read_start: int, next_ref_st
     return total
 
 
-def _calculate_exon_start(tx_start: int, fields: list[str]) -> list[int]:
-    exon_starts: list[int] = list(map(int, fields[11].rstrip(",\n").split(",")))
-    return [i + tx_start for i in exon_starts]
-
-
-def _calculate_exon_end(exon_starts: list[int], fields: list[str]) -> list[int]:
-    exon_ends: list[int] = list(map(int, fields[10].rstrip(",\n").split(",")))
-    return [x + y for x, y in zip(exon_starts, exon_ends, strict=True)]
-
-
 def get_contig(chrom_value: str) -> str:
-    chromosome_match = re.match(r"^chr(\d+)$", chrom_value)
+    chromosome_match = re.match(RE_CHROMOSOME_MATCH, chrom_value)
     if chromosome_match:
         return chromosome_match.group(1)
     if chrom_value.endswith(("X", "Y")):
@@ -98,7 +90,6 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
             mininterval=1,
         ) as pbar,
     ):
-        all_sizes = []
         references = set(alignment_file.references)
         for i, line in enumerate(bed_stream):
             line_bytes = len(line)
@@ -106,6 +97,9 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
                 pbar.update(line_bytes)
                 continue
             fields = line.split()
+            if len(fields) < 12:  # we assume a 12-column BED format
+                pbar.update(line_bytes)
+                continue
             chrom = fields[0]
             if chrom not in references:
                 alt_chrom = chrom.removeprefix("chr") if chrom.startswith("chr") else f"chr{chrom}"
@@ -119,10 +113,10 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
             tx_end = int(fields[2])
             gene_name = fields[3]
 
-            exon_starts: list[int] = _calculate_exon_start(tx_start, fields)
-            exon_ends: list[int] = _calculate_exon_end(exon_starts, fields)
             gene_id: str = "\t".join([str(i) for i in (chrom, tx_start, tx_end, gene_name)])
-            exon_range: list[tuple[int, int]] = list(zip(exon_starts, exon_ends, strict=True))
+            exon_starts = map(int, fields[11].split(","))
+            exon_ends = map(int, fields[10].split(","))
+            exon_range = [(s + tx_start, s + tx_start + e) for s, e in zip(exon_starts, exon_ends, strict=True)]
 
             frag_sizes = []
             aligned_reads = alignment_file.fetch(contig=chrom, start=tx_start, stop=tx_end)
@@ -140,15 +134,15 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
 
                 read_start = read.reference_start
                 next_ref_start = read.next_reference_start
+                if read_start is None or next_ref_start is None:
+                    continue
                 if read_start > next_ref_start:
                     read_start, next_ref_start = next_ref_start, read_start
                 if read_start < tx_start or next_ref_start > tx_end:
                     continue
 
-                length = overlap_length2(exon_range, read_start=read_start, next_ref_start=next_ref_start) + read.query_alignment_length
+                length = overlap_length2(exon_range, read_start=read_start, next_ref_start=next_ref_start)
                 frag_sizes.append(length)
-
-            all_sizes.extend(frag_sizes)
 
             yield (
                 "\t".join([str(i) for i in (gene_id, len(frag_sizes), 0, 0, 0)])
@@ -157,6 +151,7 @@ def _fragment_size(reference_bed_filepath: Path, bam_filepath: Path, qcut: int, 
             )
             pbar.update(line_bytes)
         pbar.total = ref_size_bytes
+
 
 def main():
     usage = "%prog [options]" + "\n" + (__doc__ or "") + "\n"
@@ -205,7 +200,7 @@ def main():
     if not options.refgene_bed.exists():
         raise FileNotFoundError(f"BED file does not exist: '{options.refgene_bed}'")
 
-    with options.output_filepath.open("w") as o_stream, Path(options.log).open("w") if options.log else nullcontext() as log_out:
+    with options.output_filepath.open("w") as o_stream, options.log.open("w") if options.log else nullcontext() as log_out:
         o_stream.write("\t".join([str(i) for i in ("chrom", "tx_start", "tx_end", "symbol", "frag_count", "frag_mean", "frag_median", "frag_std")]))
         o_stream.write("\n")
         for tmp in _fragment_size(
@@ -214,7 +209,7 @@ def main():
             qcut=options.map_qual,
             ncut=options.fragment_num,
             threads=4,
-            log=log_out,
+            log=log_out if log_out else sys.stderr,
         ):
             o_stream.write(tmp + "\n")
 
