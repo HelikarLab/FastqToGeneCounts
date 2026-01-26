@@ -102,7 +102,7 @@ rule copy_config:
         mem_mb=256,
         runtime=1,
         tissue=""  # intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
-    shell: "cp {input} {output}"
+    shell: "cp --verbose {input} {output}"
 
 rule preroundup:
     output:
@@ -238,7 +238,7 @@ rule download_contaminant_genomes:
 
         # Replace "[FastQ_Screen_Genomes_Path]" with the output directory, then remove any double slashes (//)
         sed "s|\[FastQ_Screen_Genomes_Path\]|{params.root_output}|g" "{output.config}" | sed "s|//|/|g" > "{output.config}.tmp"
-        mv "{output.config}.tmp" {output.config}
+        mv --verbose "{output.config}.tmp" {output.config} 1>>{log} 2>&1
 
         touch "{output.done}"
         """
@@ -360,11 +360,9 @@ rule fastq_dump_paired:
         pigz --processes {threads} --force "$tmp_forward" "$tmp_reverse"
         
         printf "\n\n" >> {log}
-        echo "Moving '$tmp_forward' to '{output.r1}'" >> {log}
-        echo "Moving '$tmp_reverse' to '{output.r2}'" >> {log}
-        mv "$tmp_forward.gz" "{output.r1}" &
-        mv "$tmp_reverse.gz" "{output.r2}" &
-        
+        mv --verbose "$tmp_forward.gz" "{output.r1}"  1>>{log} 2>&1 &
+        mv --verbose "$tmp_reverse.gz" "{output.r2}"  1>>{log} 2>&1 &
+
         wait
         """
 
@@ -438,14 +436,10 @@ rule qc_raw_fastq_paired:
         fastqc {input.reads} --threads {threads} -o "$tmpdir" 1>{log} 2>&1
 
         printf "\n\n" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip' to '{output.r1_zip}'" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html' to '{output.r1_html}'" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip' to '{output.r2_zip}'" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html' to '{output.r2_html}'" >> {log}
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}"
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}"
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}"
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html" "{output.r2_html}"
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html" "{output.r2_html}" 1>>{log} 2>&1
         """
 
 rule qc_raw_fastq_single:
@@ -473,10 +467,8 @@ rule qc_raw_fastq_single:
         fastqc {input} --threads 5 -o "$tmpdir" 1>{log} 2>&1
 
         printf "\n\n" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.zip' to '{output.s_zip}'" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.html' to '{output.s_html}'" >> {log}
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.zip" "{output.s_zip}"
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.html" "{output.s_html}"
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.zip" "{output.s_zip}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.html" "{output.s_html}" 1>>{log} 2>&1
         """
 
 rule trim_paired:
@@ -501,10 +493,11 @@ rule trim_paired:
         trim_galore --paired --cores 4 -o "$tmpdir" {input} 1>{log} 2>&1
         
         printf "\n\n" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_val_1.fq.gz' to '{output.r1}'" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_val_2.fq.gz' to '{output.r2}'" >> {log}
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_val_1.fq.gz" "{output.r1}"
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_val_2.fq.gz" "{output.r2}"
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_val_1.fq.gz" "{output.r1_fastq}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1.fastq.gz_trimming_report.txt" "{output.r1_report}" 1>>{log} 2>&1
+
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_val_2.fq.gz" "{output.r2_fastq}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2.fastq.gz_trimming_report.txt" "{output.r2_report}" 1>>{log} 2>&1
         """
 
 rule trim_single:
@@ -554,14 +547,10 @@ rule qc_trim_fastq_paired:
         fastqc {input} --threads {threads} -o "$tmpdir" 1>{log} 2>&1
 
         printf "\n\n" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip' to '{output.r1_zip}'" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html' to '{output.r1_html}'" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip' to '{output.r2_zip}'" >> {log}
-        echo "Moving '$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html' to '{output.r2_html}'" >> {log}
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}"
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}"
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}"
-        mv "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html" "{output.r2_html}"
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}" 1>>{log} 2>&1
+        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html" "{output.r2_html}" 1>>{log} 2>&1
         """
 
 rule qc_trim_fastq_single:
@@ -586,10 +575,8 @@ rule qc_trim_fastq_single:
         fastqc {input} --threads {threads} -o "$tmpdir" 1>{log} 2>&1
 
         printf "\n\n" >> {log}
-        echo "Moving '$tmp_zip' to '{output.s_zip}'" >> {log}
-        echo "Moving '$tmp_html' to '{output.s_html}'" >> {log}
-        mv "$tmp_zip" "{output.s_zip}"
-        mv "$tmp_html" "{output.s_html}"
+        mv --verbose "$tmp_zip" "{output.s_zip}" 1>>{log} 2>&1
+        mv --verbose "$tmp_html" "{output.s_html}" 1>>{log} 2>&1
         """
 
 rule align:
@@ -641,16 +628,10 @@ rule align:
         --quantMode GeneCounts TranscriptomeSAM 1>{log} 2>&1
         
         printf "\n\n" >> {log}
-        echo "Moving files from temporary directory '$tmpdir' to '$(dirname {output.gene_table})'" >> {log}
-        mv $tmpdir/* "$(dirname {output.gene_table})/"
-        
-        
-        echo "Moving '{params.gene_table}' to '{output.gene_table}'" >> {log}
-        echo "Moving '{params.bam_output}' to '{output.bam_file}'" >> {log}
-        echo "Moving '{params.tx_bam_output}' to '{output.tx_bam}'" >> {log}
-        mv {params.gene_table} {output.gene_table}
-        mv {params.bam_output} {output.bam_file}
-        mv {params.tx_bam_output} {output.tx_bam}
+        mv --verbose $tmpdir/* "$(dirname {output.gene_table})/" 1>>{log} 2>&1
+        mv --verbose {params.gene_table} {output.gene_table} 1>>{log} 2>&1
+        mv --verbose {params.bam_output} {output.bam_file} 1>>{log} 2>&1
+        mv --verbose {params.tx_bam_output} {output.tx_bam} 1>>{log} 2>&1
         """
 
 rule index_bam_file:
@@ -707,10 +688,8 @@ rule salmon_quantification:
             --seqBias --gcBias --posBias --useVBOpt 1>{log} 2>&1
 
         printf "\n\n" >> {log}
-        echo "Moving '{params.outdir}/quant.sf' to '{output.quant}'" >> {log}
-        echo "Moving '{params.outdir}/cmd_info.json' to '{output.meta}'" >> {log}
-        mv {params.outdir}/quant.sf {output.quant}
-        mv {params.outdir}/cmd_info.json {output.meta}
+        mv --verbose {params.outdir}/quant.sf {output.quant} 1>>{log} 2>&1
+        mv --verbose {params.outdir}/cmd_info.json {output.meta} 1>>{log} 2>&1
         """
 
 def contaminant_screen_input(wildcards):
@@ -916,7 +895,7 @@ rule copy_fragment_size:
         runtime=1,
         tissue=lambda wildcards: wildcards.tissue,
     shell:
-        """cp {input} {output}"""
+        """cp --verbose {input} {output}"""
 
 rule copy_insert_size:
     localrule: True
@@ -929,7 +908,7 @@ rule copy_insert_size:
         runtime=1,
         tissue=lambda wildcards: wildcards.tissue,
     shell:
-        """cp {input} {output}"""
+        """cp --verbose {input} {output}"""
 
 rule copy_rnaseq_metrics:
     localrule: True
@@ -942,7 +921,7 @@ rule copy_rnaseq_metrics:
         runtime=1,
         tissue=lambda wildcards: wildcards.tissue,
     shell:
-        """cp {input} {output}"""
+        """cp --verbose {input} {output}"""
 
 
 rule copy_gene_counts:
