@@ -14,7 +14,7 @@ from contextlib import nullcontext
 from optparse import OptionParser
 from pathlib import Path
 from statistics import mean, median, pstdev
-from typing import TextIO, reveal_type
+from typing import TextIO
 
 import pysam
 from tqdm import tqdm
@@ -27,6 +27,8 @@ __version__ = "5.0.1"
 __maintainer__ = "Liguo Wang"
 __email__ = "wang.liguo@mayo.edu"
 __status__ = "Production"
+
+RE_CHROMOSOME_MATCH = re.compile(r"^chr(\d+)$")
 
 
 def overlap_length2(exons: Sequence[Sequence[int]], read_start: int, next_ref_start: int) -> int:
