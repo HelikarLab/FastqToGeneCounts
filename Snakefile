@@ -2,10 +2,22 @@ import sys
 from typing import Literal
 
 import pandas as pd
-from snakemake.io import Namedlist, Wildcards
-from snakemake.rules import RuleProxy
+from enum import Enum
 
 from utils.parse import Config, SampleData, print_key_value_table
+
+
+class Layout(Enum):
+    PE = "paired-end"
+    SE = "single-end"
+    SLC = "single-cell"
+
+
+class PrepMethod(Enum):
+    total = "total"
+    mrna = "mrna"
+    polya = "mrna"  # Write mrna if polya OR mrna
+
 
 configfile: "config.yaml"
 cfg: Config = Config.create(config)
@@ -77,14 +89,15 @@ rule preroundup:
         layouts_root: Path = Path(cfg.data_root,wildcards.tissue,"layouts",f"{params.sample_name}_layout.txt")
         layouts_como: Path = Path(cfg.como_root,wildcards.tissue,"layouts",study,f"{params.sample_name}_layout.txt")
         with layouts_root.open("w") as layouts_write_root, layouts_como.open("w") as layouts_write_como:
-            layout: str = str(sample_row["endtype"].values[0]).upper()  # PE, SE, or SLC
-            if Layout[layout] == Layout.PE:
+            layout_val: str = str(sample_row["endtype"].values[0]).upper()  # PE, SE, or SLC
+            layout_enum = Layout[layout_val]
+            if layout_enum == Layout.PE:
                 layouts_write_root.write(Layout.PE.value)
                 layouts_write_como.write(Layout.PE.value)
-            elif Layout[layout] == Layout.SE:
+            elif layout_enum == Layout.SE:
                 layouts_write_root.write(Layout.SE.value)
                 layouts_write_como.write(Layout.SE.value)
-            elif Layout[layout] == Layout.SLC:
+            elif layout_enum == Layout.SLC:
                 layouts_write_root.write(Layout.SLC.value)
                 layouts_write_como.write(Layout.SLC.value)
             else:
@@ -94,13 +107,14 @@ rule preroundup:
         prep_root: Path = Path(cfg.data_root,wildcards.tissue,"prepMethods",f"{params.sample_name}_prep_method.txt")
         prep_como: Path = Path(cfg.como_root,wildcards.tissue,"prepMethods",study,f"{params.sample_name}_prep_method.txt")
         with prep_root.open("w") as write_prep_root, prep_como.open("w") as write_prep_como:
-            prep_method = str(sample_row["prep_method"].values[0]).lower()  # total or tissue
-            if PrepMethod[prep_method] == PrepMethod.total:
-                write_prep_root.write(PrepMethod.total.value)
-                write_prep_como.write(PrepMethod.total.value)
-            elif PrepMethod[prep_method] == PrepMethod.mrna or PrepMethod[prep_method] == PrepMethod.polya:
-                write_prep_root.write(PrepMethod.mrna.value)
-                write_prep_como.write(PrepMethod.mrna.value)
+            prep_val = str(sample_row["prep_method"].values[0]).lower()  # total or tissue
+            prep_enum = PrepMethod[prep_val]
+            if prep_enum == PrepMethod.total:
+                write_prep_root.write(prep_enum.value)
+                write_prep_como.write(prep_enum.value)
+            elif prep_enum == PrepMethod.mrna or prep_enum == PrepMethod.polya:
+                write_prep_root.write(prep_enum.value)
+                write_prep_como.write(prep_enum.value)
             else:
                 raise ValueError(f"Invalid selection {prep_method}. Should be one of 'total', 'mrna', or 'polya'")
 
