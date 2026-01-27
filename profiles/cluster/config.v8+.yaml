@@ -1,21 +1,12 @@
 # This file configures various settings for snakemake to execute jobs to a SLURM cluster.
 # FROM: https://github.com/jdblischak/smk-simple-slurm
 
-executor: cluster-generic
-cluster-generic-submit-cmd:
-  mkdir -p logs/{rule}/{resources.tissue} &&
-  sbatch
-    --job-name=smk-{rule}-{wildcards}
-    --account=helikarlab
-    --cpus-per-task={threads}
-    --output=logs/{rule}/{resources.tissue}/{rule}-{wildcards}.out
-    --mem={resources.mem_mb}
-    --time={resources.runtime}
-    --parsable
+resources:
+  network_slots: 5
 
 default-resources:
   mem_mb: 2048
-  network_slots: 5
+
 
 # Default job submittion
 retries: 3
