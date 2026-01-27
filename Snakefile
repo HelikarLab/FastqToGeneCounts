@@ -1,6 +1,10 @@
 import sys
 from typing import Literal
 
+import pandas as pd
+from snakemake.io import Namedlist, Wildcards
+from snakemake.rules import RuleProxy
+
 from utils.parse import Config, SampleData, print_key_value_table
 
 configfile: "config.yaml"
@@ -935,14 +939,13 @@ def multiqc_contamination_input(wildcards) -> list[str]:
 
 rule multiqc:
     input:
-        raw_fastq=lambda wildcards: [] if not cfg.perform.dump_fastq else expand(f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
-        trimmed_fastq=lambda wildcards: [] if not cfg.perform.trim else expand(f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
-        aligned_fastq=expand(rules.align.output.bam_file, zip, tissue=data.tissues, tag=data.tags),
-        contaminantion=multiqc_contamination_input,
-        insert_sizes=lambda wildcards: [] if not cfg.perform.insert_size else expand(rules.insert_size.output.txt,zip,tissue=data.tissues,tag=data.tags),
-        rnaseq_metrics=lambda wildcards: [] if not cfg.perform.rnaseq_metrics else expand(rules.rnaseq_metrics.output.metrics, zip, tissue=data.tissues, tag=data.tags),
-        fragment_sizes=lambda wildcards: [] if not cfg.perform.fragment_size else expand(rules.fragment_size.output, zip, tissue=data.tissues, tag=data.tags),
-        salmon_quant=expand(rules.salmon_quantification.output.quant, zip, tissue=data.tissues, tag=data.tags),
+        raw_qc=expand(f"{cfg.data_root}/{{tissue}}/fastqc/raw/raw_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired) if cfg.perform.dump_fastq else [],
+        trim_qc=expand(f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired) if cfg.perform.trim else [],
+        contaminantion=expand(f"{cfg.data_root}/{{tissue}}/fq_screen/{{tissue}}_{{tag}}_{{end}}_screen.txt",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired) if cfg.perform.contaminant_screen else [],
+        insert_sizes=expand(rules.insert_size.output.txt,zip,tissue=data.tissues,tag=data.tags) if cfg.perform.insert_size else [],
+        rnaseq_metrics=expand(rules.rnaseq_metrics.output.metrics,zip,tissue=data.tissues,tag=data.tags) if cfg.perform.rnaseq_metrics else [],
+        fragment_sizes=expand(rules.fragment_size.output,zip,tissue=data.tissues,tag=data.tags) if cfg.perform.fragment_size else [],
+        salmon_quant=expand(rules.salmon_quantification.output.meta,zip,tissue=data.tissues,tag=data.tags),
     output:
         output_file=f"{cfg.data_root}/{{tissue}}/multiqc/{cfg.sample_filepath.stem}/{cfg.sample_filepath.stem}_multiqc_report.html",
     params:
