@@ -117,12 +117,12 @@ class Config:
 
     @staticmethod
     def _validate_config(config: dict[str, Any]):  # noqa: C901
-        if config["MASTER_CONTROL"] == "":
-            raise ValueError("MASTER_CONTROL cannot be an empty string.")
-        if config["MASTER_CONTROL"] == config["LOCAL_FASTQ_FILES"] == "":
-            raise ValueError("Either MASTER_CONTROL or LOCAL_FASTQ_FILES must be provided.")
-        if not Path(config["MASTER_CONTROL"]).exists():
-            raise FileNotFoundError(f"MASTER_CONTROL path does not exist: {config['MASTER_CONTROL']}")
+        if config["SAMPLE_FILEPATH"] == "":
+            raise ValueError("SAMPLE_FILEPATH cannot be an empty string.")
+        if config["SAMPLE_FILEPATH"] == config["LOCAL_FASTQ_FILES"] == "":
+            raise ValueError("Either SAMPLE_FILEPATH or LOCAL_FASTQ_FILES must be provided.")
+        if not Path(config["SAMPLE_FILEPATH"]).exists():
+            raise FileNotFoundError(f"SAMPLE_FILEPATH path does not exist: {config['SAMPLE_FILEPATH']}")
 
         if not str(config["BENCHMARK_TIMES"]).isdigit() or int(config["BENCHMARK_TIMES"]) < 0:
             raise ValueError("BENCHMARK_TIMES must be a non-negative integer.")
@@ -165,7 +165,7 @@ class Config:
         species_name: str = species_from_taxon(taxon_id=taxon_id)
 
         return cls(
-            sample_filepath=Path(config["MASTER_CONTROL"]),
+            sample_filepath=Path(config["SAMPLE_FILEPATH"]),
             root=root,
             data_root=Path(root, experiment_name),
             como_root=Path("COMO_input", experiment_name),
@@ -233,7 +233,7 @@ class SampleData:
             na_value = self._sample_df[self._pairs.isna().any(axis=1)]
             print(na_value)
             raise ValueError(
-                "Some sample names in the MASTER_CONTROL file do not follow the expected format '<tissue>_<tag>' (e.g., effectorcd8_S1R1). "
+                "Some sample names in the SAMPLE_FILEPATH file do not follow the expected format '<tissue>_<tag>' (e.g., effectorcd8_S1R1). "
                 "The items have been printed on the previous line."
             )
 

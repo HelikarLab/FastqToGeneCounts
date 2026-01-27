@@ -20,18 +20,18 @@ def from_master_config(config: dict, attribute: Literal["SRR", "tissue", "tag", 
     if index_value >= 2:
         index_value -= 1
 
-    control_lines = open(config["MASTER_CONTROL"], mode="r")
+    control_lines = open(config["SAMPLE_FILEPATH"], mode="r")
     dialect = csv.Sniffer().sniff(control_lines.read(1024))
     control_lines.seek(0)
     reader = csv.reader(control_lines, delimiter=str(dialect.delimiter))
     next(reader)  # skip header row
     for line in reader:
-        # Get the column from master_control we are interested in
+        # Get the column from sample_filepath we are interested in
         column_value = line[index_value]
         PE_SE_value = Layout[line[2]]  # PE, SE, or SLC
         target_attribute = []
 
-        # test if we are looking for "tissue" or "tag", as these two values are located at master_control index 1
+        # test if we are looking for "tissue" or "tag", as these two values are located at sample_filepath index 1
         if attribute in sub_list:
             sub_index = sub_list.index(attribute)
             split_list = str(line[index_value]).split("_")

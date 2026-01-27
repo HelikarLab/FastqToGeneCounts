@@ -13,7 +13,7 @@ for downstream analysis such as differential expression or metabolic modeling.
 - [Installation](#installation)
 - [Conda Environment Setup](#conda-environment-setup)
 - [Configuration](#configuration)
-    - [Sample File (MASTER_CONTROL)](#sample-file-master_control)
+    - [Sample File (SAMPLE_FILEPATH)](#sample-file-sample_filepath)
     - [Output Settings](#output-settings)
     - [Processing Options](#processing-options)
     - [Genome Settings](#genome-settings)
@@ -79,9 +79,9 @@ snakemake --version
 The `config.yaml` file contains all customization options available to the pipeline. The options in this file are
 explained below.
 
-### Sample File (`MASTER_CONTROL`)
+### Sample File (`SAMPLE_FILEPATH`)
 
-The `MASTER_CONTROL` setting specifies the CSV file containing sample information. This file must have the
+The `SAMPLE_FILEPATH` setting specifies the CSV file containing sample information. This file must have the
 following four columns as a header row:
 
 | Column        | Description         | Valid Values                                                                                                                                |
@@ -141,7 +141,7 @@ To process local FASTQ files instead of downloading from SRA:
 1. Set `PERFORM_DUMP_FASTQ: False`
 2. Set `LOCAL_FASTQ_FILES: "<dirname>"` (change `<dirname>` to the directory path)
 3. Place your FASTQ files in the specified directory
-4. Leave the `srr` column empty in your MASTER_CONTROL CSV
+4. Leave the `srr` column empty in your SAMPLE_FILEPATH CSV
 
 ### Genome Settings
 
