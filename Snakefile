@@ -94,26 +94,18 @@ rule all:
         )
 
 rule copy_config:
-    input:
-        "config.yaml"
-    output:
-        f"{cfg.data_root}/{{tissue}}/{{tissue}}_config.yaml"
-    resources:
-        mem_mb=256,
-        runtime=1,
-        tissue=""  # intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
-    shell: "cp --verbose {input} {output}"
+    localrule: True
+    input: "config.yaml"
+    output: f"{cfg.data_root}/{{tissue}}/{{tissue}}_config.yaml"
+    shell: "cp {input} {output}"
 
 rule preroundup:
+    localrule: True
     output:
         layout=f"{cfg.data_root}/{{tissue}}/layouts/{{tissue}}_{{tag}}_layout.txt",
         preparation=f"{cfg.data_root}/{{tissue}}/prepMethods/{{tissue}}_{{tag}}_prep_method.txt",
     params:
-        sample_name=lambda wildcards: f"{wildcards.tissue}_{wildcards.tag}",
-    resources:
-        mem_mb=lambda wildcards, attempt: 1024 * attempt,
-        runtime=lambda wildcards, attempt: 1 * attempt,
-        tissue=lambda wildcards: wildcards.tissue,
+        sample_name=lambda wildcards: f"{wildcards.tissue}_{wildcards.tag}"
     benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/preroundup/preroundup_{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
     run:
         # example row: SRR12873784,effectorcd8_S1R1,PE,total
@@ -948,57 +940,28 @@ rule rnaseq_metrics:
         """
 
 rule copy_fragment_size:
-    input:
-        rules.fragment_size.output,
-    output:
-        f"{cfg.como_root}/{{tissue}}/fragmentSizes/{{sample}}/{{tissue}}_{{tag}}_fragment_size.txt"
-    resources:
-        mem_mb=256,
-        runtime=1,
-        tissue=lambda wildcards: wildcards.tissue,
-    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/copy_fragment_size/copy_fragment_size_{{sample}}/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
-    shell:
-        """cp --verbose {input} {output}"""
+    localrule: True
+    input: rules.fragment_size.output,
+    output: f"{cfg.como_root}/{{tissue}}/fragmentSizes/{{sample}}/{{tissue}}_{{tag}}_fragment_size.txt"
+    shell: """cp {input} {output}"""
 
 rule copy_insert_size:
-    input:
-        rules.insert_size.output.txt,
-    output:
-        f"{cfg.como_root}/{{tissue}}/insertSizeMetrics/{{sample}}/{{tissue}}_{{tag}}_insert_size.txt"
-    resources:
-        mem_mb=256,
-        runtime=1,
-        tissue=lambda wildcards: wildcards.tissue,
-    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/copy_insert_size/copy_insert_size_{{sample}}/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
-    shell:
-        """cp --verbose {input} {output}"""
+    localrule: True
+    input: rules.insert_size.output.txt,
+    output: f"{cfg.como_root}/{{tissue}}/insertSizeMetrics/{{sample}}/{{tissue}}_{{tag}}_insert_size.txt"
+    shell: """cp {input} {output}"""
 
 rule copy_rnaseq_metrics:
-    input:
-        rules.rnaseq_metrics.output.strand,
-    output:
-        f"{cfg.como_root}/{{tissue}}/strandedness/{{sample}}/{{tissue}}_{{tag}}_strandedness.txt"
-    resources:
-        mem_mb=256,
-        runtime=1,
-        tissue=lambda wildcards: wildcards.tissue,
-    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/copy_rnaseq_metrics/copy_rnaseq_metrics_{{sample}}/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
-    shell:
-        """cp --verbose {input} {output}"""
-
+    localrule: True
+    input: rules.rnaseq_metrics.output.strand,
+    output: f"{cfg.como_root}/{{tissue}}/strandedness/{{sample}}/{{tissue}}_{{tag}}_strandedness.txt"
+    shell: """cp {input} {output}"""
 
 rule copy_gene_counts:
-    input:
-        rules.align.output.gene_table,
-    output:
-        f"{cfg.como_root}/{{tissue}}/geneCounts/{{sample}}/{{tissue}}_{{tag}}.tab"
-    resources:
-        mem_mb=256,
-        runtime=1,
-        tissue=lambda wildcards: wildcards.tissue,
-    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/copy_gene_counts/copy_gene_counts_{{sample}}/{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
-    shell:
-        """cp --verbose {input} {output}"""
+    localrule: True
+    input: rules.align.output.gene_table,
+    output: f"{cfg.como_root}/{{tissue}}/geneCounts/{{sample}}/{{tissue}}_{{tag}}.tab"
+    shell: """cp {input} {output}"""
 
 
 def multiqc_contamination_input(wildcards) -> list[str]:
