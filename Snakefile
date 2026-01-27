@@ -470,7 +470,7 @@ rule trim_paired:
         r2_fastq=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2.fastq.gz",
         r2_report=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_2_trimming_report.txt",
     resources:
-        mem_mb=lambda wildcards, attempt: 4096 * attempt,
+        mem_mb=lambda wildcards, attempt: 8096 * attempt,
         runtime=lambda wildcards, attempt: 45 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 4
@@ -518,7 +518,7 @@ rule trim_single:
     # See the trim_galore `--cores` setting for details on why 16 was chosen
     # https://github.com/FelixKrueger/TrimGalore/blob/master/Docs/Trim_Galore_User_Guide.md
     resources:
-        mem_mb=lambda wildcards, attempt: 4096 * attempt,
+        mem_mb=lambda wildcards, attempt: 8096 * attempt,
         runtime=lambda wildcards, attempt: 45 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     threads: 4
