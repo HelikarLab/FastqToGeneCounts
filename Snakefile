@@ -1,6 +1,10 @@
 import sys
 from typing import Literal
 
+import pandas as pd
+from snakemake.io import Namedlist, Wildcards
+from snakemake.rules import RuleProxy
+
 from utils.parse import Config, SampleData, print_key_value_table
 
 configfile: "config.yaml"
@@ -24,72 +28,21 @@ onstart:
 rule all:
     input:
         expand(f"{cfg.data_root}/{{tissue}}/{{tissue}}_config.yaml", tissue=set(data.tissues)),
-        f"{cfg.genome.species_dir}/{cfg.species_name}_{cfg.genome.ensembl_release}_{cfg.genome.type}.fa",
-        f"{cfg.genome.contaminants_dir}/.download_complete",
-        f"{cfg.genome.species_dir}/star/Log.out",
-        f"{cfg.genome.species_dir}/transcriptome.fa",
-
-        expand(f"{cfg.data_root}/{{tissue}}/layouts/{{tissue}}_{{tag}}_layout.txt", zip, tissue=data.tissues, tag=data.tags),
-        expand(f"{cfg.data_root}/{{tissue}}/prepMethods/{{tissue}}_{{tag}}_prep_method.txt",zip,tissue=data.tissues,tag=data.tags),
-        expand(f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}.bam",zip,tissue=data.tissues,tag=data.tags),
-        expand(f"{cfg.como_root}/{{tissue}}/geneCounts/{{study}}/{{tissue}}_{{tag}}.tab",zip,tissue=data.tissues,study=data.studies,tag=data.tags),
         expand(f"{cfg.data_root}/{{tissue}}/multiqc/{cfg.sample_filepath.stem}/{cfg.sample_filepath.stem}_multiqc_report.html",tissue=set(data.tissues)),
-        branch(
-            cfg.perform.dump_fastq,
-            then=[
-                expand(f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
-                expand(
-                    f"{cfg.data_root}/{{tissue}}/fastqc/raw/raw_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",
-                    zip,
-                    tissue=data.tissues_paired,
-                    tag=data.tags_paired,
-                    end=data.ends_paired
-                ),
-            ],
-            otherwise=[],
-        ),
-        branch(
-            cfg.perform.trim,
-            then=[
-                expand(f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
-                expand(
-                    f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",
-                    zip,
-                    tissue=data.tissues_paired,
-                    tag=data.tags_paired,
-                    end=data.ends_paired
-                ),
-            ],
-            otherwise=[],
-        ),
-        branch(
-            cfg.perform.contaminant_screen,
-            then=f"{cfg.genome.contaminants_dir}/fastq_screen.conf",
-            otherwise=[],
-        ),
+        expand(f"{cfg.como_root}/{{tissue}}/geneCounts/{{study}}/{{tissue}}_{{tag}}.tab",zip,tissue=data.tissues,study=data.studies,tag=data.tags),
         branch(
             cfg.perform.fragment_size,
-            then=[
-                expand(f"{cfg.data_root}/{{tissue}}/fragmentSizes/{{tissue}}_{{tag}}_fragment_size.txt", zip, tissue=data.tissues, tag=data.tags),
-                expand(f"{cfg.como_root}/{{tissue}}/fragmentSizes/{{study}}/{{tissue}}_{{tag}}_fragment_size.txt",zip,tissue=data.tissues,study=data.studies,tag=data.tags)
-            ],
+            then=[expand(f"{cfg.como_root}/{{tissue}}/fragmentSizes/{{study}}/{{tissue}}_{{tag}}_fragment_size.txt",zip,tissue=data.tissues,study=data.studies,tag=data.tags)],
             otherwise=[]
         ),
         branch(
             cfg.perform.rnaseq_metrics,
-            then=[
-                expand(f"{cfg.data_root}/{{tissue}}/picard/rnaseq/{{tissue}}_{{tag}}_rnaseq.txt", zip, tissue=data.tissues, tag=data.tags),
-                expand(f"{cfg.como_root}/{{tissue}}/strandedness/{{study}}/{{tissue}}_{{tag}}_strandedness.txt",zip,tissue=data.tissues,tag=data.tags,study=data.studies),
-            ],
+            then=[expand(f"{cfg.como_root}/{{tissue}}/strandedness/{{study}}/{{tissue}}_{{tag}}_strandedness.txt",zip,tissue=data.tissues,tag=data.tags,study=data.studies)],
             otherwise=[],
         ),
         branch(
             cfg.perform.insert_size,
-            then=[
-                expand(f"{cfg.data_root}/{{tissue}}/picard/insert/{{tissue}}_{{tag}}_insert_size.txt",zip,tissue=data.tissues,tag=data.tags),
-                expand(f"{cfg.data_root}/{{tissue}}/picard/hist/{{tissue}}_{{tag}}_insert_size_histo.pdf",zip,tissue=data.tissues,tag=data.tags),
-                expand(f"{cfg.como_root}/{{tissue}}/insertSizeMetrics/{{study}}/{{tissue}}_{{tag}}_insert_size.txt",zip,tissue=data.tissues,tag=data.tags,study=data.studies),
-            ],
+            then=[expand(f"{cfg.como_root}/{{tissue}}/insertSizeMetrics/{{study}}/{{tissue}}_{{tag}}_insert_size.txt",zip,tissue=data.tissues,tag=data.tags,study=data.studies)],
             otherwise=[]
         )
 
@@ -324,7 +277,7 @@ rule fastq_dump_paired:
         sra_cache="$tmpdir/sra_cache"
         fastq_cache="$tmpdir/fastq_cache"
         mkdir -p "$sra_cache" "$fastq_cache"
-        
+
         prefetch --max-size u --progress --log-level info --force ALL --output-directory "$sra_cache" {params.srr} 1>{log} 2>&1
 
         sra_temp="$sra_cache/{params.srr}.sra"
@@ -366,7 +319,7 @@ rule fastq_dump_single:
         mkdir -p "$sra_cache" "$fastq_cache"
 
         prefetch --max-size u --progress --log-level info --force ALL --output-directory "$sra_cache" {params.srr} 1>>{log} 2>&1
-        
+
         sra_file="$sra_cache/{params.srr}/{params.srr}.sra"
         fastq_file="$fastq_cache/{params.srr}.fastq"
         fasterq-dump --force --concatenate-reads --progress --threads {threads} --temp "$fastq_cache" --outdir "$fastq_cache" "$sra_file" 1>>{log} 2>&1
@@ -450,6 +403,8 @@ rule qc_raw_fastq_single:
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.zip" "{output.s_zip}" 1>>{log} 2>&1
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.html" "{output.s_html}" 1>>{log} 2>&1
         """
+
+
 def trim_paired_input(wildcards) -> dict[Literal["r1"] | Literal["r2"], str | list[str]]:
     if cfg.perform.dump_fastq:
         return {"r1": rules.fastq_dump_paired.output.r1, "r2": rules.fastq_dump_paired.output.r2}
@@ -982,17 +937,15 @@ def multiqc_contamination_input(wildcards) -> list[str]:
         files += expand(rules.contaminant_screen_single.output.S, zip, tissue=tissues, tag=tags)
     return files
 
-
 rule multiqc:
     input:
-        raw_fastq=lambda wildcards: [] if not cfg.perform.dump_fastq else expand(f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
-        trimmed_fastq=lambda wildcards: [] if not cfg.perform.trim else expand(f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_{{end}}.fastq.gz",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired),
-        aligned_fastq=expand(rules.align.output.bam_file, zip, tissue=data.tissues, tag=data.tags),
-        contaminantion=multiqc_contamination_input,
-        insert_sizes=lambda wildcards: [] if not cfg.perform.insert_size else expand(rules.insert_size.output.txt,zip,tissue=data.tissues,tag=data.tags),
-        rnaseq_metrics=lambda wildcards: [] if not cfg.perform.rnaseq_metrics else expand(rules.rnaseq_metrics.output.metrics, zip, tissue=data.tissues, tag=data.tags),
-        fragment_sizes=lambda wildcards: [] if not cfg.perform.fragment_size else expand(rules.fragment_size.output, zip, tissue=data.tissues, tag=data.tags),
-        salmon_quant=expand(rules.salmon_quantification.output.quant, zip, tissue=data.tissues, tag=data.tags),
+        raw_qc=expand(f"{cfg.data_root}/{{tissue}}/fastqc/raw/raw_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired) if cfg.perform.dump_fastq else [],
+        trim_qc=expand(f"{cfg.data_root}/{{tissue}}/fastqc/trimmed/trimmed_{{tissue}}_{{tag}}_{{end}}_fastqc.zip",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired) if cfg.perform.trim else [],
+        contaminantion=expand(f"{cfg.data_root}/{{tissue}}/fq_screen/{{tissue}}_{{tag}}_{{end}}_screen.txt",zip,tissue=data.tissues_paired,tag=data.tags_paired,end=data.ends_paired) if cfg.perform.contaminant_screen else [],
+        insert_sizes=expand(rules.insert_size.output.txt,zip,tissue=data.tissues,tag=data.tags) if cfg.perform.insert_size else [],
+        rnaseq_metrics=expand(rules.rnaseq_metrics.output.metrics,zip,tissue=data.tissues,tag=data.tags) if cfg.perform.rnaseq_metrics else [],
+        fragment_sizes=expand(rules.fragment_size.output,zip,tissue=data.tissues,tag=data.tags) if cfg.perform.fragment_size else [],
+        salmon_quant=expand(rules.salmon_quantification.output.meta,zip,tissue=data.tissues,tag=data.tags),
     output:
         output_file=f"{cfg.data_root}/{{tissue}}/multiqc/{cfg.sample_filepath.stem}/{cfg.sample_filepath.stem}_multiqc_report.html",
     params:
