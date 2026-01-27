@@ -2,6 +2,7 @@ import sys
 from typing import Literal
 
 from utils.parse import Config, SampleData, print_key_value_table
+from utils.constants import Layout, PrepMethod
 
 configfile: "config.yaml"
 cfg: Config = Config.create(config)
