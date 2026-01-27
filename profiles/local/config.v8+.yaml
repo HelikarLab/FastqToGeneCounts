@@ -3,7 +3,6 @@ resources:
 
 default-resources:
   mem_mb: 2048
-  network_slots: 5
 
 cores: 'all'
 
