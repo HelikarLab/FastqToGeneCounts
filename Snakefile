@@ -2,10 +2,22 @@ import sys
 from typing import Literal
 
 import pandas as pd
-from snakemake.io import Namedlist, Wildcards
-from snakemake.rules import RuleProxy
+from enum import Enum
 
 from utils.parse import Config, SampleData, print_key_value_table
+
+
+class Layout(Enum):
+    PE = "paired-end"
+    SE = "single-end"
+    SLC = "single-cell"
+
+
+class PrepMethod(Enum):
+    total = "total"
+    mrna = "mrna"
+    polya = "mrna"  # Write mrna if polya OR mrna
+
 
 configfile: "config.yaml"
 cfg: Config = Config.create(config)
