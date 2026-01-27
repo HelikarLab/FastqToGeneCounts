@@ -321,17 +321,21 @@ rule fastq_dump_paired:
         tmpdir=$(mktemp -d)
         trap "rm -rf $tmpdir" EXIT
 
-        sra_temp="$tmpdir/{wildcards.tissue}_{wildcards.tag}.sra"
-        prefetch --max-size u --progress --log-level info --output-file "$sra_temp" {params.srr} 1>{log} 2>&1
+        sra_cache="$tmpdir/sra_cache"
+        fastq_cache="$tmpdir/fastq_cache"
+        mkdir -p "$sra_cache" "$fastq_cache"
+        
+        prefetch --max-size u --progress --log-level info --force ALL --output-directory "$sra_cache" {params.srr} 1>{log} 2>&1
 
-        tmp_forward="$tmpdir/{wildcards.tissue}_{wildcards.tag}_1.fastq"
-        tmp_reverse="$tmpdir/{wildcards.tissue}_{wildcards.tag}_2.fastq"
-        fasterq-dump --force --split-files --progress --threads {threads} --temp "$tmpdir" --outdir "$tmpdir" "$sra_temp" 1>>{log} 2>&1
-        pigz --processes {threads} --force "$tmp_forward" "$tmp_reverse"
+        sra_temp="$sra_cache/{params.srr}.sra"
+        fq_forward="$fastq_cache/{params.srr}_1.fastq"
+        fq_reverse="$fastq_cache/{params.srr}_2.fastq"
+        fasterq-dump --force --split-files --progress --threads {threads} --temp "$fastq_cache" --outdir "$fastq_cache" "$sra_temp" 1>>{log} 2>&1
+        printf "\nGzipping:\n1) $fq_forward\n2) $fq_reverse" >> {log}
+        pigz --processes {threads} --force "$fq_forward" "$fq_reverse"
 
-        printf "\n\n" >> {log}
-        mv --verbose "$tmp_forward.gz" "{output.r1}"  1>>{log} 2>&1 &
-        mv --verbose "$tmp_reverse.gz" "{output.r2}"  1>>{log} 2>&1 &
+        mv --verbose "$fq_forward.gz" "{output.r1}"  1>>{log} 2>&1 &
+        mv --verbose "$fq_reverse.gz" "{output.r2}"  1>>{log} 2>&1 &
 
         wait
         """
@@ -357,15 +361,19 @@ rule fastq_dump_single:
         tmpdir=$(mktemp -d)
         trap "rm -rf $tmpdir" EXIT
 
-        sra_temp="$tmpdir/{wildcards.tissue}_{wildcards.tag}.sra"
-        prefetch --max-size u --progress --log-level info --output-file "$sra_temp" {params.srr} 1>>{log} 2>&1
+        sra_cache="$tmpdir/sra_cache"
+        fastq_cache="$tmpdir/fastq_cache"
+        mkdir -p "$sra_cache" "$fastq_cache"
 
-        tmpfile="$tmpdir/{wildcards.tissue}_{wildcards.tag}.fastq"
-        fasterq-dump --force --concatenate-reads --progress --threads {threads} --temp "$tmpdir" --outdir "$tmpdir" "$sra_temp" 1>>{log} 2>&1
-        printf "\nGzipping $tmpfile file\n\n" >> {log}
-        pigz -6 --processes 4 --force "$tmpfile"
+        prefetch --max-size u --progress --log-level info --force ALL --output-directory "$sra_cache" {params.srr} 1>>{log} 2>&1
+        
+        sra_file="$sra_cache/{params.srr}/{params.srr}.sra"
+        fastq_file="$fastq_cache/{params.srr}.fastq"
+        fasterq-dump --force --concatenate-reads --progress --threads {threads} --temp "$fastq_cache" --outdir "$fastq_cache" "$sra_file" 1>>{log} 2>&1
+        printf "\nGzipping: $fastq_file\n\n" >> {log}
+        pigz --processes {threads} --force "$fastq_file"
 
-        mv --verbose "$tmpfile.gz" {output.S} 1>>{log} 2>&1
+        mv --verbose "$fastq_file.gz" {output.S} 1>>{log} 2>&1
         """
 
 
@@ -412,7 +420,6 @@ rule qc_raw_fastq_paired:
 
         fastqc {input.reads} --threads {threads} -o "$tmpdir" 1>{log} 2>&1
 
-        printf "\n\n" >> {log}
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}" 1>>{log} 2>&1
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}" 1>>{log} 2>&1
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}" 1>>{log} 2>&1
@@ -440,7 +447,6 @@ rule qc_raw_fastq_single:
 
         fastqc {input} --threads 5 -o "$tmpdir" 1>{log} 2>&1
 
-        printf "\n\n" >> {log}
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.zip" "{output.s_zip}" 1>>{log} 2>&1
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.html" "{output.s_html}" 1>>{log} 2>&1
         """
@@ -483,7 +489,6 @@ rule trim_paired:
         trap "rm -rf $tmpdir" EXIT
         trim_galore --paired --cores 4 -o "$tmpdir" {input.r1} {input.r2} 1>{log} 2>&1
 
-        printf "\n\n" >> {log}
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_val_1.fq.gz" "{output.r1_fastq}" 1>>{log} 2>&1
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1.fastq.gz_trimming_report.txt" "{output.r1_report}" 1>>{log} 2>&1
 
@@ -561,7 +566,6 @@ rule qc_trim_fastq_paired:
 
         fastqc {input} --threads {threads} -o "$tmpdir" 1>{log} 2>&1
 
-        printf "\n\n" >> {log}
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}" 1>>{log} 2>&1
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}" 1>>{log} 2>&1
         mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}" 1>>{log} 2>&1
@@ -591,7 +595,6 @@ rule qc_trim_fastq_single:
 
         fastqc {input} --threads {threads} -o "$tmpdir" 1>{log} 2>&1
 
-        printf "\n\n" >> {log}
         mv --verbose "$tmp_zip" "{output.s_zip}" 1>>{log} 2>&1
         mv --verbose "$tmp_html" "{output.s_html}" 1>>{log} 2>&1
         """
@@ -670,7 +673,6 @@ rule align:
         --outSAMattributes Standard \
         --quantMode GeneCounts TranscriptomeSAM 1>{log} 2>&1
 
-        printf "\n\n" >> {log}
         mv --verbose $tmpdir/* "$(dirname {output.gene_table})/" 1>>{log} 2>&1
         mv --verbose {params.gene_table} {output.gene_table} 1>>{log} 2>&1
         mv --verbose {params.bam_output} {output.bam_file} 1>>{log} 2>&1
@@ -724,7 +726,6 @@ rule salmon_quantification:
             --output {params.outdir} \
             --seqBias --gcBias --posBias --useVBOpt 1>{log} 2>&1
 
-        printf "\n\n" >> {log}
         mv --verbose {params.outdir}/quant.sf {output.quant} 1>>{log} 2>&1
         mv --verbose {params.outdir}/cmd_info.json {output.meta} 1>>{log} 2>&1
         """
