@@ -346,6 +346,7 @@ rule fastq_dump_single:
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
         runtime=lambda wildcards, attempt: 30 * attempt,
+        network_slots=1,
         tissue=lambda wildcards: wildcards.tissue
     threads: 4
     conda: "envs/SRAtools.yaml"
