@@ -844,7 +844,7 @@ rule fragment_size:
         bed_filepath=rules.download_genome.output,
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
-        runtime=lambda wildcards, attempt: 20 * attempt,
+        runtime=lambda wildcards, attempt: 40 * attempt,
         tissue=lambda wildcards: wildcards.tissue,
     conda: "envs/rseqc.yaml"
     threads: 4
