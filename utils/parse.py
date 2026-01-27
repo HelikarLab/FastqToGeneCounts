@@ -119,9 +119,11 @@ class Config:
     def _validate_config(config: dict[str, Any]):  # noqa: C901
         if config["MASTER_CONTROL"] == "":
             raise ValueError("MASTER_CONTROL cannot be an empty string.")
+        if config["MASTER_CONTROL"] == config["LOCAL_FASTQ_FILES"] == "":
+            raise ValueError("Either MASTER_CONTROL or LOCAL_FASTQ_FILES must be provided.")
         if not Path(config["MASTER_CONTROL"]).exists():
             raise FileNotFoundError(f"MASTER_CONTROL path does not exist: {config['MASTER_CONTROL']}")
-        
+
         if not str(config["BENCHMARK_TIMES"]).isdigit() or int(config["BENCHMARK_TIMES"]) < 0:
             raise ValueError("BENCHMARK_TIMES must be a non-negative integer.")
 
@@ -161,7 +163,6 @@ class Config:
         fastq_files = config["LOCAL_FASTQ_FILES"]
         taxon_id: int = int(config["GENOME"]["TAXONOMY_ID"])
         species_name: str = species_from_taxon(taxon_id=taxon_id)
-
 
         return cls(
             sample_filepath=Path(config["MASTER_CONTROL"]),
