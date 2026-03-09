@@ -1,4 +1,4 @@
-# FastqToGeneCounts
+# AutoRNAseq
 
 [![Code style: snakefmt](https://img.shields.io/badge/code%20style-snakefmt-000000.svg)](https://github.com/snakemake/snakefmt)
 
@@ -50,8 +50,8 @@ This workflow:
 Clone the repository using Git:
 
 ```bash
-git clone https://git.unl.edu/HelikarLab/FastqToGeneCounts.git
-cd FastqToGeneCounts
+git clone https://gitlab.com/DTIH/AutoRNAseq.git
+cd AutoRNAseq
 ```
 
 ## Conda Environment Setup
@@ -295,7 +295,7 @@ This script reads benchmark data from the `benchmarks/` directory and produces v
 
 ## Getting Help
 
-Please [open an issue](https://git.unl.edu/helikarlab/FastqToGeneCounts/issues) with:
+Please [open an issue](https://gitlab.com/DTIH/AutoRNAseq/issues) with:
 
 - The exact error message
 - Your configuration file
@@ -307,10 +307,10 @@ Please [open an issue](https://git.unl.edu/helikarlab/FastqToGeneCounts/issues) 
 If you use this pipeline in your research, please cite it as:
 
 ```bibtex
-@software{FastqToGeneCounts,
+@software{AutoRNAseq,
   author = {Josh Loecker, Brandt Bessell, Bhanwar lal Puniya, Tomáš Helikar},
-  title = {FastqToGeneCounts: Automated Bulk RNA-seq Alignment},
-  url = {https://git.unl.edu/helikarlab/FastqToGeneCounts}
+  title = {AutoRNAseq: Automated Bulk RNA-seq Analysis Pipeline},
+  url = {https://gitlab.com/DTIH/AutoRNAseq}
 }
 ```
 
