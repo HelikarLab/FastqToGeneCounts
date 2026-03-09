@@ -5,7 +5,7 @@ import pandas as pd
 from enum import Enum
 
 from utils.parse import Config, SampleData, print_key_value_table
-
+from utils.download_genome import get_latest_release, species_from_taxon, is_valid_release_number
 
 class Layout(Enum):
     PE = "paired-end"
@@ -39,22 +39,26 @@ onstart:
 
 rule all:
     input:
-        expand(f"{cfg.data_root}/{{tissue}}/{{tissue}}_config.yaml", tissue=set(data.tissues)),
+        expand(f"{cfg.data_root}/{{tissue}}/{{tissue}}_config.yaml",tissue=set(data.tissues)),
         expand(f"{cfg.data_root}/{{tissue}}/multiqc/{cfg.sample_filepath.stem}/{cfg.sample_filepath.stem}_multiqc_report.html",tissue=set(data.tissues)),
+        expand(f"{cfg.como_root}/{{tissue}}/quantification/{{study}}/{{tissue}}_{{tag}}_quant.genes.sf",zip,tissue=data.tissues,study=data.studies,tag=data.tags),
         expand(f"{cfg.como_root}/{{tissue}}/geneCounts/{{study}}/{{tissue}}_{{tag}}.tab",zip,tissue=data.tissues,study=data.studies,tag=data.tags),
         branch(
             cfg.perform.fragment_size,
-            then=[expand(f"{cfg.como_root}/{{tissue}}/fragmentSizes/{{study}}/{{tissue}}_{{tag}}_fragment_size.txt",zip,tissue=data.tissues,study=data.studies,tag=data.tags)],
+            then=[
+                expand(f"{cfg.como_root}/{{tissue}}/fragmentSizes/{{study}}/{{tissue}}_{{tag}}_fragment_size.txt",zip,tissue=data.tissues,study=data.studies,tag=data.tags)],
             otherwise=[]
         ),
         branch(
             cfg.perform.rnaseq_metrics,
-            then=[expand(f"{cfg.como_root}/{{tissue}}/strandedness/{{study}}/{{tissue}}_{{tag}}_strandedness.txt",zip,tissue=data.tissues,tag=data.tags,study=data.studies)],
+            then=[
+                expand(f"{cfg.como_root}/{{tissue}}/strandedness/{{study}}/{{tissue}}_{{tag}}_strandedness.txt",zip,tissue=data.tissues,tag=data.tags,study=data.studies)],
             otherwise=[],
         ),
         branch(
             cfg.perform.insert_size,
-            then=[expand(f"{cfg.como_root}/{{tissue}}/insertSizeMetrics/{{study}}/{{tissue}}_{{tag}}_insert_size.txt",zip,tissue=data.tissues,tag=data.tags,study=data.studies)],
+            then=[
+                expand(f"{cfg.como_root}/{{tissue}}/insertSizeMetrics/{{study}}/{{tissue}}_{{tag}}_insert_size.txt",zip,tissue=data.tissues,tag=data.tags,study=data.studies)],
             otherwise=[]
         )
 
@@ -71,26 +75,64 @@ rule preroundup:
         preparation=f"{cfg.data_root}/{{tissue}}/prepMethods/{{tissue}}_{{tag}}_prep_method.txt",
     params:
         sample_name=lambda wildcards: f"{wildcards.tissue}_{wildcards.tag}"
-    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/preroundup/preroundup_{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
+    log: f"{cfg.logs_root}/{{tissue}}/preroundup/preroundup_{{tissue}}_{{tag}}.log"
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/preroundup/preroundup_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     run:
+        import logging
+
+        logging.basicConfig(
+            filename=str(log),
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+        )
+        logger = logging.getLogger(__name__)
+        logger.info("preroundup start tissue=%s tag=%s sample_name=%s",wildcards.tissue,wildcards.tag,params.sample_name)
+
         # example row: SRR12873784,effectorcd8_S1R1,PE,total
         sample_row: pd.Series = data.samples[data.samples["sample"].eq(params.sample_name)]
+        logger.info("matched_rows=%d",len(sample_row))
+        if len(sample_row) == 0:
+            logger.error(
+                "No rows matched sample=%s. Available samples example=%s",params.sample_name,
+                data.samples["sample"].head(5).tolist()
+            )
+            raise ValueError(f"No sample row found for {params.sample_name}")
+
         endtype: str = sample_row["endtype"].values[0].upper()
         prep_method: str = sample_row["prep_method"].values[0].lower()
-        study = re.match(r"S\d+",wildcards.tag).group()
+        logger.info("endtype=%r prep_method=%r",endtype,prep_method)
+
+        m = re.match(r"S\d+",wildcards.tag)
+        if not m:
+            logger.error("Could not parse study from tag=%r with pattern r'S\\d+'",wildcards.tag)
+            raise ValueError(f"Could not parse study from tag {wildcards.tag}")
+        study = m.group()
+        logger.info("parsed study=%s",study)
 
         # Make the required directories
-        (cfg.data_root / wildcards.tissue / "layouts").mkdir(parents=True,exist_ok=True)
-        (cfg.data_root / wildcards.tissue / "prepMethods").mkdir(parents=True,exist_ok=True)
-        (cfg.como_root / wildcards.tissue / "layouts" / study).mkdir(parents=True,exist_ok=True)
-        (cfg.como_root / wildcards.tissue / "prepMethods" / study).mkdir(parents=True,exist_ok=True)
+        dirs = [
+            (cfg.data_root / wildcards.tissue / "layouts"),
+            (cfg.data_root / wildcards.tissue / "prepMethods"),
+            (cfg.como_root / wildcards.tissue / "layouts" / study),
+            (cfg.como_root / wildcards.tissue / "prepMethods" / study)
+        ]
+        for d in dirs:
+            d.mkdir(parents=True,exist_ok=True)
+            logger.info("ensured_dir=%s",d)
 
         # Write paired/single end or single cell to the appropriate location
         layouts_root: Path = Path(cfg.data_root,wildcards.tissue,"layouts",f"{params.sample_name}_layout.txt")
         layouts_como: Path = Path(cfg.como_root,wildcards.tissue,"layouts",study,f"{params.sample_name}_layout.txt")
+        logger.info("layout_paths root=%s como=%s",layouts_root,layouts_como)
+
+        try:
+            layout_enum = Layout[endtype]
+        except KeyError:
+            logger.error("Invalid layout_val=%r allowed=%s",endtype,list(Layout.__members__.keys()))
+            raise
+        logger.info("layout_enum=%s write_value=%r",layout_enum.name,layout_enum.value)
+
         with layouts_root.open("w") as layouts_write_root, layouts_como.open("w") as layouts_write_como:
-            layout_val: str = str(sample_row["endtype"].values[0]).upper()  # PE, SE, or SLC
-            layout_enum = Layout[layout_val]
             if layout_enum == Layout.PE:
                 layouts_write_root.write(Layout.PE.value)
                 layouts_write_como.write(Layout.PE.value)
@@ -106,9 +148,16 @@ rule preroundup:
         # Write mrna/total to the appropriate location
         prep_root: Path = Path(cfg.data_root,wildcards.tissue,"prepMethods",f"{params.sample_name}_prep_method.txt")
         prep_como: Path = Path(cfg.como_root,wildcards.tissue,"prepMethods",study,f"{params.sample_name}_prep_method.txt")
+        logger.info("prep_paths root=%s como=%s",prep_root,prep_como)
+        try:
+            prep_enum = PrepMethod[prep_method]
+        except KeyError:
+            logger.error("Invalid prep_val=%r allowed=%s",prep_method,list(PrepMethod.__members__.keys()))
+            raise
+        logger.info("prep_enum=%s write_value=%r",prep_enum.name,prep_enum.value)
+        prep_root: Path = Path(cfg.data_root,wildcards.tissue,"prepMethods",f"{params.sample_name}_prep_method.txt")
+        prep_como: Path = Path(cfg.como_root,wildcards.tissue,"prepMethods",study,f"{params.sample_name}_prep_method.txt")
         with prep_root.open("w") as write_prep_root, prep_como.open("w") as write_prep_como:
-            prep_val = str(sample_row["prep_method"].values[0]).lower()  # total or tissue
-            prep_enum = PrepMethod[prep_val]
             if prep_enum == PrepMethod.total:
                 write_prep_root.write(prep_enum.value)
                 write_prep_como.write(prep_enum.value)
@@ -135,12 +184,13 @@ rule download_genome:
         tissue="",# intentionally left blank; reference: github.com/jdblischak/smk-simple-slurm/issues/20
         network_slots=1
     log: f"{cfg.logs_root}/rule_download_genome_{cfg.species_name}_{cfg.genome.ensembl_release}.log"
-    benchmark: repeat(f"{cfg.benchmark_dir}/rule_download_genome_{cfg.species_name}_{cfg.genome.ensembl_release}.benchmark", cfg.benchmark_count)
+    benchmark: repeat(f"{cfg.benchmark_dir}/rule_download_genome_{cfg.species_name}_{cfg.genome.ensembl_release}.benchmark",cfg.benchmark_count)
     shell:
         """
         python3 utils/download_genome.py \
             --taxon-id {cfg.genome.taxon_id} \
             --release-number {cfg.genome.version} \
+            --species-name {cfg.species_name} \
             --type {cfg.genome.type} \
             --root-save-dir {cfg.genome.species_dir} 1>{log} 2>&1
         """
@@ -202,7 +252,7 @@ rule download_contaminant_genomes:
 
         # Replace "[FastQ_Screen_Genomes_Path]" with the output directory, then remove any double slashes (//)
         sed "s|\[FastQ_Screen_Genomes_Path\]|{params.root_output}|g" "{output.config}" | sed "s|//|/|g" > "{output.config}.tmp"
-        mv --verbose "{output.config}.tmp" {output.config} 1>>{log} 2>&1
+        mv --force --verbose "{output.config}.tmp" {output.config} 1>>{log} 2>&1
 
         touch "{output.done}"
         """
@@ -273,7 +323,7 @@ rule fastq_dump_paired:
         r1=f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_1.fastq.gz",
         r2=f"{cfg.data_root}/{{tissue}}/raw/{{tissue}}_{{tag}}_2.fastq.gz",
     params:
-        srr=lookup(query="sample == '{tissue}_{tag}'", within=data.samples, cols="srr")
+        srr=lookup(query="sample == '{tissue}_{tag}'",within=data.samples,cols="srr")
     threads: 5
     resources:
         mem_mb=lambda wildcards, attempt: 4096 * attempt,
@@ -282,7 +332,7 @@ rule fastq_dump_paired:
         network_slots=1
     conda: "envs/SRAtools.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/fastq_dump/{{tissue}}_{{tag}}_fastq_dump.log"
-    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/fastq_dump_paired/fastq_dump_paired_{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/fastq_dump_paired/fastq_dump_paired_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         r"""
         tmpdir=$(mktemp -d)
@@ -294,17 +344,15 @@ rule fastq_dump_paired:
 
         prefetch --max-size u --progress --log-level info --force ALL --output-directory "$sra_cache" {params.srr} 1>{log} 2>&1
 
-        sra_temp="$sra_cache/{params.srr}.sra"
+        sra_temp="$sra_cache/{params.srr}/{params.srr}.sra"
         fq_forward="$fastq_cache/{params.srr}_1.fastq"
         fq_reverse="$fastq_cache/{params.srr}_2.fastq"
         fasterq-dump --force --split-files --progress --threads {threads} --temp "$fastq_cache" --outdir "$fastq_cache" "$sra_temp" 1>>{log} 2>&1
         printf "\nGzipping:\n1) $fq_forward\n2) $fq_reverse" >> {log}
         pigz --processes {threads} --force "$fq_forward" "$fq_reverse"
 
-        mv --verbose "$fq_forward.gz" "{output.r1}"  1>>{log} 2>&1 &
-        mv --verbose "$fq_reverse.gz" "{output.r2}"  1>>{log} 2>&1 &
-
-        wait
+        mv --force --verbose "$fq_forward.gz" "{output.r1}"  1>>{log} 2>&1
+        mv --force --verbose "$fq_reverse.gz" "{output.r2}"  1>>{log} 2>&1
         """
 
 rule fastq_dump_single:
@@ -340,7 +388,7 @@ rule fastq_dump_single:
         printf "\nGzipping: $fastq_file\n\n" >> {log}
         pigz --processes {threads} --force "$fastq_file"
 
-        mv --verbose "$fastq_file.gz" {output.S} 1>>{log} 2>&1
+        mv --force --verbose "$fastq_file.gz" {output.S} 1>>{log} 2>&1
         """
 
 
@@ -356,13 +404,14 @@ def qc_raw_fastq_paired_input(wildcards):
             for file in files:
                 if sample_name in data.sample_names and file.startswith("_".join(wildcards)):
                     forward_read = f"{path}/{file}"
-                    reverse_read = forward_read.replace("_1.fastq.gz", "_2.fastq.gz")
+                    reverse_read = forward_read.replace("_1.fastq.gz","_2.fastq.gz")
                     return [forward_read, reverse_read]
     else:
         raise FileNotFoundError(f"Unable to find directory 'LOCAL_FASTQ_FILES' defined in 'config.yaml'. Attempted searching: {cfg.local_fastq_filepath}")
 
     print(f"Unable to find files for `qc_raw_fastq_paired` for tissue={wildcards.tissue}, tag={wildcards.tag}")
     return []
+
 
 rule qc_raw_fastq_paired:
     input:
@@ -387,10 +436,10 @@ rule qc_raw_fastq_paired:
 
         fastqc {input.reads} --threads {threads} -o "$tmpdir" 1>{log} 2>&1
 
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html" "{output.r2_html}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html" "{output.r2_html}" 1>>{log} 2>&1
         """
 
 rule qc_raw_fastq_single:
@@ -414,8 +463,8 @@ rule qc_raw_fastq_single:
 
         fastqc {input} --threads 5 -o "$tmpdir" 1>{log} 2>&1
 
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.zip" "{output.s_zip}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.html" "{output.s_html}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.zip" "{output.s_zip}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_fastqc.html" "{output.s_html}" 1>>{log} 2>&1
         """
 
 
@@ -431,14 +480,15 @@ def trim_paired_input(wildcards) -> dict[Literal["r1"] | Literal["r2"], str | li
                 f"Expected 2 FASTQ files for sample '{sample_name}', but found {len(sample_files)} files. "
                 f"File(s): {','.join(i.as_posix() for i in sample_files)}"
             )
-        return {"r1": sample_files[0].as_posix(),  "r2": sample_files[1].as_posix()}
+        return {"r1": sample_files[0].as_posix(), "r2": sample_files[1].as_posix()}
 
     print(f"Unable to find any files for `trim_paired` with tissue={wildcards.tissue}, tag={wildcards.tag}")
     return {"r1": [], "r2": []}
 
+
 rule trim_paired:
     input:
-        unpack(trim_paired_input),  # gives 'r1' and 'r2' keywords
+        unpack(trim_paired_input),# gives 'r1' and 'r2' keywords
     output:
         r1_fastq=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_1.fastq.gz",
         r1_report=f"{cfg.data_root}/{{tissue}}/trim/{{tissue}}_{{tag}}_1_trimming_report.txt",
@@ -456,13 +506,13 @@ rule trim_paired:
         r"""
         tmpdir=$(mktemp -d)
         trap "rm -rf $tmpdir" EXIT
-        trim_galore --paired --cores 4 -o "$tmpdir" {input.r1} {input.r2} 1>{log} 2>&1
+        trim_galore --paired --cores {threads} -o "$tmpdir" {input.r1} {input.r2} 1>{log} 2>&1
 
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_val_1.fq.gz" "{output.r1_fastq}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1.fastq.gz_trimming_report.txt" "{output.r1_report}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_val_1.fq.gz" "{output.r1_fastq}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1.fastq.gz_trimming_report.txt" "{output.r1_report}" 1>>{log} 2>&1
 
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_val_2.fq.gz" "{output.r2_fastq}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2.fastq.gz_trimming_report.txt" "{output.r2_report}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_val_2.fq.gz" "{output.r2_fastq}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2.fastq.gz_trimming_report.txt" "{output.r2_report}" 1>>{log} 2>&1
         """
 
 
@@ -482,6 +532,7 @@ def trim_single_input(wildcards) -> list[str]:
 
     print(f"Unable to find any files for `trim_single` with tissue={wildcards.tissue}, tag={wildcards.tag}")
     return []
+
 
 rule trim_single:
     input:
@@ -504,11 +555,11 @@ rule trim_single:
         tmpdir="$(mktemp -d)"
         trap "rm -rf $tmpdir" EXIT
 
-        trim_galore --cores 4 --output_dir "$tmpdir" {input.S} 1>{log} 2>&1
+        trim_galore --cores {threads} --output_dir "$tmpdir" {input.S} 1>{log} 2>&1
 
         mkdir --verbose -p "$(dirname {output.S_fastq})" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_trimmed.fq.gz" "{output.S_fastq}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S.fastq.gz_trimming_report.txt" "{output.S_report}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S_trimmed.fq.gz" "{output.S_fastq}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_S.fastq.gz_trimming_report.txt" "{output.S_report}" 1>>{log} 2>&1
         """
 
 rule qc_trim_fastq_paired:
@@ -535,10 +586,10 @@ rule qc_trim_fastq_paired:
 
         fastqc {input} --threads {threads} -o "$tmpdir" 1>{log} 2>&1
 
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}" 1>>{log} 2>&1
-        mv --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html" "{output.r2_html}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.zip" "{output.r1_zip}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_1_fastqc.html" "{output.r1_html}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.zip" "{output.r2_zip}" 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir/{wildcards.tissue}_{wildcards.tag}_2_fastqc.html" "{output.r2_html}" 1>>{log} 2>&1
         """
 
 rule qc_trim_fastq_single:
@@ -564,8 +615,8 @@ rule qc_trim_fastq_single:
 
         fastqc {input} --threads {threads} -o "$tmpdir" 1>{log} 2>&1
 
-        mv --verbose "$tmp_zip" "{output.s_zip}" 1>>{log} 2>&1
-        mv --verbose "$tmp_html" "{output.s_html}" 1>>{log} 2>&1
+        mv --force --verbose "$tmp_zip" "{output.s_zip}" 1>>{log} 2>&1
+        mv --force --verbose "$tmp_html" "{output.s_html}" 1>>{log} 2>&1
         """
 
 def align_input(wildcards):
@@ -579,18 +630,18 @@ def align_input(wildcards):
     # Get files from trim_paired and trim_single
     if cfg.perform.trim:
         if _endtype == "PE":
-            return expand(rules.trim_paired.output.r1_fastq, **wildcards) + expand(rules.trim_paired.output.r2_fastq, **wildcards)
+            return expand(rules.trim_paired.output.r1_fastq,**wildcards) + expand(rules.trim_paired.output.r2_fastq,**wildcards)
         elif _endtype == "SE":
-            return expand(rules.trim_single.output.S_fastq, **wildcards)
+            return expand(rules.trim_single.output.S_fastq,**wildcards)
         else:
             raise ValueError(f"Invalid endtype '{_endtype}' for sample '{sample_name}'. Must be one of 'PE' or 'SE'.")
 
     # get files from dump_fastq_paired and dump_fastq_single
     if cfg.perform.dump_fastq:
         if _endtype == "PE":
-            return expand(rules.fastq_dump_paired.output.r1, **wildcards) + expand(rules.fastq_dump_paired.output.r2, **wildcards)
+            return expand(rules.fastq_dump_paired.output.r1,**wildcards) + expand(rules.fastq_dump_paired.output.r2,**wildcards)
         elif _endtype == "SE":
-            return expand(rules.fastq_dump_single.output.S, **wildcards)
+            return expand(rules.fastq_dump_single.output.S,**wildcards)
         else:
             raise ValueError(f"Invalid endtype '{_endtype}' for sample '{sample_name}'. Must be one of 'PE' or 'SE'.")
 
@@ -602,7 +653,8 @@ rule align:
     input:
         files=align_input,
         genome=rules.download_genome.output.primary_assembly
-    output:  # Not all outputs listed are used, but they are listed so Snakemake knows to clean them up on workflow reruns
+    output:
+        # Not all outputs listed are used, but they are listed so Snakemake knows to clean them up on workflow reruns
         bam_file=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}.bam",
         final_log=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}_Log.final.out",
         intermediate_log=f"{cfg.data_root}/{{tissue}}/align/{{tag}}/{{tissue}}_{{tag}}_Log.out",
@@ -626,7 +678,8 @@ rule align:
     shell:
         r"""
         # remove any files not listed in the output
-        rm -rf "$(dirname {output.gene_table})/*"
+        dirout="$(dirname {output.gene_table})"
+        rm -rf "$dirout"/*
 
         tmpdir=$(mktemp -d)
         trap "rm -rf $tmpdir" EXIT
@@ -639,13 +692,13 @@ rule align:
         --outFileNamePrefix "$tmpdir/{wildcards.tissue}_{wildcards.tag}_" \
         --outSAMtype BAM SortedByCoordinate \
         --outSAMunmapped Within \
-        --outSAMattributes Standard \
+        --outSAMattributes Standard XS \
         --quantMode GeneCounts TranscriptomeSAM 1>{log} 2>&1
 
-        mv --verbose $tmpdir/* "$(dirname {output.gene_table})/" 1>>{log} 2>&1
-        mv --verbose {params.gene_table} {output.gene_table} 1>>{log} 2>&1
-        mv --verbose {params.bam_output} {output.bam_file} 1>>{log} 2>&1
-        mv --verbose {params.tx_bam_output} {output.tx_bam} 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir"/* "$dirout/" 1>>{log} 2>&1
+        mv --force --verbose {params.gene_table} {output.gene_table} 1>>{log} 2>&1
+        mv --force --verbose {params.bam_output} {output.bam_file} 1>>{log} 2>&1
+        mv --force --verbose {params.tx_bam_output} {output.tx_bam} 1>>{log} 2>&1
         """
 
 rule index_bam_file:
@@ -669,12 +722,11 @@ rule index_bam_file:
 rule salmon_quantification:
     input:
         tx_bam=rules.align.output.tx_bam,
-        transcriptome=rules.generate_transcriptome_fasta.output.transcriptome
+        transcriptome=rules.generate_transcriptome_fasta.output.transcriptome,
+        gtf=rules.download_genome.output.gtf_file
     output:
         quant=f"{cfg.data_root}/{{tissue}}/read_quantification/salmon/{{tag}}/{{tissue}}_{{tag}}_quant.sf",
-        meta=f"{cfg.data_root}/{{tissue}}/read_quantification/salmon/{{tag}}/{{tissue}}_{{tag}}_meta_info.json"
-    params:
-        outdir=f"{cfg.data_root}/{{tissue}}/read_quantification/salmon/{{tag}}"
+        genes=f"{cfg.data_root}/{{tissue}}/read_quantification/salmon/{{tag}}/{{tissue}}_{{tag}}_quant.genes.sf"
     resources:
         mem_mb=lambda wildcards, attempt: 32768 * attempt,
         runtime=lambda wildcards, attempt: 40 * attempt,
@@ -684,19 +736,25 @@ rule salmon_quantification:
     log: f"{cfg.logs_root}/{{tissue}}/salmon_quant/{{tissue}}_{{tag}}_salmon_quant.log"
     benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/salmon_quantification/salmon_quantification_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
-        r"""
-        mkdir -p {params.outdir}
+        """
+        tmpdir=$(mktemp -d)
+        trap "rm -rf $tmpdir" EXIT
 
         salmon quant \
             --threads {threads} \
             --targets {input.transcriptome} \
             --libType A \
             --alignments {input.tx_bam} \
-            --output {params.outdir} \
+            --geneMap {input.gtf} \
+            --output "$tmpdir" \
             --seqBias --gcBias --posBias --useVBOpt 1>{log} 2>&1
 
-        mv --verbose {params.outdir}/quant.sf {output.quant} 1>>{log} 2>&1
-        mv --verbose {params.outdir}/cmd_info.json {output.meta} 1>>{log} 2>&1
+        outdir=$(dirname {output.quant})
+
+        rm -r --force --verbose "$outdir/"* 1>>{log} 2>&1
+        mv --force --verbose "$tmpdir"/* "$outdir" 1>>{log} 2>&1
+        mv --force --verbose "$outdir/quant.sf" {output.quant} 1>>{log} 2>&1
+        mv --force --verbose "$outdir/quant.genes.sf" {output.genes} 1>>{log} 2>&1
         """
 
 
@@ -726,9 +784,10 @@ def contaminant_screen_input_paired(wildcards) -> dict[Literal["screen_config"] 
 
     return returns
 
+
 rule contaminant_screen_paired:
     input:
-        unpack(contaminant_screen_input_paired)
+        unpack(contaminant_screen_input_paired)  # gives "screen_config" for config file and "files" to process
     output:
         r1=f"{cfg.data_root}/{{tissue}}/fq_screen/{{tissue}}_{{tag}}_1_screen.txt",
         r2=f"{cfg.data_root}/{{tissue}}/fq_screen/{{tissue}}_{{tag}}_2_screen.txt"
@@ -741,7 +800,7 @@ rule contaminant_screen_paired:
     threads: 5
     conda: "envs/screen.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/contaminant_screen/{{tissue}}_{{tag}}_fastq_screen.log"
-    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/contaminant_screen_paired/contaminant_screen_paired_{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/contaminant_screen_paired/contaminant_screen_paired_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         """
         outdir=$(dirname {output.r1})
@@ -780,6 +839,7 @@ def contaminant_screen_input_single(wildcards) -> dict[Literal["screen_config"] 
     print(f"Unable to find any files for `contaminant_screen_single` with tissue={wildcards.tissue}, tag={wildcards.tag}")
     return returns
 
+
 rule contaminant_screen_single:
     input:
         unpack(contaminant_screen_input_single)  # gives `input.screen_config` and `input.files`
@@ -794,7 +854,7 @@ rule contaminant_screen_single:
     threads: 5
     conda: "envs/screen.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/contaminant_screen/{{tissue}}_{{tag}}_fastq_screen.log"
-    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/contaminant_screen_single/contaminant_screen_single{{tissue}}_{{tag}}.benchmark", cfg.benchmark_count)
+    benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/contaminant_screen_single/contaminant_screen_single{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
     shell:
         """
         outdir=$(dirname {output.S})
@@ -804,9 +864,9 @@ rule contaminant_screen_single:
 
 rule fragment_size:
     input:
-        bam = rules.align.output.bam_file,
-        bai = rules.index_bam_file.output,
-        bed_file = rules.download_genome.output.bed_file,
+        bam=rules.align.output.bam_file,
+        bai=rules.index_bam_file.output,
+        bed_file=rules.download_genome.output.bed_file,
     output:
         f"{cfg.data_root}/{{tissue}}/fragmentSizes/{{tissue}}_{{tag}}_fragment_size.txt",
     params:
@@ -856,10 +916,10 @@ rule insert_size:
 
 rule rnaseq_metrics:
     input:
-        bam = rules.align.output.bam_file,
-        tab = rules.align.output.gene_table,
-        ref_flat = rules.download_genome.output.ref_flat,
-        rrna_interval_list = rules.download_genome.output.rrna_interval_list,
+        bam=rules.align.output.bam_file,
+        tab=rules.align.output.gene_table,
+        ref_flat=rules.download_genome.output.ref_flat,
+        rrna_interval_list=rules.download_genome.output.rrna_interval_list,
     output:
         metrics=f"{cfg.data_root}/{{tissue}}/picard/rnaseq/{{tissue}}_{{tag}}_rnaseq.txt",
         strand=f"{cfg.data_root}/{{tissue}}/strand/{{tissue}}_{{tag}}_strand.txt",
@@ -934,22 +994,31 @@ rule copy_gene_counts:
     output: f"{cfg.como_root}/{{tissue}}/geneCounts/{{sample}}/{{tissue}}_{{tag}}.tab"
     shell: """cp {input} {output}"""
 
+rule copy_salmon_quantification:
+    localrule: True
+    input: rules.salmon_quantification.output.genes
+    output: f"{cfg.como_root}/{{tissue}}/quantification/{{sample}}/{{tissue}}_{{tag}}_quant.genes.sf"
+    shell: """cp {input} {output}"""
+
 
 def multiqc_contamination_input(wildcards) -> list[str]:
     if not cfg.perform.contaminant_screen:
         return []
 
-    pe_samples = data.samples.loc[(data.samples["sample"].str.contains(wildcards.tissue)) & (data.samples["endtype"] == "PE")]
-    se_samples = data.samples.loc[(data.samples["sample"].str.contains(wildcards.tissue)) & (data.samples["endtype"] == "SE")]
+    pe_samples = data.samples.loc[
+        (data.samples["sample"].str.contains(wildcards.tissue)) & (data.samples["endtype"] == "PE")]
+    se_samples = data.samples.loc[
+        (data.samples["sample"].str.contains(wildcards.tissue)) & (data.samples["endtype"] == "SE")]
     files: list[str] = []
     if not pe_samples.empty:
-        tissues, tags = pe_samples["sample"].str.split(n=1, pat="_", expand=True).T.values
-        files += expand(rules.contaminant_screen_paired.output.r1, zip, tissue=tissues, tag=tags)
-        files += expand(rules.contaminant_screen_paired.output.r2, zip, tissue=tissues, tag=tags)
+        tissues, tags = pe_samples["sample"].str.split(n=1,pat="_",expand=True).T.values
+        files += expand(rules.contaminant_screen_paired.output.r1,zip,tissue=tissues,tag=tags)
+        files += expand(rules.contaminant_screen_paired.output.r2,zip,tissue=tissues,tag=tags)
     if not se_samples.empty:
-        tissues, tags = se_samples["sample"].str.split(n=1, pat="_", expand=True).T.values
-        files += expand(rules.contaminant_screen_single.output.S, zip, tissue=tissues, tag=tags)
+        tissues, tags = se_samples["sample"].str.split(n=1,pat="_",expand=True).T.values
+        files += expand(rules.contaminant_screen_single.output.S,zip,tissue=tissues,tag=tags)
     return files
+
 
 rule multiqc:
     input:
@@ -959,7 +1028,7 @@ rule multiqc:
         insert_sizes=expand(rules.insert_size.output.txt,zip,tissue=data.tissues,tag=data.tags) if cfg.perform.insert_size else [],
         rnaseq_metrics=expand(rules.rnaseq_metrics.output.metrics,zip,tissue=data.tissues,tag=data.tags) if cfg.perform.rnaseq_metrics else [],
         fragment_sizes=expand(rules.fragment_size.output,zip,tissue=data.tissues,tag=data.tags) if cfg.perform.fragment_size else [],
-        salmon_quant=expand(rules.salmon_quantification.output.meta,zip,tissue=data.tissues,tag=data.tags),
+        salmon_quant=expand(rules.salmon_quantification.output.genes,zip,tissue=data.tissues,tag=data.tags),
     output:
         output_file=f"{cfg.data_root}/{{tissue}}/multiqc/{cfg.sample_filepath.stem}/{cfg.sample_filepath.stem}_multiqc_report.html",
     params:
