@@ -149,7 +149,8 @@ A variety of nf-core steps were skipped (`--skip_*`) as they were not needed to 
 
 ## Statistical Tests
 ### Setup
-The `quant.sf` files from the nfcore pipeline and FastqToGeneCounts should be placed into the respective folders `salmon_quant/nfcore` and `salmon_quant/ftgc`
+The `quant.sf` files from the nfcore pipeline and AutRNAseq should be placed into the respective folders 
+`salmon_quant/nfcore` and `salmon_quant/autornaseq`
 
 Next, run the associated Python file
 ```bash
