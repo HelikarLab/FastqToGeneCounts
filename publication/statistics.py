@@ -172,6 +172,51 @@ def df_from_quantsf_files(path: Path | str, suffix: str) -> pd.DataFrame:
     return pd.concat(dfs, axis=1)
 
 
+def plot_statistics(
+    csv_path: Path | str = Path(__file__).with_name("statistics.csv"),
+    output_path: Path | str = Path(__file__).with_name("stat_metrics.png"),
+) -> Path:
+    csv_path = Path(csv_path)
+    output_path = Path(output_path)
+    
+    df = pd.read_csv(csv_path)
+    required_columns = ["sample_name", "pearson_stat", "spearman_stat", "ks_stat"]
+    missing_columns = [column for column in required_columns if column not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns in '{csv_path}': {missing_columns}")
+    
+    df = df[required_columns].copy()
+    x = np.arange(len(df))
+    metric_specs = [
+        ("pearson_stat", "Pearson Correlation", "#2A9D8F"),
+        ("spearman_stat", "Spearman Correlation", "#264653"),
+        ("ks_stat", "Kolmogorov-Smirnov Statistic", "#E76F51"),
+    ]
+    
+    fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(16, 10), sharex=True, constrained_layout=True)
+    fig.suptitle("Metrics Across All Samples", fontsize=14)
+    
+    for ax, (column, ylabel, color) in zip(axes, metric_specs, strict=True):
+        values = df[column].to_numpy(dtype=float)
+        ax.plot(x, values, marker="o", markersize=3.5, linewidth=1.0, color=color)
+        ax.scatter(x, values, s=16, color=color, zorder=2)
+        ax.axhline(values.mean(), color="black", linewidth=0.8, linestyle="--", alpha=0.8)
+        
+        span = float(np.ptp(values))
+        pad = span * 0.15 if span > 0 else max(1e-4, abs(float(values[0])) * 0.1)
+        ax.set_ylim(values.min() - pad, values.max() + pad)
+        ax.set_ylabel(ylabel)
+        ax.grid(axis="y", linestyle=":", linewidth=0.8, alpha=0.45)
+    
+    axes[-1].set_xticks(x)
+    axes[-1].set_xticklabels(df["sample_name"], rotation=90)
+    axes[-1].set_xlabel("Sample Name")
+    
+    fig.savefig(output_path, dpi=300)
+    plt.close(fig)
+    return output_path
+
+
 def main():
     nfcore_dir = Path(__file__).parent / "salmon_quant" / "nfcore"
     autornaseq_dir = Path(__file__).parent / "salmon_quant" / "autornaseq"
