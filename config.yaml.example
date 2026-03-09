@@ -1,6 +1,3 @@
-# Instructions for gathering a reference genome can be found at the link below
-# https://helikarlab.github.io/FastqToGeneCounts/fastq_setup_genome.html
-
 # Modify these settings to reflect your paths
 # Only change values after the colon (':')
 
