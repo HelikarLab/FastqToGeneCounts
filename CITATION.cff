@@ -2,7 +2,7 @@
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
-title: FastqToGeneCounts
+title: AutoRNAseq
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -18,7 +18,7 @@ authors:
     orcid: 'https://orcid.org/0000-0003-2334-8790'
     email: babessell@gmail.com
     affiliation: University of Nebraska-Lincoln
-repository-code: 'https://github.com/HelikarLab/FastqToGeneCounts'
+repository-code: 'https://gitlab.com/DTIH/AutoRNAseq.git'
 keywords:
   - snakemake
   - NCBI
