@@ -1,4 +1,4 @@
-# FastqToGeneCounts
+# AutoRNAseq
 
 [![Code style: snakefmt](https://img.shields.io/badge/code%20style-snakefmt-000000.svg)](https://github.com/snakemake/snakefmt)
 
@@ -50,8 +50,8 @@ This workflow:
 Clone the repository using Git:
 
 ```bash
-git clone https://git.unl.edu/HelikarLab/FastqToGeneCounts.git
-cd FastqToGeneCounts
+git clone https://gitlab.com/unebraska/lagbh-public/autornaseq.git
+cd autornaseq
 ```
 
 ## Conda Environment Setup
@@ -295,7 +295,7 @@ This script reads benchmark data from the `benchmarks/` directory and produces v
 
 ## Getting Help
 
-Please [open an issue](https://git.unl.edu/helikarlab/FastqToGeneCounts/issues) with:
+Please [open an issue](https://gitlab.com/unebraska/lagbh-public/autornaseq/issues) with:
 
 - The exact error message
 - Your configuration file
@@ -307,9 +307,9 @@ Please [open an issue](https://git.unl.edu/helikarlab/FastqToGeneCounts/issues) 
 If you use this pipeline in your research, please cite it as:
 
 ```bibtex
-@software{FastqToGeneCounts,
+@software{AutoRNAseq,
   author = {Josh Loecker, Brandt Bessell, Bhanwar lal Puniya, Tomáš Helikar},
-  title = {FastqToGeneCounts: Automated Bulk RNA-seq Alignment},
+  title = {AutoRNAseq: Automated Bulk RNA-seq Analysis Pipeline},
   url = {https://git.unl.edu/helikarlab/FastqToGeneCounts}
 }
 ```
@@ -322,3 +322,5 @@ Contributions are welcome! Please open an issue or submit a merge request for:
 - Feature requests
 - Documentation improvements
 - Code enhancements
+
+Note that **you will need a GitLab account** to open an issue or merge requrest. This is a requirement of the GitLab platform that allows you to receive notifications when we respond to your report. Unfortunately, we are unable to allow anonymous issue reporting due to these platform-wide settings.
