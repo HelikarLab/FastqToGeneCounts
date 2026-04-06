@@ -9,8 +9,8 @@ from typing import Any, Literal
 
 import pandas as pd
 
-from utils.download_genome import get_latest_release, species_from_taxon
-
+# from utils.download_genome import get_latest_release, species_from_taxon
+from download_genome import get_latest_release, species_from_taxon
 
 @dataclass(frozen=True, slots=True)
 class Perform:

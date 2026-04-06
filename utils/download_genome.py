@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 _ensembl_release_url = "https://rest.ensembl.org/info/software?content-type=application/json"
+_ensembl_species_url = "https://rest.ensembl.org/info/species?content-type=application/json"
 _ensembl_ftp_url = "ftp.ensembl.org"
 _ucsc_url = "https://api.genome.ucsc.edu"
 _ref_flat_url = "https://hgdownload.soe.ucsc.edu/goldenPath/{final_genome}/database/refFlat.txt.gz"
@@ -253,7 +254,9 @@ class NCBI:
                     chromosome_files.append(filename)
                 if filename.endswith(f".dna.{self._type}.1.fa.gz"):
                     assembly_filename = filename.split("/")[-1].replace(".1.fa.gz", ".fa.gz")
-            
+            if not assembly_filename:
+                raise FileNotFoundError(f"Could not find a primary assembly file or chromosome files for {self._species_name} and release {self._release_number}")
+                
             output_fasta_file = Path(save_directory, assembly_filename)
             print(f"Output fasta file will be: {output_fasta_file}")
             with output_fasta_file.open("wb") as fasta_file:
