@@ -679,7 +679,7 @@ rule salmon_quantification:
         mem_mb=lambda wildcards, attempt: 32768 * attempt,
         runtime=lambda wildcards, attempt: 40 * attempt,
         tissue=lambda wildcards: wildcards.tissue
-    threads: 8
+    threads: 4
     conda: "envs/salmon.yaml"
     log: f"{cfg.logs_root}/{{tissue}}/salmon_quant/{{tissue}}_{{tag}}_salmon_quant.log"
     benchmark: repeat(f"{cfg.benchmark_dir}/{{tissue}}/salmon_quantification/salmon_quantification_{{tissue}}_{{tag}}.benchmark",cfg.benchmark_count)
